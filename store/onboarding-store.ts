@@ -2,10 +2,12 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 
-export type NativeLanguageCode = 'it' | 'es' | 'fr' | 'de' | 'pt' | 'ru' | 'zh' | 'ja' | 'ko' | 'ar';
-export type LanguageLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-export type LearningGoal = 'travel' | 'fluency' | 'work' | 'exam';
-export type LearningStyle = 'visual' | 'audio' | 'conversational';
+import { LANGUAGE_LEVELS, LEARNING_GOALS, LEARNING_STYLES, NATIVE_LANGUAGES } from '@/constants/constants';
+
+export type NativeLanguageCode = typeof NATIVE_LANGUAGES[number]['id'];
+export type LanguageLevel = typeof LANGUAGE_LEVELS[number]['id'];
+export type LearningGoal = typeof LEARNING_GOALS[number]['id'];
+export type LearningStyle = typeof LEARNING_STYLES[number]['id'];
 
 interface OnboardingState {
   currentStep: number;

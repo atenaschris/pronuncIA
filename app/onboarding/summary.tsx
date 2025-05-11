@@ -5,42 +5,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
-import { NativeLanguageCode, useOnboardingStore } from '@/store/onboarding-store';
-
-const LANGUAGE_LEVELS = {
-  A1: 'Beginner',
-  A2: 'Elementary',
-  B1: 'Intermediate',
-  B2: 'Upper Intermediate',
-  C1: 'Advanced',
-  C2: 'Mastery',
-};
-
-const NATIVE_LANGUAGES: Record<NativeLanguageCode, string> = {
-  it: 'Italian',
-  es: 'Spanish',
-  fr: 'French',
-  de: 'German',
-  pt: 'Portuguese',
-  ru: 'Russian',
-  zh: 'Chinese',
-  ja: 'Japanese',
-  ko: 'Korean',
-  ar: 'Arabic',
-};
-
-const LEARNING_GOALS = {
-  travel: 'Travel & Tourism',
-  fluency: 'General Fluency',
-  work: 'Professional Growth',
-  exam: 'Exam Preparation',
-};
-
-const LEARNING_STYLES = {
-  visual: 'Visual Learner',
-  audio: 'Audio Learner',
-  conversational: 'Conversational Learner',
-};
+import { LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS } from '@/constants/constants';
+import { useOnboardingStore } from '@/store/onboarding-store';
 
 export default function SummaryScreen() {
   const opacity = useSharedValue(0);
@@ -82,17 +48,17 @@ export default function SummaryScreen() {
         <View style={styles.summaryContainer}>
           <View style={styles.summaryItem}>
             <ThemedText style={styles.label}>English Level</ThemedText>
-            <ThemedText style={styles.value}>{languageLevel ? LANGUAGE_LEVELS[languageLevel] : '-'}</ThemedText>
+            <ThemedText style={styles.value}>{languageLevel ? LANGUAGE_LEVEL_LABELS[languageLevel] : '-'}</ThemedText>
           </View>
 
           <View style={styles.summaryItem}>
             <ThemedText style={styles.label}>Native Language</ThemedText>
-            <ThemedText style={styles.value}>{nativeLanguage ? NATIVE_LANGUAGES[nativeLanguage] : '-'}</ThemedText>
+            <ThemedText style={styles.value}>{nativeLanguage ? NATIVE_LANGUAGE_LABELS[nativeLanguage] : '-'}</ThemedText>
           </View>
 
           <View style={styles.summaryItem}>
             <ThemedText style={styles.label}>Learning Goal</ThemedText>
-            <ThemedText style={styles.value}>{learningGoal ? LEARNING_GOALS[learningGoal] : '-'}</ThemedText>
+            <ThemedText style={styles.value}>{learningGoal ? LEARNING_GOAL_LABELS[learningGoal] : '-'}</ThemedText>
           </View>
 
           <View style={styles.summaryItem}>
@@ -104,7 +70,7 @@ export default function SummaryScreen() {
 
           <View style={styles.summaryItem}>
             <ThemedText style={styles.label}>Learning Style</ThemedText>
-            <ThemedText style={styles.value}>{learningStyle ? LEARNING_STYLES[learningStyle] : '-'}</ThemedText>
+            <ThemedText style={styles.value}>{learningStyle ? LEARNING_STYLE_LABELS[learningStyle] : '-'}</ThemedText>
           </View>
         </View>
 

@@ -5,24 +5,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
-import type { NativeLanguageCode } from '@/store/onboarding-store';
 import { useOnboardingStore } from '@/store/onboarding-store';
-import type { OnboardingOption } from '@/types/onboarding';
-
-type NativeLanguageOption = OnboardingOption<NativeLanguageCode>;
-
-const NATIVE_LANGUAGES: NativeLanguageOption[] = [
-  { id: 'it', label: 'Italian', description: 'Romance language with melodic pronunciation and clear vowel sounds' },
-  { id: 'es', label: 'Spanish', description: 'Romance language with consistent pronunciation rules' },
-  { id: 'fr', label: 'French', description: 'Romance language with unique nasal sounds and silent letters' },
-  { id: 'de', label: 'German', description: 'Germanic language with strong consonants and compound words' },
-  { id: 'pt', label: 'Portuguese', description: 'Romance language with distinctive nasal vowels and soft consonants' },
-  { id: 'ru', label: 'Russian', description: 'Slavic language with complex consonant clusters and soft/hard sounds' },
-  { id: 'zh', label: 'Chinese', description: 'Tonal language with unique phonetic system and character-based writing' },
-  { id: 'ja', label: 'Japanese', description: 'Pitch-accent language with simple phonetic structure' },
-  { id: 'ko', label: 'Korean', description: 'Agglutinative language with unique alphabet and pronunciation rules' },
-  { id: 'ar', label: 'Arabic', description: 'Semitic language with rich phonetic system and distinctive sounds' },
-];
+import { NATIVE_LANGUAGES } from '../../constants/constants';
 
 export default function NativeLanguageScreen() {
   const opacity = useSharedValue(0);

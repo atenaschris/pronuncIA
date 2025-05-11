@@ -5,34 +5,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
-import type { LearningGoal } from '@/store/onboarding-store';
 import { useOnboardingStore } from '@/store/onboarding-store';
-import type { OnboardingOption } from '@/types/onboarding';
-
-type LearningGoalOption = OnboardingOption<LearningGoal>;
-
-const LEARNING_GOALS: LearningGoalOption[] = [
-  {
-    id: 'travel',
-    label: 'Travel & Tourism',
-    description: 'Learn essential phrases for traveling and tourism',
-  },
-  {
-    id: 'fluency',
-    label: 'General Fluency', 
-    description: 'Improve overall speaking ability and confidence',
-  },
-  {
-    id: 'work',
-    label: 'Professional Growth',
-    description: 'Focus on business and workplace communication',
-  },
-  {
-    id: 'exam',
-    label: 'Exam Preparation',
-    description: 'Prepare for English proficiency tests (IELTS, TOEFL)',
-  },
-];
+import { LEARNING_GOALS } from '../../constants/constants';
 
 export default function LearningGoalsScreen() {
   const opacity = useSharedValue(0);

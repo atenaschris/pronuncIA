@@ -2,9 +2,9 @@ import { Link } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 import { useOnboardingStore } from '@/store/onboarding-store';
 
 const TIME_OPTIONS = [
@@ -15,12 +15,13 @@ const TIME_OPTIONS = [
   { minutes: 30, label: '30 minutes' },
   { minutes: 45, label: '45 minutes' },
   { minutes: 60, label: '1 hour' },
-];
+] as const;
 
 export default function TimeCommitmentScreen() {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
   const { setTimeCommitment, timeCommitment } = useOnboardingStore();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     opacity.value = withTiming(1, { duration: 800 });
@@ -33,7 +34,7 @@ export default function TimeCommitmentScreen() {
   }));
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <Animated.View style={[styles.content, animatedStyle]}>
         <ThemedText type="title" style={styles.title}>
           Daily Practice Time
@@ -62,7 +63,7 @@ export default function TimeCommitmentScreen() {
           </Link>
         )}
       </Animated.View>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 

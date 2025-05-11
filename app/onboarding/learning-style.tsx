@@ -5,29 +5,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
-import type { LearningStyle } from '@/store/onboarding-store';
 import { useOnboardingStore } from '@/store/onboarding-store';
-import type { OnboardingOption } from '@/types/onboarding';
-
-type LearningStyleOption = OnboardingOption<LearningStyle>;
-
-const LEARNING_STYLES: LearningStyleOption[] = [
-  {
-    id: 'visual',
-    label: 'Visual Learner',
-    description: 'Learn through diagrams, videos, and visual feedback',
-  },
-  {
-    id: 'audio',
-    label: 'Audio Learner',
-    description: 'Focus on listening and speaking exercises',
-  },
-  {
-    id: 'conversational',
-    label: 'Conversational Learner',
-    description: 'Practice through interactive dialogues and role-play',
-  },
-];
+import { LEARNING_STYLES } from '../../constants/constants';
 
 export default function LearningStyleScreen() {
   const opacity = useSharedValue(0);
@@ -60,7 +39,7 @@ export default function LearningStyleScreen() {
             <Animated.View
               key={style.id}
               style={[styles.styleButton, learningStyle === style.id && styles.selectedStyle]}
-              onTouchEnd={() => setLearningStyle(style.id as LearningStyle)}
+              onTouchEnd={() => setLearningStyle(style.id)}
             >
               <ThemedText style={[styles.styleLabel, learningStyle === style.id && styles.selectedText]}>
                 {style.label}

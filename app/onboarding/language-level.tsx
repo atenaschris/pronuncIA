@@ -7,18 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ThemedText } from '@/components/ThemedText';
 import type { LanguageLevel } from '@/store/onboarding-store';
 import { useOnboardingStore } from '@/store/onboarding-store';
-import type { OnboardingOption } from '@/types/onboarding';
-
-type LanguageLevelOption = OnboardingOption<LanguageLevel>;
-
-const LANGUAGE_LEVELS: LanguageLevelOption[] = [
-  { id: 'A1', label: 'Beginner (A1)', description: 'Basic phrases and expressions' },
-  { id: 'A2', label: 'Elementary (A2)', description: 'Simple conversations' },
-  { id: 'B1', label: 'Intermediate (B1)', description: 'Clear standard input' },
-  { id: 'B2', label: 'Upper Intermediate (B2)', description: 'Complex topics' },
-  { id: 'C1', label: 'Advanced (C1)', description: 'Effective mastery' },
-  { id: 'C2', label: 'Mastery (C2)', description: 'Near-native proficiency' },
-];
+import { LANGUAGE_LEVELS } from '../../constants/constants';
 
 
 export default function LanguageLevelScreen() {
