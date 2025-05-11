@@ -15,8 +15,15 @@ export default function WelcomeScreen() {
 
   // Animation effect when component mounts
   useEffect(() => {
-    opacity.value = withTiming(1, { duration: 1000 });
-    translateY.value = withTiming(0, { duration: 800 });
+    // Set initial values
+    opacity.value = 0;
+    translateY.value = 20;
+    
+    // Start animations after a brief delay
+    setTimeout(() => {
+      opacity.value = withTiming(1, { duration: 500 });
+      translateY.value = withTiming(0, { duration: 400 });
+    }, 100);
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -44,11 +51,11 @@ export default function WelcomeScreen() {
 
         <View style={styles.spacer} />
 
-        <Link href="/onboarding" asChild>
-          <Animated.View style={styles.button}>
+        <Animated.View>
+          <Link href="/onboarding/language-level" style={styles.button}>
             <ThemedText style={styles.buttonText}>Get Started</ThemedText>
-          </Animated.View>
-        </Link>
+          </Link>
+        </Animated.View>
       </Animated.View>
     </ThemedView>
   );

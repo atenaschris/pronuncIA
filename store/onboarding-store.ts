@@ -2,26 +2,27 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 
-type LanguageLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-type LearningGoal = 'travel' | 'fluency' | 'work' | 'exam';
-type LearningStyle = 'visual' | 'audio' | 'conversational';
+export type NativeLanguageCode = 'it' | 'es' | 'fr' | 'de' | 'pt' | 'ru' | 'zh' | 'ja' | 'ko' | 'ar';
+export type LanguageLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type LearningGoal = 'travel' | 'fluency' | 'work' | 'exam';
+export type LearningStyle = 'visual' | 'audio' | 'conversational';
 
 interface OnboardingState {
   currentStep: number;
   languageLevel: LanguageLevel | null;
-  nativeLanguage: string | null;
-  learningGoals: LearningGoal[];
+  nativeLanguage: NativeLanguageCode | null;
+  learningGoal: LearningGoal | null;
   timeCommitment: number | null;
   learningStyle: LearningStyle | null;
   isComplete: boolean;
 
   setCurrentStep: (step: number) => void;
   setLanguageLevel: (level: LanguageLevel) => void;
-  setNativeLanguage: (language: string) => void;
-  setLearningGoals: (goals: LearningGoal[]) => void;
+  setNativeLanguage: (language: NativeLanguageCode) => void;
+  setLearningGoal: (goal: LearningGoal) => void;
   setTimeCommitment: (minutes: number) => void;
   setLearningStyle: (style: LearningStyle) => void;
-  completeOnboarding: () => void;
+  setIsComplete: (isComplete: boolean) => void;
   resetOnboarding: () => void;
 }
 
@@ -30,7 +31,7 @@ export const useOnboardingStore = create<OnboardingState>()(persist(
     currentStep: 0,
     languageLevel: null,
     nativeLanguage: null,
-    learningGoals: [],
+    learningGoal: null,
     timeCommitment: null,
     learningStyle: null,
     isComplete: false,
@@ -38,15 +39,15 @@ export const useOnboardingStore = create<OnboardingState>()(persist(
     setCurrentStep: (step) => set({ currentStep: step }),
     setLanguageLevel: (level) => set({ languageLevel: level }),
     setNativeLanguage: (language) => set({ nativeLanguage: language }),
-    setLearningGoals: (goals) => set({ learningGoals: goals }),
+    setLearningGoal: (goal) => set({ learningGoal: goal }),
     setTimeCommitment: (minutes) => set({ timeCommitment: minutes }),
     setLearningStyle: (style) => set({ learningStyle: style }),
-    completeOnboarding: () => set({ isComplete: true }),
+    setIsComplete: (isComplete) => set({ isComplete }),
     resetOnboarding: () => set({
       currentStep: 0,
       languageLevel: null,
       nativeLanguage: null,
-      learningGoals: [],
+      learningGoal: null,
       timeCommitment: null,
       learningStyle: null,
       isComplete: false,
