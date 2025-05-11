@@ -11,11 +11,11 @@ export type LearningStyle = typeof LEARNING_STYLES[number]['id'];
 
 interface OnboardingState {
   currentStep: number;
-  languageLevel: LanguageLevel | null;
-  nativeLanguage: NativeLanguageCode | null;
-  learningGoal: LearningGoal | null;
-  timeCommitment: number | null;
-  learningStyle: LearningStyle | null;
+  languageLevel: LanguageLevel;
+  nativeLanguage: NativeLanguageCode;
+  learningGoal: LearningGoal;
+  timeCommitment: number;
+  learningStyle: LearningStyle;
   isComplete: boolean;
 
   setCurrentStep: (step: number) => void;
@@ -31,11 +31,11 @@ interface OnboardingState {
 export const useOnboardingStore = create<OnboardingState>()(persist(
   (set) => ({
     currentStep: 0,
-    languageLevel: null,
-    nativeLanguage: null,
-    learningGoal: null,
-    timeCommitment: null,
-    learningStyle: null,
+    languageLevel: LANGUAGE_LEVELS[0].id,
+    nativeLanguage: NATIVE_LANGUAGES[0].id,
+    learningGoal: LEARNING_GOALS[0].id,
+    timeCommitment: 15,
+    learningStyle: LEARNING_STYLES[0].id,
     isComplete: false,
 
     setCurrentStep: (step) => set({ currentStep: step }),
@@ -47,11 +47,11 @@ export const useOnboardingStore = create<OnboardingState>()(persist(
     setIsComplete: (isComplete) => set({ isComplete }),
     resetOnboarding: () => set({
       currentStep: 0,
-      languageLevel: null,
-      nativeLanguage: null,
-      learningGoal: null,
-      timeCommitment: null,
-      learningStyle: null,
+      languageLevel: LANGUAGE_LEVELS[0].id,
+      nativeLanguage: NATIVE_LANGUAGES[0].id,
+      learningGoal: LEARNING_GOALS[0].id,
+      timeCommitment: 15,
+      learningStyle: LEARNING_STYLES[0].id,
       isComplete: false,
     }),
   }),

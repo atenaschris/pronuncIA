@@ -97,3 +97,13 @@ export const LEARNING_STYLE_LABELS = {
   audio: 'Audio Learner',
   conversational: 'Conversational Learner',
 } as const;
+
+export const TIME_OPTIONS = [
+  { minutes: 5, label: '5 minutes' },
+  { minutes: 10, label: '10 minutes' },
+  { minutes: 15, label: '15 minutes' },
+  { minutes: 20, label: '20 minutes' },
+  { minutes: 30, label: '30 minutes' },
+  { minutes: 45, label: '45 minutes' },
+  { minutes: 60, label: '1 hour' },
+] as const;

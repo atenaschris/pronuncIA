@@ -5,17 +5,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
+import { TIME_OPTIONS } from '@/constants/constants';
 import { useOnboardingStore } from '@/store/onboarding-store';
-
-const TIME_OPTIONS = [
-  { minutes: 5, label: '5 minutes' },
-  { minutes: 10, label: '10 minutes' },
-  { minutes: 15, label: '15 minutes' },
-  { minutes: 20, label: '20 minutes' },
-  { minutes: 30, label: '30 minutes' },
-  { minutes: 45, label: '45 minutes' },
-  { minutes: 60, label: '1 hour' },
-] as const;
 
 export default function TimeCommitmentScreen() {
   const opacity = useSharedValue(0);
