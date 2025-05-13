@@ -6,11 +6,9 @@ import * as React from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useAuthStore } from '@/store/auth-store';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const checkAuth = useAuthStore(state => state.checkAuth);
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
@@ -20,10 +18,6 @@ export default function RootLayout() {
     return null;
   }
 
-  // Initialize authentication state
-  React.useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
