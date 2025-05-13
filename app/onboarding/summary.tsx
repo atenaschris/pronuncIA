@@ -13,7 +13,7 @@ export default function SummaryScreen() {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
   const [isLoading, setIsLoading] = useState(false);
-  const { createProfile } = useAuthStore();
+  const { createOrUpsertProfile } = useAuthStore();
   const {
     languageLevel,
     nativeLanguage,
@@ -42,7 +42,7 @@ export default function SummaryScreen() {
       setIsLoading(true);
       
       // Create profile in anonymous mode initially
-      await createProfile({
+      await createOrUpsertProfile({
         language_level: languageLevel,
         native_language: nativeLanguage,
         learning_goal: learningGoal,

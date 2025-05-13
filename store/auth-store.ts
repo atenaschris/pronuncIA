@@ -4,9 +4,10 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 
+import { createAnonymousProfile, fetchAndSetProfile, handleError, resetAuthState } from './auth-utils';
 import { LanguageLevel, LearningGoal, LearningStyle, NativeLanguageCode } from './onboarding-store';
 
-type UserPreferences = {
+export type UserPreferences = {
   language_level: LanguageLevel;
   native_language: NativeLanguageCode;
   learning_goal: LearningGoal;
@@ -22,7 +23,7 @@ type Profile = {
   is_onboarded: boolean;
 };
 
-interface AuthState {
+export interface AuthState {
   isAuthenticated: boolean;
   session: Session | null;
   profile: Profile | null;
@@ -32,12 +33,14 @@ interface AuthState {
   setSession: (session: Session | null) => void;
   signOut: () => Promise<void>;
   signInWithEmail: (email: string) => Promise<void>;
-  createProfile: (preferences: UserPreferences, asAnonymous?: boolean) => Promise<void>;
+  createOrUpsertProfile: (preferences: UserPreferences, asAnonymous?: boolean) => Promise<void>;
   checkAuth: () => Promise<void>;
   canAccessFeature: (feature: string) => boolean;
 }
 
+
 export const useAuthStore = create<AuthState>()(
+
   persist(
     (set, get) => ({
       isAuthenticated: false,
@@ -56,23 +59,13 @@ export const useAuthStore = create<AuthState>()(
           if (error) throw error;
 
           if (session?.user) {
-            const { data: rawProfile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-
-            const profile = rawProfile ? {
-              ...rawProfile,
-              preferences: rawProfile.preferences as UserPreferences,
-              is_onboarded: rawProfile.is_onboarded ?? false
-            } : null;
-
+            const profile = await fetchAndSetProfile(session.user.id);
             set({
               isAuthenticated: true,
               session,
               profile,
               isLoading: false,
+              error: null
             });
           } else {
             set({
@@ -80,6 +73,7 @@ export const useAuthStore = create<AuthState>()(
               session: null,
               profile: null,
               isLoading: false,
+              error: null
             });
           }
         } catch (error) {
@@ -107,87 +101,58 @@ export const useAuthStore = create<AuthState>()(
 
       signOut: async () => {
         try {
-          // If user is anonymous, just reset the state
-          if (get().isAnonymous) {
-            set({
-              isAuthenticated: false,
-              session: null,
-              profile: null,
-              error: null,
-              isAnonymous: false
-            });
+          const currentState = get();
+          
+          // Prevent anonymous users from signing out
+          if (currentState.isAnonymous) {
             return;
           }
           
           const { error } = await supabase.auth.signOut();
           if (error) throw error;
-          set({
-            isAuthenticated: false,
-            session: null,
-            profile: null,
-            error: null,
-            isAnonymous: false
-          });
+          
+          resetAuthState(set);
         } catch (error) {
           set({ error: (error as Error).message });
         }
       },
 
-      createProfile: async (preferences: UserPreferences, asAnonymous = false) => {
+      createOrUpsertProfile: async (preferences: UserPreferences, asAnonymous = false) => {
         try {
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
-          // Allow anonymous profile creation
           if (asAnonymous) {
-            set({
-              profile: {
-                id: 'anonymous',
-                created_at: new Date().toISOString(),
-                user_id: 'anonymous',
-                preferences,
-                is_onboarded: true
-              },
-              isAnonymous: true,
-              error: null
-            });
+            createAnonymousProfile(preferences, set);
             return;
           }
           
-          if (sessionError) throw new Error('Authentication required');
-          if (!session?.user) throw new Error('Please sign in to continue');
+          // If transitioning from anonymous to authenticated
+          const currentState = get();
+          if (currentState.isAnonymous && currentState.profile) {
+            preferences = currentState.profile.preferences;
+          }
+
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError || !session?.user) {
+            // Allow anonymous users to continue using the app
+            if (currentState.isAnonymous) return;
+            throw new Error('Authentication required');
+          }
 
           const { error: profileError } = await supabase.from('profiles').upsert({
             user_id: session.user.id,
             preferences,
             is_onboarded: true,
+            anonymous_id: currentState.isAnonymous ? currentState.profile?.id : null
           }, { onConflict: 'user_id' });
 
           if (profileError) {
             throw new Error('Failed to save your preferences. Please try again.');
           }
 
-          const { data: rawProfile, error: fetchError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single();
+          const profile = await fetchAndSetProfile(session.user.id);
+          set({ profile, error: null, isAnonymous: false });
 
-          if (fetchError) throw new Error('Failed to retrieve your profile');
-
-          const profile = {
-            ...rawProfile,
-            preferences: rawProfile.preferences as UserPreferences,
-            is_onboarded: true
-          };
-
-          set({
-            profile,
-            error: null,
-          });
         } catch (error) {
-          const message = (error as Error).message;
-          set({ error: message });
-          throw error; // Re-throw to handle in the UI
+          handleError(error as Error, set);
         }
       },
 

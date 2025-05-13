@@ -2,12 +2,15 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as React from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuthStore } from '@/store/auth-store';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const checkAuth = useAuthStore(state => state.checkAuth);
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
@@ -16,6 +19,11 @@ export default function RootLayout() {
     // Async font loading only occurs in development.
     return null;
   }
+
+  // Initialize authentication state
+  React.useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
