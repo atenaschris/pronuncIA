@@ -47,7 +47,8 @@ export default function SummaryScreen() {
         time_commitment: timeCommitment,
         learning_style: learningStyle,
       }, true); // Set asAnonymous to true
-
+      
+      // Proceed with soft login strategy
       setIsComplete(true);
       router.replace('/(tabs)');
     } catch (error) {
