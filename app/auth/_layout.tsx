@@ -14,6 +14,20 @@ export default function AuthLayout() {
         headerShadowVisible: false,
         headerBackTitle: 'Back',
       }}
-    />
+    >
+      <Stack.Screen
+        name="index"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="register"
+        options={{
+          title: 'Create Account',
+          headerShown: false,
+        }}
+      />
+    </Stack>
   );
 }

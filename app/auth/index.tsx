@@ -59,7 +59,7 @@ export default function AuthScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.animationContainer}>
         <LottieView
-          source={require('@/assets/animations/auth-animation.json')}
+          source={require('@/assets/animations/circle-grow-animation.json')}
           autoPlay
           loop
           style={styles.animation}
@@ -146,15 +146,19 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   animationContainer: {
     height: 200,
-    marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    marginHorizontal: 20,
+    overflow: 'hidden',
   },
   animation: {
     width: '100%',
     height: '100%',
+    transform: [{ scale: 1.2 }],
   },
   content: {
     flex: 1,
@@ -174,7 +178,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   button: {
-    marginVertical: 8,
+    marginVertical: 12,
   },
   error: {
     color: '#dc2626',
@@ -184,7 +188,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 16,
+    marginVertical: 12,
   },
   line: {
     flex: 1,
@@ -199,6 +203,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 10,
   },
 });
