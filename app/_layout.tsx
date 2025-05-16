@@ -26,9 +26,9 @@ export default function RootLayout() {
           {!useOnboardingStore.getState().isComplete ? (
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           ) : !useAuthStore.getState().isAuthenticated ? (
-            <Stack.Screen name="auth" options={{ headerShown: false }} />
+             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           ) : (
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="auth" options={{ headerShown: false }} />
           )}
           <Stack.Screen name="+not-found" />
         </Stack>
