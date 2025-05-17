@@ -1,10 +1,10 @@
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
 import { ThemedText } from '@/components/ThemedText';
 import { useAuthStore } from '@/store/auth-store';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
 const registerSchema = z.object({
@@ -40,7 +40,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ThemedSafeAreaView style={styles.container}>
       <View style={styles.content}>
         <ThemedText type="title" style={styles.title}>
           Create Account
@@ -79,7 +79,7 @@ export default function RegisterScreen() {
           </Link>
         </View>
       </View>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 }
 
@@ -91,6 +91,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
+    justifyContent: 'center',
+    gap:15
   },
   title: {
     textAlign: 'center',

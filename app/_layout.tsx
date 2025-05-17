@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuthStore } from '@/store/auth-store';
 import { useOnboardingStore } from '@/store/onboarding-store';
 
 export default function RootLayout() {
@@ -27,8 +28,10 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           {!useOnboardingStore.getState().isComplete ? (
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+          ) : !useAuthStore.getState().isAuthenticated ? (
+             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           ) : (
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="auth" options={{ headerShown: false }} />
           )}
           <Stack.Screen name="+not-found" />
         </Stack>

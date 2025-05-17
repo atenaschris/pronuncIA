@@ -2,8 +2,8 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
 import { ThemedText } from '@/components/ThemedText';
 import { LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS } from '@/constants/constants';
 import { useAuthStore } from '@/store/auth-store';
@@ -22,8 +22,6 @@ export default function SummaryScreen() {
     learningStyle,
     setIsComplete,
   } = useOnboardingStore();
-  const insets = useSafeAreaInsets();
-
   useEffect(() => {
     opacity.value = withTiming(1, { duration: 800 });
     translateY.value = withTiming(0, { duration: 600 });
@@ -49,7 +47,8 @@ export default function SummaryScreen() {
         time_commitment: timeCommitment,
         learning_style: learningStyle,
       }, true); // Set asAnonymous to true
-
+      
+      // Proceed with soft login strategy
       setIsComplete(true);
       router.replace('/(tabs)');
     } catch (error) {
@@ -60,7 +59,7 @@ export default function SummaryScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <ThemedSafeAreaView style={[styles.container]}>
       <Animated.View style={[styles.content, animatedStyle]}>
         <ThemedText type="title" style={styles.title}>
           Your Learning Profile
@@ -112,7 +111,7 @@ export default function SummaryScreen() {
           )}
         </TouchableOpacity>
       </Animated.View>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 }
 

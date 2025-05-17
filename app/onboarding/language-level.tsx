@@ -2,8 +2,8 @@ import { Link } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
 import { ThemedText } from '@/components/ThemedText';
 import type { LanguageLevel } from '@/store/onboarding-store';
 import { useOnboardingStore } from '@/store/onboarding-store';
@@ -14,8 +14,7 @@ export default function LanguageLevelScreen() {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
   const { setLanguageLevel, languageLevel } = useOnboardingStore();
-  const insets = useSafeAreaInsets();
-
+  
   useEffect(() => {
     opacity.value = withTiming(1, { duration: 800 });
     translateY.value = withTiming(0, { duration: 600 });
@@ -27,7 +26,7 @@ export default function LanguageLevelScreen() {
   }));
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <ThemedSafeAreaView style={[styles.container]}>
       <Animated.View style={[styles.content, animatedStyle]}>
         <ThemedText type="title" style={styles.title}>
           What's your English level?
@@ -59,7 +58,7 @@ export default function LanguageLevelScreen() {
           </Link>
         )}
       </Animated.View>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 }
 

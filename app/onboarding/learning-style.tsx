@@ -1,19 +1,16 @@
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
+import { ThemedText } from '@/components/ThemedText';
+import { useOnboardingStore } from '@/store/onboarding-store';
 import { Link } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { ThemedText } from '@/components/ThemedText';
-import { useOnboardingStore } from '@/store/onboarding-store';
 import { LEARNING_STYLES } from '../../constants/constants';
 
 export default function LearningStyleScreen() {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
   const { setLearningStyle, learningStyle } = useOnboardingStore();
-  const insets = useSafeAreaInsets();
-
   useEffect(() => {
     opacity.value = withTiming(1, { duration: 800 });
     translateY.value = withTiming(0, { duration: 600 });
@@ -25,7 +22,7 @@ export default function LearningStyleScreen() {
   }));
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <ThemedSafeAreaView style={[styles.container]}>
       <Animated.View style={[styles.content, animatedStyle]}>
         <ThemedText type="title" style={styles.title}>
           How do you learn best?
@@ -59,7 +56,7 @@ export default function LearningStyleScreen() {
           </Link>
         )}
       </Animated.View>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 }
 

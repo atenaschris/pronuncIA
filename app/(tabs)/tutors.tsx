@@ -1,20 +1,15 @@
-import { StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
 import { ThemedText } from '@/components/ThemedText';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-
+import { StyleSheet } from 'react-native';
 export default function TutorsScreen() {
-  const colorScheme = useColorScheme();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme!].background }]} edges={['top', 'bottom']}>
+    <ThemedSafeAreaView style={[styles.container]}>
       <ThemedText type="title">Tutors</ThemedText>
       <ThemedText type="subtitle">
         Connect with language experts
       </ThemedText>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 }
 

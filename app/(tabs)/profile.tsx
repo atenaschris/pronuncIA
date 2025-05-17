@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
 export default function ProfileScreen() {
   return (
-    <SafeAreaView style={styles.container}>
+    <ThemedSafeAreaView style={styles.container}>
       <ThemedView style={styles.header}>
         <ThemedText type="title" style={styles.title}>
           Profile
@@ -18,7 +18,7 @@ export default function ProfileScreen() {
           Your profile information and settings will appear here.
         </ThemedText>
       </ThemedView>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 }
 

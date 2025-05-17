@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Text } from 'react-native-paper';
@@ -9,12 +9,12 @@ export default function CreditsScreen() {
   const colorScheme = useColorScheme();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme!].background }]} edges={['top', 'bottom']}>
+    <ThemedSafeAreaView style={[styles.container]}>
       <Text style={[styles.title, { color: Colors[colorScheme!].text }]}>Credits</Text>
       <Text style={[styles.subtitle, { color: Colors[colorScheme!].text }]}>
         Manage your learning credits
       </Text>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 }
 

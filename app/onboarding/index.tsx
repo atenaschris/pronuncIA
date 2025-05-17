@@ -3,8 +3,8 @@ import { Link } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -12,7 +12,6 @@ export default function WelcomeScreen() {
   const colorScheme = useColorScheme();
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
-  const insets = useSafeAreaInsets();
 
   // Animation effect when component mounts
   useEffect(() => {
@@ -33,7 +32,7 @@ export default function WelcomeScreen() {
   }));
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <ThemedSafeAreaView style={[styles.container]}>
       <View style={styles.logoContainer}>
         <Image
           source={require('@/assets/images/icon.png')}
@@ -58,7 +57,7 @@ export default function WelcomeScreen() {
           </Link>
         </Animated.View>
       </Animated.View>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 }
 

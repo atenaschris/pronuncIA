@@ -1,75 +1,115 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
-export default function HomeScreen() {
+import { LessonBlock } from '@/components/learn/lesson-block';
+import { ProgressHeader } from '@/components/learn/progress-header';
+import { useLessonStore } from '@/store/lesson-store';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+
+export default function LearnScreen() {
+  const { dailyPlan, currentStreak, totalXp, generateDailyPlan, completeLesson, isLoading } = useLessonStore();
+
+  useEffect(() => {
+    if (!dailyPlan) {
+      generateDailyPlan();
+    }
+  }, []);
+
+  const handleLessonPress = (lesson: any) => {
+    // TODO: Navigate to specific lesson screen based on type
+    router.push(`/lesson/${lesson.type}`);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
+    <ThemedSafeAreaView style={styles.container}>
+      <ThemedView style={styles.header}>
+        <ThemedText type="title" style={styles.title}>Daily Plan</ThemedText>
+        <ThemedText type="subtitle" style={styles.subtitle}>
+          Your personalized learning path
         </ThemedText>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ProgressHeader currentStreak={currentStreak} totalXp={totalXp} />
+        
+        {isLoading ? (
+          <ThemedText style={styles.loadingText}>Generating your daily plan...</ThemedText>
+        ) : dailyPlan?.lessons.map((lesson) => (
+          <LessonBlock
+            key={lesson.id}
+            lesson={lesson}
+            onPress={handleLessonPress}
+          />
+        ))}
+      </ScrollView>
+    </ThemedSafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
+  header: {
+    padding: 20,
+    paddingBottom: 10,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  subtitle: {
+    fontSize: 18,
+    opacity: 0.8,
   },
+  scrollView: {
+    flex: 1,
+  },
+  lessonGrid: {
+    padding: 10,
+    gap: 15,
+  },
+  lessonCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  lessonContent: {
+    padding: 20,
+    borderRadius: 12,
+    backgroundColor: '#f0f0f0',
+  },
+  lessonTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  lessonSubtitle: {
+    fontSize: 16,
+    opacity: 0.7,
+    marginBottom: 12,
+  },
+  xpBadge: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  xpText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  loadingText: {
+    fontSize: 16,
+    textAlign: 'center',
+    opacity: 0.8,
+    marginTop: 20
+  }
 });

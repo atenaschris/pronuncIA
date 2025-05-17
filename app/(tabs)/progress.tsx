@@ -1,20 +1,17 @@
-import { StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
 import { ThemedText } from '@/components/ThemedText';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { StyleSheet } from 'react-native';
+
 
 export default function ProgressScreen() {
-  const colorScheme = useColorScheme();
-
+ 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme!].background }]} edges={['top', 'bottom']}>
+    <ThemedSafeAreaView style={[styles.container]}>
       <ThemedText type="title">Progress</ThemedText>
       <ThemedText type="subtitle">
         Track your learning journey
       </ThemedText>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 }
 

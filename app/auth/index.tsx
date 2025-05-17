@@ -1,3 +1,4 @@
+import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
 import { ThemedText } from '@/components/ThemedText';
 import { useAuthStore } from '@/store/auth-store';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -6,7 +7,6 @@ import LottieView from 'lottie-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
@@ -56,10 +56,10 @@ export default function AuthScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ThemedSafeAreaView style={styles.container}>
       <View style={styles.animationContainer}>
         <LottieView
-          source={require('@/assets/animations/circle-grow-animation.json')}
+          source={require('@/assets/animations/auth-animation.json')}
           autoPlay
           loop
           style={styles.animation}
@@ -139,26 +139,22 @@ export default function AuthScreen() {
           </Link>
         </View>
       </View>
-    </SafeAreaView>
+    </ThemedSafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
   },
   animationContainer: {
     height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    marginHorizontal: 20,
-    overflow: 'hidden',
+    marginTop: 20,
   },
   animation: {
     width: '100%',
     height: '100%',
-    transform: [{ scale: 1.2 }],
   },
   content: {
     flex: 1,
@@ -178,7 +174,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   button: {
-    marginVertical: 12,
+    marginVertical: 8,
   },
   error: {
     color: '#dc2626',
@@ -188,7 +184,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: 16,
   },
   line: {
     flex: 1,
@@ -203,6 +199,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 16,
   },
 });
