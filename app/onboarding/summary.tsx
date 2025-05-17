@@ -1,16 +1,19 @@
-import { Link } from 'expo-router';
-import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
 import { LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS } from '@/constants/constants';
+import { useAuthStore } from '@/store/auth-store';
 import { useOnboardingStore } from '@/store/onboarding-store';
 
 export default function SummaryScreen() {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
+  const [isLoading, setIsLoading] = useState(false);
+  const { createOrUpsertProfile } = useAuthStore();
   const {
     languageLevel,
     nativeLanguage,
@@ -31,8 +34,29 @@ export default function SummaryScreen() {
     transform: [{ translateY: translateY.value }],
   }));
 
-  const handleComplete = () => {
-    setIsComplete(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleComplete = async () => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      
+      // Create profile in anonymous mode initially
+      await createOrUpsertProfile({
+        language_level: languageLevel,
+        native_language: nativeLanguage,
+        learning_goal: learningGoal,
+        time_commitment: timeCommitment,
+        learning_style: learningStyle,
+      }, true); // Set asAnonymous to true
+
+      setIsComplete(true);
+      router.replace('/(tabs)');
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -74,15 +98,36 @@ export default function SummaryScreen() {
           </View>
         </View>
 
-        <Link href="/(tabs)" style={styles.startButton} onPress={handleComplete}>
-          <ThemedText style={styles.startButtonText}>Start Learning</ThemedText>
-        </Link>
+        {error && (
+          <View style={styles.errorContainer}>
+            <ThemedText style={styles.errorText}>{error}</ThemedText>
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.startButton} onPress={handleComplete} activeOpacity={0.7}>
+          {isLoading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <ThemedText style={styles.startButtonText}>Start Learning</ThemedText>
+          )}
+        </TouchableOpacity>
       </Animated.View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
     padding: 20,
