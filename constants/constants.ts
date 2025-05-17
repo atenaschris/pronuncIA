@@ -1,0 +1,109 @@
+import type { NativeLanguageCode } from '@/store/onboarding-store';
+
+export const LANGUAGE_LEVELS = [
+  { id: 'A1', label: 'Beginner (A1)', description: 'Basic phrases and expressions' },
+  { id: 'A2', label: 'Elementary (A2)', description: 'Simple conversations' },
+  { id: 'B1', label: 'Intermediate (B1)', description: 'Clear standard input' },
+  { id: 'B2', label: 'Upper Intermediate (B2)', description: 'Complex topics' },
+  { id: 'C1', label: 'Advanced (C1)', description: 'Effective mastery' },
+  { id: 'C2', label: 'Mastery (C2)', description: 'Near-native proficiency' },
+] as const;
+
+export const LANGUAGE_LEVEL_LABELS = {
+  A1: 'Beginner',
+  A2: 'Elementary',
+  B1: 'Intermediate',
+  B2: 'Upper Intermediate',
+  C1: 'Advanced',
+  C2: 'Mastery',
+} as const;
+
+export const NATIVE_LANGUAGES = [
+  { id: 'it', label: 'Italian', description: 'Romance language with melodic pronunciation and clear vowel sounds' },
+  { id: 'es', label: 'Spanish', description: 'Romance language with consistent pronunciation rules' },
+  { id: 'fr', label: 'French', description: 'Romance language with unique nasal sounds and silent letters' },
+  { id: 'de', label: 'German', description: 'Germanic language with strong consonants and compound words' },
+  { id: 'pt', label: 'Portuguese', description: 'Romance language with distinctive nasal vowels and soft consonants' },
+  { id: 'ru', label: 'Russian', description: 'Slavic language with complex consonant clusters and soft/hard sounds' },
+  { id: 'zh', label: 'Chinese', description: 'Tonal language with unique phonetic system and character-based writing' },
+  { id: 'ja', label: 'Japanese', description: 'Pitch-accent language with simple phonetic structure' },
+  { id: 'ko', label: 'Korean', description: 'Agglutinative language with unique alphabet and pronunciation rules' },
+  { id: 'ar', label: 'Arabic', description: 'Semitic language with rich phonetic system and distinctive sounds' },
+] as const;
+
+export const NATIVE_LANGUAGE_LABELS: Record<NativeLanguageCode, string> = {
+  it: 'Italian',
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  pt: 'Portuguese',
+  ru: 'Russian',
+  zh: 'Chinese',
+  ja: 'Japanese',
+  ko: 'Korean',
+  ar: 'Arabic',
+};
+
+export const LEARNING_GOALS = [
+  {
+    id: 'travel',
+    label: 'Travel & Tourism',
+    description: 'Learn essential phrases for traveling and tourism',
+  },
+  {
+    id: 'fluency',
+    label: 'General Fluency', 
+    description: 'Improve overall speaking ability and confidence',
+  },
+  {
+    id: 'work',
+    label: 'Professional Growth',
+    description: 'Focus on business and workplace communication',
+  },
+  {
+    id: 'exam',
+    label: 'Exam Preparation',
+    description: 'Prepare for English proficiency tests (IELTS, TOEFL)',
+  },
+] as const;
+
+export const LEARNING_GOAL_LABELS = {
+  travel: 'Travel & Tourism',
+  fluency: 'General Fluency',
+  work: 'Professional Growth',
+  exam: 'Exam Preparation',
+} as const;
+
+export const LEARNING_STYLES = [
+  {
+    id: 'visual',
+    label: 'Visual Learner',
+    description: 'Learn through diagrams, videos, and visual feedback',
+  },
+  {
+    id: 'audio',
+    label: 'Audio Learner',
+    description: 'Focus on listening and speaking exercises',
+  },
+  {
+    id: 'conversational',
+    label: 'Conversational Learner',
+    description: 'Practice through interactive dialogues and role-play',
+  },
+] as const;
+
+export const LEARNING_STYLE_LABELS = {
+  visual: 'Visual Learner',
+  audio: 'Audio Learner',
+  conversational: 'Conversational Learner',
+} as const;
+
+export const TIME_OPTIONS = [
+  { minutes: 5, label: '5 minutes' },
+  { minutes: 10, label: '10 minutes' },
+  { minutes: 15, label: '15 minutes' },
+  { minutes: 20, label: '20 minutes' },
+  { minutes: 30, label: '30 minutes' },
+  { minutes: 45, label: '45 minutes' },
+  { minutes: 60, label: '1 hour' },
+] as const;
