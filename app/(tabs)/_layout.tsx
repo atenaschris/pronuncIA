@@ -35,7 +35,7 @@ export default function TabLayout() {
         },
       }}>
       <Tabs.Screen
-        name="learn"
+        name="index"
         options={{
           title: 'Learn',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="book.fill" color={color} />,
