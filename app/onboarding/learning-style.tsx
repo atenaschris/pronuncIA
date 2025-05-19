@@ -1,9 +1,11 @@
-import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
-import { ThemedText } from '@/components/ThemedText';
+import { NextButton } from '@/components/ui/NextButton';
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { H2, H4, H5 } from '@/components/ui/RNEText';
+import { RNEView } from '@/components/ui/RNEView';
 import { useOnboardingStore } from '@/store/onboarding-store';
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LEARNING_STYLES } from '../../constants/constants';
 
@@ -22,102 +24,102 @@ export default function LearningStyleScreen() {
   }));
 
   return (
-    <ThemedSafeAreaView style={[styles.container]}>
-      <Animated.View style={[styles.content, animatedStyle]}>
-        <ThemedText type="title" style={styles.title}>
-          How do you learn best?
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>
-          Select your preferred learning style for personalized exercises
-        </ThemedText>
+    <RNESafeAreaView style={[styles.container]}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <Animated.View style={[styles.content, animatedStyle]}>
+          <H2 style={styles.title}>
+            How do you learn best?
+          </H2>
+          <H4 style={styles.subtitle}>
+            Select your preferred learning style for personalized exercises
+          </H4>
 
-        <View style={styles.stylesContainer}>
-          {LEARNING_STYLES.map((style) => (
-            <Animated.View
-              key={style.id}
-              style={[styles.styleButton, learningStyle === style.id && styles.selectedStyle]}
-              onTouchEnd={() => setLearningStyle(style.id)}
-            >
-              <ThemedText style={[styles.styleLabel, learningStyle === style.id && styles.selectedText]}>
-                {style.label}
-              </ThemedText>
-              <ThemedText
-                style={[styles.styleDescription, learningStyle === style.id && styles.selectedText]}
+          <RNEView style={styles.stylesContainer}>
+            {LEARNING_STYLES.map((style) => (
+              <Animated.View
+                key={style.id}
+                style={[styles.styleButton, learningStyle === style.id && styles.selectedStyle]}
+                onTouchEnd={() => setLearningStyle(style.id)}
               >
-                {style.description}
-              </ThemedText>
-            </Animated.View>
-          ))}
-        </View>
-
-        {learningStyle && (
-          <Link href="/onboarding/summary" style={styles.nextButton}>
-            <ThemedText style={styles.nextButtonText}>Continue</ThemedText>
-          </Link>
-        )}
-      </Animated.View>
-    </ThemedSafeAreaView>
+                <H4 style={[styles.styleLabel, learningStyle === style.id && styles.selectedText]}>
+                  {style.label}
+                </H4>
+                <H5 style={[styles.styleDescription, learningStyle === style.id && styles.selectedText]}>
+                  {style.description}
+                </H5>
+              </Animated.View>
+            ))}
+          </RNEView>
+        </Animated.View>
+      </ScrollView>
+      <NextButton
+        title="Continue"
+        onPress={() => router.push('/onboarding/summary')}
+      />
+    </RNESafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    backgroundColor: '#fff',
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
-    flex: 1,
-    justifyContent: 'center',
+    paddingTop: 40,
+    paddingBottom: 20,
   },
   title: {
-    fontSize: 28,
-    textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
+    color: '#1a1a1a',
   },
   subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 40,
     opacity: 0.8,
+    lineHeight: 24,
+    color: '#4a4a4a',
   },
   stylesContainer: {
     gap: 16,
+    marginBottom: 20,
   },
   styleButton: {
     padding: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#ccc',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   selectedStyle: {
     backgroundColor: '#0a7ea4',
     borderColor: '#0a7ea4',
+    shadowOpacity: 0.15,
+    elevation: 4,
   },
   styleLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 6,
+    marginBottom: 8,
+    color: '#1a1a1a',
   },
   styleDescription: {
-    fontSize: 14,
     opacity: 0.8,
+    lineHeight: 22,
+    color: '#4a4a4a',
   },
   selectedText: {
-    color: 'white',
+    color: '#fff',
+    opacity: 1,
   },
   nextButton: {
-    backgroundColor: '#0a7ea4',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 30,
-  },
-  nextButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    marginHorizontal: 20,
+    marginVertical: 20,
   },
 });

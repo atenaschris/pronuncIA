@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
-import { ThemedText } from '../ThemedText';
-import { ThemedView } from '../ThemedView';
+import { RNEText } from '../ui/RNEText';
+import { RNEView } from '../ui/RNEView';
 
 interface ProgressHeaderProps {
   currentStreak: number;
@@ -10,17 +10,17 @@ interface ProgressHeaderProps {
 
 export function ProgressHeader({ currentStreak, totalXp }: ProgressHeaderProps) {
   return (
-    <ThemedView style={styles.container}>
+    <RNEView style={styles.container}>
       <View style={styles.streakContainer}>
         <MaterialCommunityIcons name="fire" size={24} color="#FF9800" />
-        <ThemedText style={styles.streakText}>{currentStreak} Day Streak</ThemedText>
+        <RNEText h3 style={styles.streakText}>{currentStreak} Day Streak</RNEText>
       </View>
 
       <View style={styles.xpContainer}>
         <MaterialCommunityIcons name="star" size={24} color="#4CAF50" />
-        <ThemedText style={styles.xpText}>{totalXp} XP</ThemedText>
+        <RNEText h3 style={styles.xpText}>{totalXp} XP</RNEText>
       </View>
-    </ThemedView>
+    </RNEView>
   );
 }
 
@@ -44,7 +44,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   streakText: {
-    fontSize: 16,
     fontWeight: 'bold',
   },
   xpContainer: {
@@ -53,7 +52,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   xpText: {
-    fontSize: 16,
     fontWeight: 'bold',
   },
 });

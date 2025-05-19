@@ -1,11 +1,12 @@
-import { Link } from 'expo-router';
+import { NextButton } from '@/components/ui/NextButton';
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { H2, H4, H5 } from '@/components/ui/RNEText';
+import { RNEView } from '@/components/ui/RNEView';
+import { useOnboardingStore } from '@/store/onboarding-store';
+import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-
-import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
-import { ThemedText } from '@/components/ThemedText';
-import { useOnboardingStore } from '@/store/onboarding-store';
 import { NATIVE_LANGUAGES } from '../../constants/constants';
 
 export default function NativeLanguageScreen() {
@@ -24,45 +25,39 @@ export default function NativeLanguageScreen() {
   }));
 
   return (
-    <ThemedSafeAreaView style={[styles.container]}>
-      <Animated.View style={[styles.header, animatedStyle]}>
-        <ThemedText type="title" style={styles.title}>
-          What's your native language?
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>
-          This helps us tailor pronunciation exercises to your needs
-        </ThemedText>
-      </Animated.View>
-
+    <RNESafeAreaView style={[styles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <Animated.View style={[styles.languagesContainer, animatedStyle]}>
-          {NATIVE_LANGUAGES.map((language) => (
-            <Animated.View
-              key={language.id}
-              style={[styles.languageButton, nativeLanguage === language.id && styles.selectedLanguage]}
-              onTouchEnd={() => setNativeLanguage(language.id)}
-            >
-              <ThemedText
-                style={[styles.languageLabel, nativeLanguage === language.id && styles.selectedText]}
+        <Animated.View style={[styles.content, animatedStyle]}>
+          <H2 style={styles.title}>
+            What's your native language?
+          </H2>
+          <H4 style={styles.subtitle}>
+            This helps us tailor pronunciation exercises to your needs
+          </H4>
+
+          <RNEView style={styles.languagesContainer}>
+            {NATIVE_LANGUAGES.map((language) => (
+              <Animated.View
+                key={language.id}
+                style={[styles.languageButton, nativeLanguage === language.id && styles.selectedLanguage]}
+                onTouchEnd={() => setNativeLanguage(language.id)}
               >
-                {language.label}
-              </ThemedText>
-              <ThemedText
-                style={[styles.languageDescription, nativeLanguage === language.id && styles.selectedText]}
-              >
-                {language.description}
-              </ThemedText>
-            </Animated.View>
-          ))}
+                <H4 style={[styles.languageLabel, nativeLanguage === language.id && styles.selectedText]}>
+                  {language.label}
+                </H4>
+                <H5 style={[styles.languageDescription, nativeLanguage === language.id && styles.selectedText]}>
+                  {language.description}
+                </H5>
+              </Animated.View>
+            ))}
+          </RNEView>
         </Animated.View>
       </ScrollView>
-
-      {nativeLanguage && (
-        <Link href="/onboarding/learning-goals" style={styles.nextButton}>
-          <ThemedText style={styles.nextButtonText}>Continue</ThemedText>
-        </Link>
-      )}
-    </ThemedSafeAreaView>
+      <NextButton
+        title="Continue"
+        onPress={() => router.push('/onboarding/learning-goals')}
+      />
+    </RNESafeAreaView>
   );
 }
 
@@ -70,63 +65,62 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 20,
-  },
-  header: {
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 28,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    opacity: 0.8,
+    backgroundColor: '#fff',
   },
   scrollView: {
     flex: 1,
   },
-  languagesContainer: {
+  content: {
+    paddingTop: 40,
     paddingBottom: 20,
-    gap: 12,
+  },
+  title: {
+    marginBottom: 16,
+    color: '#1a1a1a',
+  },
+  subtitle: {
+    marginBottom: 40,
+    opacity: 0.8,
+    lineHeight: 24,
+    color: '#4a4a4a',
+  },
+  languagesContainer: {
+    gap: 16,
+    marginBottom: 20,
   },
   languageButton: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    alignItems: 'center',
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   selectedLanguage: {
     backgroundColor: '#0a7ea4',
     borderColor: '#0a7ea4',
+    shadowOpacity: 0.15,
+    elevation: 4,
   },
   languageLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 6,
+    marginBottom: 8,
+    color: '#1a1a1a',
   },
   languageDescription: {
-    fontSize: 14,
     opacity: 0.8,
+    lineHeight: 22,
+    color: '#4a4a4a',
   },
   selectedText: {
-    color: 'white',
+    color: '#fff',
+    opacity: 1,
   },
   nextButton: {
-    backgroundColor: '#0a7ea4',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  nextButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    marginHorizontal: 20,
+    marginVertical: 20,
   },
 });

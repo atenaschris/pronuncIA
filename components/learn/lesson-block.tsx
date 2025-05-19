@@ -1,8 +1,8 @@
 import { Lesson } from '@/store/lesson-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { ThemedText } from '../ThemedText';
-import { ThemedView } from '../ThemedView';
+import { RNEText } from '../ui/RNEText';
+import { RNEView } from '../ui/RNEView';
 
 interface LessonBlockProps {
   lesson: Lesson;
@@ -26,7 +26,7 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
       onPress={() => onPress(lesson)}
       disabled={lesson.locked}
     >
-      <ThemedView style={styles.content}>
+      <RNEView style={styles.content}>
         <View style={styles.iconContainer}>
           <MaterialCommunityIcons
             name={LESSON_ICONS[lesson.type]}
@@ -36,17 +36,17 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
         </View>
 
         <View style={styles.textContainer}>
-          <ThemedText style={styles.title}>{lesson.title}</ThemedText>
-          <ThemedText style={styles.description}>{lesson.description}</ThemedText>
+          <RNEText h3 style={styles.title}>{lesson.title}</RNEText>
+          <RNEText  h3 style={styles.description}>{lesson.description}</RNEText>
         </View>
 
         <View style={styles.rewardContainer}>
-          <ThemedText style={styles.xpText}>+{lesson.xpReward} XP</ThemedText>
+          <RNEText h3 style={styles.xpText}>+{lesson.xpReward} XP</RNEText>
           {lesson.completed && (
             <MaterialCommunityIcons name="check-circle" size={20} color="#4CAF50" />
           )}
         </View>
-      </ThemedView>
+      </RNEView>
     </Pressable>
   );
 }
@@ -83,11 +83,9 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   title: {
-    fontSize: 16,
     fontWeight: 'bold',
   },
   description: {
-    fontSize: 14,
     color: '#666',
     marginTop: 2,
   },
@@ -97,7 +95,6 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   xpText: {
-    fontSize: 14,
     fontWeight: '500',
     color: '#4CAF50',
   },

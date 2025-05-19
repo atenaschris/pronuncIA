@@ -1,20 +1,16 @@
 import { StyleSheet } from 'react-native';
 
-import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { Text } from 'react-native-paper';
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { RNEText } from '@/components/ui/RNEText';
 
 export default function CreditsScreen() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemedSafeAreaView style={[styles.container]}>
-      <Text style={[styles.title, { color: Colors[colorScheme!].text }]}>Credits</Text>
-      <Text style={[styles.subtitle, { color: Colors[colorScheme!].text }]}>
+    <RNESafeAreaView style={[styles.container]}>
+      <RNEText h1 style={styles.title}>Credits</RNEText>
+      <RNEText h3 style={styles.subtitle}>
         Manage your learning credits
-      </Text>
-    </ThemedSafeAreaView>
+      </RNEText>
+    </RNESafeAreaView>
   );
 }
 
@@ -26,12 +22,10 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
     textAlign: 'center',
     opacity: 0.8,
   },

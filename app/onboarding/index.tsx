@@ -1,15 +1,14 @@
+import { NextButton } from '@/components/ui/NextButton';
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { H2, H4 } from '@/components/ui/RNEText';
+import { RNEView } from '@/components/ui/RNEView';
 import { Image } from 'expo-image';
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
-import { ThemedText } from '@/components/ThemedText';
-import { useColorScheme } from '@/hooks/useColorScheme';
-
 export default function WelcomeScreen() {
-  const colorScheme = useColorScheme();
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
 
@@ -32,32 +31,33 @@ export default function WelcomeScreen() {
   }));
 
   return (
-    <ThemedSafeAreaView style={[styles.container]}>
-      <View style={styles.logoContainer}>
+    <RNESafeAreaView style={[styles.container]}>
+      <RNEView style={styles.logoContainer}>
         <Image
           source={require('@/assets/images/icon.png')}
           style={styles.logo}
           contentFit="contain"
         />
-      </View>
+      </RNEView>
 
       <Animated.View style={[styles.contentContainer, animatedStyle]}>
-        <ThemedText type="title" style={styles.title}>
+        <H2 style={styles.title}>
           Welcome to PronuncIA
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>
+        </H2>
+        <H4 style={styles.subtitle}>
           Your AI-powered English pronunciation coach
-        </ThemedText>
+        </H4>
 
-        <View style={styles.spacer} />
+        <RNEView style={styles.spacer} />
 
         <Animated.View>
-          <Link href="/onboarding/language-level" style={styles.button}>
-            <ThemedText style={styles.buttonText}>Get Started</ThemedText>
-          </Link>
+          <NextButton
+            title="Get Started"
+            onPress={() => router.push('/onboarding/language-level')}
+          />
         </Animated.View>
       </Animated.View>
-    </ThemedSafeAreaView>
+    </RNESafeAreaView>
   );
 }
 
@@ -82,27 +82,11 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 10,
-    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
   },
   spacer: {
-    height: 40,
-  },
-  button: {
-    backgroundColor: '#0a7ea4',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    width: '80%',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    height: 20,
   },
 });
