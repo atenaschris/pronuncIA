@@ -64,16 +64,20 @@ export const theme = createTheme({
     },
     Text: (props: TextProps) => ({
       style: {
+        textAlign: 'center',
+        ...(props.h1Style as object || {}),
+        ...(props.h2Style as object || {}),
+        ...(props.h3Style as object || {}),
+        ...(props.h4Style as object || {}),
+        ...(props.h5Style as object || {}),
+        ...(props.h6Style as object || {}),
         fontSize: props.h1 ? 32
           : props.h2 ? 28
           : props.h3 ? 24
           : props.h4 ? 20
           : props.h5 ? 16
           : props.h6 ? 14
-          : undefined,
-        ...(props.h5Style as object || {}),
-        ...(props.h6Style as object || {}),
-      textAlign: 'center',
+          : undefined
       }
     })
   },

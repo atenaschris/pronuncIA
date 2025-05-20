@@ -1,13 +1,13 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { H2, H4, H5 } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
 import { useOnboardingStore } from '@/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LEARNING_STYLES } from '../../constants/constants';
+import { OnboardingList } from './components/OnboardingList';
+import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
 export default function LearningStyleScreen() {
   const opacity = useSharedValue(0);
@@ -27,29 +27,15 @@ export default function LearningStyleScreen() {
     <RNESafeAreaView style={[styles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.content, animatedStyle]}>
-          <H2 style={styles.title}>
-            How do you learn best?
-          </H2>
-          <H4 style={styles.subtitle}>
-            Select your preferred learning style for personalized exercises
-          </H4>
+          <OnboardingTitle>How do you learn best?</OnboardingTitle>
+          <OnboardingSubtitle>Select your preferred learning style for personalized exercises</OnboardingSubtitle>
 
-          <RNEView style={styles.stylesContainer}>
-            {LEARNING_STYLES.map((style) => (
-              <Animated.View
-                key={style.id}
-                style={[styles.styleButton, learningStyle === style.id && styles.selectedStyle]}
-                onTouchEnd={() => setLearningStyle(style.id)}
-              >
-                <H4 style={[styles.styleLabel, learningStyle === style.id && styles.selectedText]}>
-                  {style.label}
-                </H4>
-                <H5 style={[styles.styleDescription, learningStyle === style.id && styles.selectedText]}>
-                  {style.description}
-                </H5>
-              </Animated.View>
-            ))}
-          </RNEView>
+          <OnboardingList
+            options={LEARNING_STYLES}
+            selectedValue={learningStyle}
+            onSelect={setLearningStyle}
+            containerStyle={styles.stylesContainer}
+          />
         </Animated.View>
       </ScrollView>
       <NextButton
@@ -73,16 +59,7 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     paddingBottom: 20,
   },
-  title: {
-    marginBottom: 16,
-    color: '#1a1a1a',
-  },
-  subtitle: {
-    marginBottom: 40,
-    opacity: 0.8,
-    lineHeight: 24,
-    color: '#4a4a4a',
-  },
+
   stylesContainer: {
     gap: 16,
     marginBottom: 20,

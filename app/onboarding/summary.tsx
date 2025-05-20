@@ -69,36 +69,30 @@ export default function SummaryScreen() {
           <H4 style={styles.subtitle}>
             Here's a summary of your preferences
           </H4>
-
           <RNEView style={styles.summaryContainer}>
             <RNEView style={styles.summaryItem}>
               <H5 style={styles.label}>English Level</H5>
               <H5 style={styles.value}>{languageLevel ? LANGUAGE_LEVEL_LABELS[languageLevel] : '-'}</H5>
             </RNEView>
-
             <RNEView style={styles.summaryItem}>
               <H5 style={styles.label}>Native Language</H5>
               <H5 style={styles.value}>{nativeLanguage ? NATIVE_LANGUAGE_LABELS[nativeLanguage] : '-'}</H5>
             </RNEView>
-
             <RNEView style={styles.summaryItem}>
               <H5 style={styles.label}>Learning Goal</H5>
               <H5 style={styles.value}>{learningGoal ? LEARNING_GOAL_LABELS[learningGoal] : '-'}</H5>
             </RNEView>
-
             <RNEView style={styles.summaryItem}>
               <H5 style={styles.label}>Daily Practice</H5>
               <H5 style={styles.value}>
-                {timeCommitment} {timeCommitment === 60 ? 'hour' : 'minutes'}
+                {timeCommitment} {timeCommitment === "60" ? 'hour' : 'minutes'}
               </H5>
             </RNEView>
-
             <RNEView style={styles.summaryItem}>
               <H5 style={styles.label}>Learning Style</H5>
               <H5 style={styles.value}>{learningStyle ? LEARNING_STYLE_LABELS[learningStyle] : '-'}</H5>
             </RNEView>
           </RNEView>
-
           {error && (
             <RNEView style={styles.errorContainer}>
               <H5 style={styles.errorText}>{error}</H5>
@@ -149,18 +143,35 @@ const styles = StyleSheet.create({
   },
   summaryContainer: {
     borderRadius: 16,
-    padding: 20,
-    gap: 16,
+    padding: 24,
+    gap: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   summaryItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   label: {
     opacity: 0.8,
+    color: '#4a4a4a',
+    fontSize: 16,
   },
   value: {
     fontWeight: 'bold',
+    color: '#1a1a1a',
+    fontSize: 16,
   },
 });

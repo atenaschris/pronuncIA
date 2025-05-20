@@ -1,13 +1,13 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { H2, H4, H5 } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
 import { useOnboardingStore } from '@/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LEARNING_GOALS } from '../../constants/constants';
+import { OnboardingList } from './components/OnboardingList';
+import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
 export default function LearningGoalsScreen() {
   const opacity = useSharedValue(0);
@@ -27,29 +27,15 @@ export default function LearningGoalsScreen() {
     <RNESafeAreaView style={[styles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.content, animatedStyle]}>
-          <H2 style={styles.title}>
-            What's your learning goal?
-          </H2>
-          <H4 style={styles.subtitle}>
-            Choose your main focus for learning English pronunciation
-          </H4>
+          <OnboardingTitle>What's your learning goal?</OnboardingTitle>
+          <OnboardingSubtitle>Choose your main focus for learning English pronunciation</OnboardingSubtitle>
 
-          <RNEView style={styles.goalsContainer}>
-            {LEARNING_GOALS.map((goal) => (
-              <Animated.View
-                key={goal.id}
-                style={[styles.goalButton, learningGoal === goal.id && styles.selectedGoal]}
-                onTouchEnd={() => setLearningGoal(goal.id)}
-              >
-                <H4 style={[styles.goalLabel, learningGoal === goal.id && styles.selectedText]}>
-                  {goal.label}
-                </H4>
-                <H5 style={[styles.goalDescription, learningGoal === goal.id && styles.selectedText]}>
-                  {goal.description}
-                </H5>
-              </Animated.View>
-            ))}
-          </RNEView>
+          <OnboardingList
+            options={LEARNING_GOALS}
+            selectedValue={learningGoal}
+            onSelect={setLearningGoal}
+            containerStyle={styles.goalsContainer}
+          />
         </Animated.View>
       </ScrollView>
       <NextButton
@@ -73,16 +59,7 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     paddingBottom: 20,
   },
-  title: {
-    marginBottom: 16,
-    color: '#1a1a1a',
-  },
-  subtitle: {
-    marginBottom: 40,
-    opacity: 0.8,
-    lineHeight: 24,
-    color: '#4a4a4a',
-  },
+
   goalsContainer: {
     gap: 16,
     marginBottom: 20,

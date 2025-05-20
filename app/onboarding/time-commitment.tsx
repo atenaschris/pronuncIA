@@ -1,13 +1,13 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { H2, H4 } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
 import { TIME_OPTIONS } from '@/constants/constants';
 import { useOnboardingStore } from '@/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { OnboardingList } from './components/OnboardingList';
+import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
 export default function TimeCommitmentScreen() {
   const opacity = useSharedValue(0);
@@ -28,26 +28,14 @@ export default function TimeCommitmentScreen() {
     <RNESafeAreaView style={[styles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.content, animatedStyle]}>
-          <H2 style={styles.title}>
-            Daily Practice Time
-          </H2>
-          <H4 style={styles.subtitle}>
-            How much time can you dedicate to practice each day?
-          </H4>
-
-        <RNEView style={styles.optionsContainer}>
-          {TIME_OPTIONS.map((option) => (
-            <Animated.View
-              key={option.minutes}
-              style={[styles.timeButton, timeCommitment === option.minutes && styles.selectedTime]}
-              onTouchEnd={() => setTimeCommitment(option.minutes)}
-            >
-              <H4 style={[styles.timeText, timeCommitment === option.minutes && styles.selectedText]}>
-                {option.label}
-              </H4>
-            </Animated.View>
-          ))}
-        </RNEView>
+          <OnboardingTitle>Daily Practice Time</OnboardingTitle>
+          <OnboardingSubtitle>How much time can you dedicate to practice each day?</OnboardingSubtitle>
+        <OnboardingList
+          options={TIME_OPTIONS}
+          selectedValue={timeCommitment}
+          onSelect={setTimeCommitment}
+          containerStyle={styles.optionsContainer}
+        />
         </Animated.View>
       </ScrollView>
       <NextButton
@@ -71,43 +59,8 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     paddingBottom: 20,
   },
-  title: {
-    marginBottom: 16,
-    color: '#1a1a1a',
-  },
-  subtitle: {
-    marginBottom: 40,
-    opacity: 0.8,
-    lineHeight: 24,
-    color: '#4a4a4a',
-  },
+
   optionsContainer: {
     gap: 12,
-  },
-  timeButton: {
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#e0e0e0',
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  selectedTime: {
-    backgroundColor: '#0a7ea4',
-    borderColor: '#0a7ea4',
-    shadowOpacity: 0.15,
-    elevation: 4,
-  },
-  timeText: {
-    color: '#1a1a1a',
-  },
-  selectedText: {
-    color: '#fff',
-    opacity: 1,
   },
 });

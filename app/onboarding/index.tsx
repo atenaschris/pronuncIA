@@ -1,12 +1,12 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { H2, H4 } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
 export default function WelcomeScreen() {
   const opacity = useSharedValue(0);
@@ -39,17 +39,10 @@ export default function WelcomeScreen() {
           contentFit="contain"
         />
       </RNEView>
-
       <Animated.View style={[styles.contentContainer, animatedStyle]}>
-        <H2 style={styles.title}>
-          Welcome to PronuncIA
-        </H2>
-        <H4 style={styles.subtitle}>
-          Your AI-powered English pronunciation coach
-        </H4>
-
+        <OnboardingTitle>Welcome to PronuncIA</OnboardingTitle>
+        <OnboardingSubtitle>Your AI-powered English pronunciation coach</OnboardingSubtitle>
         <RNEView style={styles.spacer} />
-
         <Animated.View>
           <NextButton
             title="Get Started"

@@ -1,14 +1,13 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { H2, H4, H5 } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
-import type { LanguageLevel } from '@/store/onboarding-store';
 import { useOnboardingStore } from '@/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LANGUAGE_LEVELS } from '../../constants/constants';
+import { OnboardingList } from './components/OnboardingList';
+import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
 
 export default function LanguageLevelScreen() {
@@ -30,29 +29,15 @@ export default function LanguageLevelScreen() {
     <RNESafeAreaView style={[styles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.content, animatedStyle]}>
-          <H2 style={styles.title}>
-            What's your English level?
-          </H2>
-          <H4 style={styles.subtitle}>
-            Select your current level to personalize your learning experience
-          </H4>
+          <OnboardingTitle>What's your English level?</OnboardingTitle>
+          <OnboardingSubtitle>Select your current level to personalize your learning experience</OnboardingSubtitle>
 
-          <RNEView style={styles.levelsContainer}>
-            {LANGUAGE_LEVELS.map((level) => (
-              <Animated.View
-                key={level.id}
-                style={[styles.levelButton, languageLevel === level.id && styles.selectedLevel]}
-                onTouchEnd={() => setLanguageLevel(level.id as LanguageLevel)}
-              >
-                <H4 style={[styles.levelLabel, languageLevel === level.id && styles.selectedText]}>
-                  {level.label}
-                </H4>
-                <H5 style={[styles.levelDescription, languageLevel === level.id && styles.selectedText]}>
-                  {level.description}
-                </H5>
-              </Animated.View>
-            ))}
-          </RNEView>
+          <OnboardingList
+            options={LANGUAGE_LEVELS}
+            selectedValue={languageLevel}
+            onSelect={setLanguageLevel}
+            containerStyle={styles.levelsContainer}
+          />
         </Animated.View>
       </ScrollView>
       <NextButton
@@ -75,16 +60,7 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     paddingBottom: 20,
   },
-    title: {
-    marginBottom: 16,
-    color: '#1a1a1a',
-  },
-  subtitle: {
-    marginBottom: 40,
-    opacity: 0.8,
-    lineHeight: 24,
-    color: '#4a4a4a',
-  },
+  
   levelsContainer: {
     gap: 16,
     marginBottom: 20,

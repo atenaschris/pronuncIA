@@ -100,11 +100,11 @@ export const LEARNING_STYLE_LABELS = {
 } as const;
 
 export const TIME_OPTIONS = [
-  { minutes: 5, label: '5 minutes' },
-  { minutes: 10, label: '10 minutes' },
-  { minutes: 15, label: '15 minutes' },
-  { minutes: 20, label: '20 minutes' },
-  { minutes: 30, label: '30 minutes' },
-  { minutes: 45, label: '45 minutes' },
-  { minutes: 60, label: '1 hour' },
+  { id: "5",  label: '5 minutes' },
+  { id: "10",  label: '10 minutes' },
+  { id: "15",  label: '15 minutes' },
+  { id: "20",  label: '20 minutes' },
+  { id: "30",  label: '30 minutes' },
+  { id: "45",  label: '45 minutes' },
+  { id: "60",  label: '1 hour' },
 ] as const;

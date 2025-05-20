@@ -5,13 +5,13 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 
 import { createAnonymousProfile, fetchAndSetProfile, handleError, resetAuthState } from './auth-utils';
-import { LanguageLevel, LearningGoal, LearningStyle, NativeLanguageCode } from './onboarding-store';
+import { LanguageLevel, LearningGoal, LearningStyle, NativeLanguageCode, TimeCommitment } from './onboarding-store';
 
 export type UserPreferences = {
   language_level: LanguageLevel;
   native_language: NativeLanguageCode;
   learning_goal: LearningGoal;
-  time_commitment: number;
+  time_commitment: TimeCommitment;
   learning_style: LearningStyle;
 };
 
