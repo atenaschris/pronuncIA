@@ -1,11 +1,12 @@
-import { Link } from 'expo-router';
-import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-
-import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
-import { ThemedText } from '@/components/ThemedText';
+import { NextButton } from '@/components/ui/NextButton';
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { H2, H4, H5 } from '@/components/ui/RNEText';
+import { RNEView } from '@/components/ui/RNEView';
 import { useOnboardingStore } from '@/store/onboarding-store';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LEARNING_GOALS } from '../../constants/constants';
 
 export default function LearningGoalsScreen() {
@@ -23,102 +24,98 @@ export default function LearningGoalsScreen() {
   }));
 
   return (
-    <ThemedSafeAreaView style={[styles.container]}>
-      <Animated.View style={[styles.content, animatedStyle]}>
-        <ThemedText type="title" style={styles.title}>
-          What's your learning goal?
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>
-          Choose your main focus for learning English pronunciation
-        </ThemedText>
+    <RNESafeAreaView style={[styles.container]}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <Animated.View style={[styles.content, animatedStyle]}>
+          <H2 style={styles.title}>
+            What's your learning goal?
+          </H2>
+          <H4 style={styles.subtitle}>
+            Choose your main focus for learning English pronunciation
+          </H4>
 
-        <View style={styles.goalsContainer}>
-          {LEARNING_GOALS.map((goal) => (
-            <Animated.View
-              key={goal.id}
-              style={[styles.goalButton, learningGoal === goal.id && styles.selectedGoal]}
-              onTouchEnd={() => setLearningGoal(goal.id)}
-            >
-              <ThemedText style={[styles.goalLabel, learningGoal === goal.id && styles.selectedText]}>
-                {goal.label}
-              </ThemedText>
-              <ThemedText
-                style={[styles.goalDescription, learningGoal === goal.id && styles.selectedText]}
+          <RNEView style={styles.goalsContainer}>
+            {LEARNING_GOALS.map((goal) => (
+              <Animated.View
+                key={goal.id}
+                style={[styles.goalButton, learningGoal === goal.id && styles.selectedGoal]}
+                onTouchEnd={() => setLearningGoal(goal.id)}
               >
-                {goal.description}
-              </ThemedText>
-            </Animated.View>
-          ))}
-        </View>
-
-        {learningGoal && (
-          <Link href="/onboarding/time-commitment" style={styles.nextButton}>
-            <ThemedText style={styles.nextButtonText}>Continue</ThemedText>
-          </Link>
-        )}
-      </Animated.View>
-    </ThemedSafeAreaView>
+                <H4 style={[styles.goalLabel, learningGoal === goal.id && styles.selectedText]}>
+                  {goal.label}
+                </H4>
+                <H5 style={[styles.goalDescription, learningGoal === goal.id && styles.selectedText]}>
+                  {goal.description}
+                </H5>
+              </Animated.View>
+            ))}
+          </RNEView>
+        </Animated.View>
+      </ScrollView>
+      <NextButton
+        title="Continue"
+        onPress={() => router.push('/onboarding/time-commitment')}
+      />
+    </RNESafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    backgroundColor: '#fff',
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
-    flex: 1,
-    justifyContent: 'center',
+    paddingTop: 40,
+    paddingBottom: 20,
   },
   title: {
-    fontSize: 28,
-    textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
+    color: '#1a1a1a',
   },
   subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 40,
     opacity: 0.8,
+    lineHeight: 24,
+    color: '#4a4a4a',
   },
   goalsContainer: {
     gap: 16,
+    marginBottom: 20,
   },
   goalButton: {
     padding: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#ccc',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   selectedGoal: {
     backgroundColor: '#0a7ea4',
     borderColor: '#0a7ea4',
+    shadowOpacity: 0.15,
+    elevation: 4,
   },
   goalLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 6,
+    marginBottom: 8,
+    color: '#1a1a1a',
   },
   goalDescription: {
-    fontSize: 14,
     opacity: 0.8,
+    lineHeight: 22,
+    color: '#4a4a4a',
   },
   selectedText: {
-    color: 'white',
-  },
-  nextButton: {
-    backgroundColor: '#0a7ea4',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 30,
-  },
-  nextButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    color: '#fff',
+    opacity: 1,
   },
 });

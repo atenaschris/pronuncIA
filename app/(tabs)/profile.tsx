@@ -1,24 +1,23 @@
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { RNEText } from '@/components/ui/RNEText';
+import { RNEView } from '@/components/ui/RNEView';
 import { StyleSheet } from 'react-native';
-
-import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 
 export default function ProfileScreen() {
   return (
-    <ThemedSafeAreaView style={styles.container}>
-      <ThemedView style={styles.header}>
-        <ThemedText type="title" style={styles.title}>
+    <RNESafeAreaView style={styles.container}>
+      <RNEView style={styles.header}>
+        <RNEText h1 style={styles.title}>
           Profile
-        </ThemedText>
-      </ThemedView>
+        </RNEText>
+      </RNEView>
 
-      <ThemedView style={styles.content}>
-        <ThemedText style={styles.text}>
+      <RNEView style={styles.content}>
+        <RNEText h3 style={styles.text}>
           Your profile information and settings will appear here.
-        </ThemedText>
-      </ThemedView>
-    </ThemedSafeAreaView>
+        </RNEText>
+      </RNEView>
+    </RNESafeAreaView>
   );
 }
 
@@ -31,7 +30,6 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   title: {
-    fontSize: 28,
     textAlign: 'center',
   },
   content: {
@@ -40,7 +38,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    fontSize: 16,
     textAlign: 'center',
     opacity: 0.8,
   },

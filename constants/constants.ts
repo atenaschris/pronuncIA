@@ -67,6 +67,7 @@ export const LEARNING_GOALS = [
   },
 ] as const;
 
+
 export const LEARNING_GOAL_LABELS = {
   travel: 'Travel & Tourism',
   fluency: 'General Fluency',

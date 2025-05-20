@@ -1,15 +1,15 @@
-import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
-import { ThemedText } from '@/components/ThemedText';
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { RNEText } from '@/components/ui/RNEText';
 import { StyleSheet } from 'react-native';
 export default function TutorsScreen() {
 
   return (
-    <ThemedSafeAreaView style={[styles.container]}>
-      <ThemedText type="title">Tutors</ThemedText>
-      <ThemedText type="subtitle">
+    <RNESafeAreaView style={[styles.container]}>
+      <RNEText h1 style={styles.title}>Tutors</RNEText>
+      <RNEText h3  style={styles.subtitle}>
         Connect with language experts
-      </ThemedText>
-    </ThemedSafeAreaView>
+      </RNEText>
+    </RNESafeAreaView>
   );
 }
 
@@ -21,12 +21,10 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
     textAlign: 'center',
     opacity: 0.8,
   },

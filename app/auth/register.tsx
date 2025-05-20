@@ -1,10 +1,11 @@
-import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
-import { ThemedText } from '@/components/ThemedText';
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { RNEText } from '@/components/ui/RNEText';
+import { RNEView } from '@/components/ui/RNEView';
 import { useAuthStore } from '@/store/auth-store';
+import { Button, Input } from '@rneui/themed';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, TextInput } from 'react-native-paper';
+import { StyleSheet } from 'react-native';
 import { z } from 'zod';
 
 const registerSchema = z.object({
@@ -40,46 +41,46 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ThemedSafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <ThemedText type="title" style={styles.title}>
+    <RNESafeAreaView style={styles.container}>
+      <RNEView style={styles.content}>
+        <RNEText h1 style={styles.title}>
           Create Account
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>
+        </RNEText>
+        <RNEText h3 style={styles.subtitle}>
           Start your personalized learning journey
-        </ThemedText>
+        </RNEText>
 
-        <TextInput
-          label="Email"
+        <Input
+          placeholder="Email"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
-          style={styles.input}
+          containerStyle={styles.input}
+          leftIcon={{ type: 'material', name: 'email' }}
         />
 
         {error && (
-          <ThemedText style={styles.error}>{error}</ThemedText>
+          <RNEText h4 style={styles.error}>{error}</RNEText>
         )}
 
         <Button
-          mode="contained"
+          title="Sign Up with Email"
           onPress={handleRegister}
           loading={isLoading}
-          style={styles.button}
-        >
-          Sign Up with Email
-        </Button>
+          containerStyle={styles.button}
+          raised
+        />
 
-        <View style={styles.footer}>
-          <ThemedText>Already have an account? </ThemedText>
+        <RNEView style={styles.footer}>
+          <RNEText h3>Already have an account? </RNEText>
           <Link href="/auth" asChild>
-            <Button mode="text" compact>Sign In</Button>
+            <Button type="clear" title="Sign In" />
           </Link>
-        </View>
-      </View>
-    </ThemedSafeAreaView>
+        </RNEView>
+      </RNEView>
+    </RNESafeAreaView>
   );
 }
 

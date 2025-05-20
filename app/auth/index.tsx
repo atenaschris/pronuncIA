@@ -1,12 +1,14 @@
-import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
-import { ThemedText } from '@/components/ThemedText';
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { RNEText } from '@/components/ui/RNEText';
+import { RNEView } from '@/components/ui/RNEView';
 import { useAuthStore } from '@/store/auth-store';
+import { Button } from '@rneui/themed';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Link } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, TextInput } from 'react-native-paper';
+import { StyleSheet } from 'react-native';
+import { TextInput } from 'react-native-paper';
 
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
@@ -56,23 +58,23 @@ export default function AuthScreen() {
   };
 
   return (
-    <ThemedSafeAreaView style={styles.container}>
-      <View style={styles.animationContainer}>
+    <RNESafeAreaView style={styles.container}>
+      <RNEView style={styles.animationContainer}>
         <LottieView
           source={require('@/assets/animations/circle-grow-animation.json')}
           autoPlay
           loop
           style={styles.animation}
         />
-      </View>
+      </RNEView>
 
-      <View style={styles.content}>
-        <ThemedText type="title" style={styles.title}>
+      <RNEView style={styles.content}>
+        <RNEText h1 style={styles.title}>
           Welcome Back
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>
+        </RNEText>
+        <RNEText h3 style={styles.subtitle}>
           Sign in to access your personalized learning experience
-        </ThemedText>
+        </RNEText>
 
         <TextInput
           label="Email"
@@ -85,61 +87,57 @@ export default function AuthScreen() {
         />
 
         {error && (
-          <ThemedText style={styles.error}>{error}</ThemedText>
+          <RNEText h4 style={styles.error}>{error}</RNEText>
         )}
 
         <Button
-          mode="contained"
+          title="Continue with Email"
           onPress={handleEmailSignIn}
           loading={isLoading}
-          style={styles.button}
-        >
-          Continue with Email
-        </Button>
+          containerStyle={styles.button}
+          raised
+        />
 
         <Button
-          mode="outlined"
+          title="Use Biometrics"
           onPress={handleBiometricAuth}
-          icon="fingerprint"
-          style={styles.button}
-        >
-          Use Biometrics
-        </Button>
+          icon={{ name: 'fingerprint', type: 'material' }}
+          containerStyle={styles.button}
+          type="outline"
+        />
 
-        <View style={styles.divider}>
-          <View style={styles.line} />
-          <ThemedText style={styles.orText}>or</ThemedText>
-          <View style={styles.line} />
-        </View>
+        <RNEView style={styles.divider}>
+          <RNEView style={styles.line} />
+          <RNEText style={styles.orText}>or</RNEText>
+          <RNEView style={styles.line} />
+        </RNEView>
 
         <Button
-          mode="outlined"
-          icon="google"
-          style={styles.button}
+          title="Continue with Google"
+          icon={{ name: 'google', type: 'font-awesome' }}
+          containerStyle={styles.button}
+          type="outline"
           // TODO: Implement Google Sign In
           onPress={() => {}}
-        >
-          Continue with Google
-        </Button>
+        />
 
         <Button
-          mode="outlined"
-          icon="apple"
-          style={styles.button}
+          title="Continue with Apple"
+          icon={{ name: 'apple', type: 'font-awesome' }}
+          containerStyle={styles.button}
+          type="outline"
           // TODO: Implement Apple Sign In
           onPress={() => {}}
-        >
-          Continue with Apple
-        </Button>
+        />
 
-        <View style={styles.footer}>
-          <ThemedText>Don't have an account? </ThemedText>
+        <RNEView style={styles.footer}>
+          <RNEText h3>Don't have an account? </RNEText>
           <Link href="/auth/register" asChild>
-            <Button mode="text" compact>Sign Up</Button>
+            <Button type="clear" title="Sign Up" />
           </Link>
-        </View>
-      </View>
-    </ThemedSafeAreaView>
+        </RNEView>
+      </RNEView>
+    </RNESafeAreaView>
   );
 }
 

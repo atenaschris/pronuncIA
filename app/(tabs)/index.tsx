@@ -1,11 +1,11 @@
 import { ScrollView, StyleSheet } from 'react-native';
 
-import { ThemedSafeAreaView } from '@/components/ThemedSafeAreaView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 
 import { LessonBlock } from '@/components/learn/lesson-block';
 import { ProgressHeader } from '@/components/learn/progress-header';
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { RNEText } from '@/components/ui/RNEText';
+import { RNEView } from '@/components/ui/RNEView';
 import { useLessonStore } from '@/store/lesson-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
@@ -25,19 +25,19 @@ export default function LearnScreen() {
   };
 
   return (
-    <ThemedSafeAreaView style={styles.container}>
-      <ThemedView style={styles.header}>
-        <ThemedText type="title" style={styles.title}>Daily Plan</ThemedText>
-        <ThemedText type="subtitle" style={styles.subtitle}>
+    <RNESafeAreaView style={styles.container}>
+      <RNEView style={styles.header}>
+        <RNEText h1 style={styles.title}>Daily Plan</RNEText>
+        <RNEText h3 style={styles.subtitle}>
           Your personalized learning path
-        </ThemedText>
-      </ThemedView>
+        </RNEText>
+      </RNEView>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <ProgressHeader currentStreak={currentStreak} totalXp={totalXp} />
         
         {isLoading ? (
-          <ThemedText style={styles.loadingText}>Generating your daily plan...</ThemedText>
+          <RNEText style={styles.loadingText}>Generating your daily plan...</RNEText>
         ) : dailyPlan?.lessons.map((lesson) => (
           <LessonBlock
             key={lesson.id}
@@ -46,7 +46,7 @@ export default function LearnScreen() {
           />
         ))}
       </ScrollView>
-    </ThemedSafeAreaView>
+    </RNESafeAreaView>
   );
 }
 
@@ -59,12 +59,10 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   title: {
-    fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
     opacity: 0.8,
   },
   scrollView: {
