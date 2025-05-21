@@ -34,7 +34,6 @@ export default function LearnScreen() {
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <ProgressHeader currentStreak={currentStreak} totalXp={totalXp} />
-        
         {isLoading ? (
           <RNEText style={styles.loadingText}>Generating your daily plan...</RNEText>
         ) : dailyPlan?.lessons.map((lesson) => (
@@ -59,6 +58,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    paddingInline: 10
   },
   lessonGrid: {
     padding: 10,

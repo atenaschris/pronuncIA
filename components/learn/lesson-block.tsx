@@ -23,7 +23,9 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
   const { theme } = useTheme();
   const dynamicStyles = {
     container: {
-      shadowColor: theme.colors.primary
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      borderRadius: 30,
     }
   }
   return (
@@ -32,9 +34,9 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
       onPress={() => onPress(lesson)}
       disabled={lesson.locked}
       disabledStyle={styles.completed}
-      type="clear"
+      type="outline"
     >
-      <View style={styles.content}>
+      <View>
         <View style={styles.titleContainer}>
           <RNEText h3 h3Style={{color: theme.colors.primary}}>{lesson.title}</RNEText>
           <MaterialCommunityIcons
@@ -58,13 +60,13 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 8,
+    marginVertical: 12,
   },
   completed: {
     opacity: 0.8,
   },
   content: {
-    padding: 16,
+    padding: 2,
   },
   titleContainer: {
     flex: 1,
