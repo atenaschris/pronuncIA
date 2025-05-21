@@ -1,9 +1,8 @@
 import { Lesson } from '@/store/lesson-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '@rneui/themed';
-import { Pressable, StyleSheet } from 'react-native';
+import { Button, useTheme } from '@rneui/themed';
+import { StyleSheet, View } from 'react-native';
 import { RNEText } from '../ui/RNEText';
-import { RNEView } from '../ui/RNEView';
 
 interface LessonBlockProps {
   lesson: Lesson;
@@ -28,13 +27,15 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
     }
   }
   return (
-    <Pressable
-      style={[styles.container,dynamicStyles.container, lesson.completed && styles.completed]}
+    <Button
+      containerStyle={[styles.container, dynamicStyles.container, lesson.completed && styles.completed]}
       onPress={() => onPress(lesson)}
       disabled={lesson.locked}
+      disabledStyle={styles.completed}
+      type="clear"
     >
-      <RNEView style={styles.content}>
-        <RNEView style={styles.titleContainer}>
+      <View style={styles.content}>
+        <View style={styles.titleContainer}>
           <RNEText h3 h3Style={{color: theme.colors.primary}}>{lesson.title}</RNEText>
           <MaterialCommunityIcons
             name={LESSON_ICONS[lesson.type]}
@@ -42,28 +43,22 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
             color={lesson.completed ? theme.colors.success : theme.colors.grey4 }
             style={{ marginLeft: 10 }}
           />
-        </RNEView>
-        <RNEView style={styles.belowLessonBlockContainer}>
+        </View>
+        <View style={styles.belowLessonBlockContainer}>
           <RNEText h4 h4Style={{fontWeight:'300'}}>{lesson.description}</RNEText>
           <RNEText h4 style={{fontWeight: '500',color: theme.colors.success}}>+{lesson.xpReward} XP</RNEText>
           {lesson.completed && (
             <MaterialCommunityIcons name="check-circle" size={20} color={theme.colors.success} />
           )}
-        </RNEView>
-      </RNEView>
-    </Pressable>
+        </View>
+      </View>
+    </Button>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     marginVertical: 8,
-    borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   completed: {
     opacity: 0.8,
