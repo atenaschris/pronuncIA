@@ -9,6 +9,7 @@ import { RNEView } from '@/components/ui/RNEView';
 import { useLessonStore } from '@/store/lesson-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
+import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 export default function LearnScreen() {
   const { dailyPlan, currentStreak, totalXp, generateDailyPlan, completeLesson, isLoading } = useLessonStore();
@@ -27,10 +28,8 @@ export default function LearnScreen() {
   return (
     <RNESafeAreaView style={styles.container}>
       <RNEView style={styles.header}>
-        <RNEText h1 style={styles.title}>Daily Plan</RNEText>
-        <RNEText h3 style={styles.subtitle}>
-          Your personalized learning path
-        </RNEText>
+        <OnboardingTitle>Daily Plan</OnboardingTitle>
+        <OnboardingSubtitle>Your personalized learning path</OnboardingSubtitle>
       </RNEView>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -57,13 +56,6 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     paddingBottom: 10,
-  },
-  title: {
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    opacity: 0.8,
   },
   scrollView: {
     flex: 1,
