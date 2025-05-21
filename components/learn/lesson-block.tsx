@@ -1,4 +1,4 @@
-import { Lesson } from '@/store/lesson-store';
+import { Lesson, LessonType } from '@/store/lesson-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, useTheme } from '@rneui/themed';
 import { StyleSheet, View } from 'react-native';
@@ -6,7 +6,7 @@ import { RNEText } from '../ui/RNEText';
 
 interface LessonBlockProps {
   lesson: Lesson;
-  onPress: (lesson: Lesson) => void;
+  onPress: (lessonType: LessonType) => void;
 }
 
 const LESSON_ICONS = {
@@ -31,7 +31,7 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
   return (
     <Button
       containerStyle={[styles.container, dynamicStyles.container, lesson.completed && styles.completed]}
-      onPress={() => onPress(lesson)}
+      onPress={() => onPress(lesson.type)}
       disabled={lesson.locked}
       disabledStyle={styles.completed}
       type="outline"
