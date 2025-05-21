@@ -6,7 +6,7 @@ import { ProgressHeader } from '@/components/learn/progress-header';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNEText } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
-import { useLessonStore } from '@/store/lesson-store';
+import { LessonType, useLessonStore } from '@/store/lesson-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
@@ -20,9 +20,9 @@ export default function LearnScreen() {
     }
   }, []);
 
-  const handleLessonPress = (lesson: any) => {
+  const handleLessonPress = (lessonType: LessonType) => {
     // TODO: Navigate to specific lesson screen based on type
-    router.push(`/lesson/${lesson.type}`);
+    router.push(`/lesson/${lessonType}`);
   };
 
   return (
