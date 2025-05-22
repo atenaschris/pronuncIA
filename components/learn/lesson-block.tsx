@@ -1,4 +1,4 @@
-import { Lesson, LessonType } from '@/store/lesson-store';
+import { Lesson, LessonType } from '@/lib/store/lesson-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, useTheme } from '@rneui/themed';
 import { StyleSheet, View } from 'react-native';

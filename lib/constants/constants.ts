@@ -1,4 +1,4 @@
-import type { NativeLanguageCode } from '@/store/onboarding-store';
+import { NativeLanguageCode } from "../types/onboarding-types";
 
 export const LANGUAGE_LEVELS = [
   { id: 'A1', label: 'Beginner (A1)', description: 'Basic phrases and expressions' },
@@ -107,4 +107,16 @@ export const TIME_OPTIONS = [
   { id: "30",  label: '30 minutes' },
   { id: "45",  label: '45 minutes' },
   { id: "60",  label: '1 hour' },
+] as const;
+
+// Sample word pairs for the game
+export const WORD_PAIRS = [
+  { english: 'of the', translation: 'dello' },
+  { english: 'me at', translation: 'mi a' },
+  { english: 'after', translation: 'dopo' },
+  { english: 'since', translation: 'da' },
+  { english: 'which', translation: 'quale' },
+  { english: 'this', translation: 'questo' },
+  { english: 'that', translation: 'quello' },
+  { english: 'here', translation: 'qui' },
 ] as const;

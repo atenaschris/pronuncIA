@@ -1,33 +1,30 @@
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNEText } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
+import { WORD_PAIRS } from '@/lib/constants/constants';
 import { useTheme } from '@rneui/themed';
 import { useAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
-// Sample word pairs for the game
-const WORD_PAIRS = [
-  { english: 'of the', translation: 'dello' },
-  { english: 'me at', translation: 'mi a' },
-  { english: 'after', translation: 'dopo' },
-  { english: 'since', translation: 'da' },
-  { english: 'which', translation: 'quale' },
-  { english: 'this', translation: 'questo' },
-  { english: 'that', translation: 'quello' },
-  { english: 'here', translation: 'qui' },
-];
+
+// Define types based on the WORD_PAIRS constant structure
+type WordPair = typeof WORD_PAIRS[number];
+type EnglishWord = WordPair['english'];
+type TranslationWord = WordPair['translation'];
+type ColumnType = 'english' | 'translation';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function WordPairsScreen() {
+  // All hooks must be called at the top level, before any conditional logic
   const { theme } = useTheme();
-  const [englishWords, setEnglishWords] = useState<string[]>([]);
-  const [translationWords, setTranslationWords] = useState<string[]>([]);
-  const [selectedPair, setSelectedPair] = useState<{index: number, column: 'english' | 'translation'} | null>(null);
+  const [englishWords, setEnglishWords] = useState<EnglishWord[]>([]);
+  const [translationWords, setTranslationWords] = useState<TranslationWord[]>([]);
+  const [selectedPair, setSelectedPair] = useState<{index: number, column: ColumnType} | null>(null);
   const [matchedPairs, setMatchedPairs] = useState<number[]>([]);
   const [score, setScore] = useState(0);
   
@@ -37,6 +34,22 @@ export default function WordPairsScreen() {
   // Sound effects using expo-audio
   const correctSound = useAudioPlayer(require('../../assets/sounds/correct.mp3'));
   const incorrectSound = useAudioPlayer(require('../../assets/sounds/incorrect.mp3'));
+  
+  // Helper functions - defined before they're used
+  const isSelected = useCallback((index: number, column: ColumnType) => {
+    return selectedPair?.index === index && selectedPair?.column === column;
+  }, [selectedPair]);
+
+  const isMatched = useCallback((index: number) => {
+    return matchedPairs.includes(index);
+  }, [matchedPairs]);
+  
+  // Create a single animated style function that will be used for all items
+  const getAnimatedStyle = useCallback((index: number, column: ColumnType) => {
+    return useAnimatedStyle(() => ({
+      transform: [{ scale: isSelected(index, column) ? scaleAnimation.value : 1 }]
+    }));
+  }, [scaleAnimation, isSelected]); // Use isSelected in dependencies instead of selectedPair
 
   // Initialize the game
   useEffect(() => {
@@ -58,7 +71,7 @@ export default function WordPairsScreen() {
     setScore(0);
   };
 
-  const handleWordPress = (index: number, column: 'english' | 'translation') => {
+  const handleWordPress = (index: number, column: ColumnType) => {
     // Trigger a small scale animation
     scaleAnimation.value = withSpring(1.05, { damping: 10 });
     setTimeout(() => {
@@ -120,14 +133,6 @@ export default function WordPairsScreen() {
     setSelectedPair(null);
   };
 
-  const isSelected = (index: number, column: 'english' | 'translation') => {
-    return selectedPair?.index === index && selectedPair?.column === column;
-  };
-
-  const isMatched = (index: number) => {
-    return matchedPairs.includes(index);
-  };
-
   // Create theme-based styles
   const themeStyles = {
     wordCell: {
@@ -161,14 +166,20 @@ export default function WordPairsScreen() {
     }
   };
 
-  const getWordCellStyle = (index: number, column: 'english' | 'translation') => {
+  // Helper function to check if a translation word is matched
+  const isTranslationMatched = useCallback((translationIndex: number) => {
+    return matchedPairs.some(englishIndex => {
+      const englishWord = englishWords[englishIndex];
+      const correctTranslation = WORD_PAIRS.find(pair => pair.english === englishWord)?.translation;
+      return correctTranslation === translationWords[translationIndex];
+    });
+  }, [matchedPairs, englishWords, translationWords]);
+
+  // Memoize style functions to ensure consistent hook calls
+  const getWordCellStyle = useCallback((index: number, column: ColumnType) => {
     const isWordMatched = 
       (column === 'english' && isMatched(index)) ||
-      (column === 'translation' && matchedPairs.some(englishIndex => {
-        const englishWord = englishWords[englishIndex];
-        const correctTranslation = WORD_PAIRS.find(pair => pair.english === englishWord)?.translation;
-        return correctTranslation === translationWords[index];
-      }));
+      (column === 'translation' && isTranslationMatched(index));
     
     if (isWordMatched) {
       return [styles.wordCell, styles.matchedCell, themeStyles.wordCell, themeStyles.matchedCell];
@@ -179,16 +190,12 @@ export default function WordPairsScreen() {
     }
     
     return [styles.wordCell, themeStyles.wordCell];
-  };
+  }, [isMatched, isSelected, isTranslationMatched, themeStyles]);
   
-  const getWordTextStyle = (index: number, column: 'english' | 'translation') => {
+  const getWordTextStyle = useCallback((index: number, column: ColumnType) => {
     const isWordMatched = 
       (column === 'english' && isMatched(index)) ||
-      (column === 'translation' && matchedPairs.some(englishIndex => {
-        const englishWord = englishWords[englishIndex];
-        const correctTranslation = WORD_PAIRS.find(pair => pair.english === englishWord)?.translation;
-        return correctTranslation === translationWords[index];
-      }));
+      (column === 'translation' && isTranslationMatched(index));
     
     if (isWordMatched) {
       return [styles.wordText, themeStyles.matchedText];
@@ -199,7 +206,7 @@ export default function WordPairsScreen() {
     }
     
     return [styles.wordText, themeStyles.wordText];
-  };
+  }, [isMatched, isSelected, isTranslationMatched, themeStyles]);
 
   return (
     <RNESafeAreaView style={styles.container}>
@@ -214,9 +221,7 @@ export default function WordPairsScreen() {
           {englishWords.map((word, index) => (
             <AnimatedTouchable
               key={`english-${index}`}
-              style={[getWordCellStyle(index, 'english'), useAnimatedStyle(() => ({
-                transform: [{ scale: isSelected(index, 'english') ? scaleAnimation.value : 1 }]
-              }))]} 
+              style={[getWordCellStyle(index, 'english'), getAnimatedStyle(index, 'english')]} 
               onPress={() => handleWordPress(index, 'english')}
               disabled={isMatched(index)}
             >
@@ -229,9 +234,7 @@ export default function WordPairsScreen() {
           {translationWords.map((word, index) => (
             <AnimatedTouchable
               key={`translation-${index}`}
-              style={[getWordCellStyle(index, 'translation'), useAnimatedStyle(() => ({
-                transform: [{ scale: isSelected(index, 'translation') ? scaleAnimation.value : 1 }]
-              }))]} 
+              style={[getWordCellStyle(index, 'translation'), getAnimatedStyle(index, 'translation')]} 
               onPress={() => handleWordPress(index, 'translation')}
             >
               <RNEText style={getWordTextStyle(index, 'translation')}>{word}</RNEText>

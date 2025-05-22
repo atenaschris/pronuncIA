@@ -1,7 +1,7 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { TIME_OPTIONS } from '@/constants/constants';
-import { useOnboardingStore } from '@/store/onboarding-store';
+import { TIME_OPTIONS } from '@/lib/constants/constants';
+import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';

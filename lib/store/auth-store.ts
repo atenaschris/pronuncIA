@@ -1,42 +1,11 @@
 import { supabase } from '@/lib/supabase/client';
-import { Session } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 
-import { createAnonymousProfile, fetchAndSetProfile, handleError, resetAuthState } from './auth-utils';
-import { LanguageLevel, LearningGoal, LearningStyle, NativeLanguageCode, TimeCommitment } from './onboarding-store';
+import { createAnonymousProfile, fetchAndSetProfile, handleError, resetAuthState } from '../helpers/auth-utils';
+import { AuthState, UserPreferences } from '../types/auth-types';
 
-export type UserPreferences = {
-  language_level: LanguageLevel;
-  native_language: NativeLanguageCode;
-  learning_goal: LearningGoal;
-  time_commitment: TimeCommitment;
-  learning_style: LearningStyle;
-};
-
-type Profile = {
-  id: string;
-  created_at: string;
-  user_id: string;
-  preferences: UserPreferences;
-  is_onboarded: boolean;
-};
-
-export interface AuthState {
-  isAuthenticated: boolean;
-  session: Session | null;
-  profile: Profile | null;
-  isLoading: boolean;
-  error: string | null;
-  isAnonymous: boolean;
-  setSession: (session: Session | null) => void;
-  signOut: () => Promise<void>;
-  signInWithEmail: (email: string) => Promise<void>;
-  createOrUpsertProfile: (preferences: UserPreferences, asAnonymous?: boolean) => Promise<void>;
-  checkAuth: () => Promise<void>;
-  canAccessFeature: (feature: string) => boolean;
-}
 
 
 export const useAuthStore = create<AuthState>()(

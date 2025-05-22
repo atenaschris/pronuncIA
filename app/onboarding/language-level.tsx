@@ -1,11 +1,11 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { useOnboardingStore } from '@/store/onboarding-store';
+import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { LANGUAGE_LEVELS } from '../../constants/constants';
+import { LANGUAGE_LEVELS } from '../../lib/constants/constants';
 import { OnboardingList } from './components/OnboardingList';
 import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { StateCreator } from 'zustand';
-import { AuthState, UserPreferences } from './auth-store';
+import { AuthState, UserPreferences } from '../types/auth-types';
 
 type AuthSetState = Parameters<StateCreator<AuthState>>[0];
 

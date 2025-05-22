@@ -6,7 +6,7 @@ import { ProgressHeader } from '@/components/learn/progress-header';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNEText } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
-import { LessonType, useLessonStore } from '@/store/lesson-store';
+import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';

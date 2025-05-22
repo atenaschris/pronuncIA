@@ -2,32 +2,9 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 
-import { LANGUAGE_LEVELS, LEARNING_GOALS, LEARNING_STYLES, NATIVE_LANGUAGES, TIME_OPTIONS } from '@/constants/constants';
+import { LANGUAGE_LEVELS, LEARNING_GOALS, LEARNING_STYLES, NATIVE_LANGUAGES, TIME_OPTIONS } from '@/lib/constants/constants';
+import { OnboardingState } from '../types/onboarding-types';
 
-export type NativeLanguageCode = typeof NATIVE_LANGUAGES[number]['id'];
-export type LanguageLevel = typeof LANGUAGE_LEVELS[number]['id'];
-export type LearningGoal = typeof LEARNING_GOALS[number]['id'];
-export type LearningStyle = typeof LEARNING_STYLES[number]['id'];
-export type TimeCommitment = typeof TIME_OPTIONS[number]['id'];
-
-interface OnboardingState {
-  currentStep: number;
-  languageLevel: LanguageLevel;
-  nativeLanguage: NativeLanguageCode;
-  learningGoal: LearningGoal;
-  timeCommitment: TimeCommitment;
-  learningStyle: LearningStyle;
-  isComplete: boolean;
-
-  setCurrentStep: (step: number) => void;
-  setLanguageLevel: (level: LanguageLevel) => void;
-  setNativeLanguage: (language: NativeLanguageCode) => void;
-  setLearningGoal: (goal: LearningGoal) => void;
-  setTimeCommitment: (minutes: TimeCommitment) => void;
-  setLearningStyle: (style: LearningStyle) => void;
-  setIsComplete: (isComplete: boolean) => void;
-  resetOnboarding: () => void;
-}
 
 export const useOnboardingStore = create<OnboardingState>()(persist(
   (set) => ({

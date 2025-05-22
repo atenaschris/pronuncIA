@@ -6,11 +6,9 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RNEThemeProvider } from '@/components/ui/RNEThemeProvider';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { useOnboardingStore } from '@/store/onboarding-store';
+import { useOnboardingStore } from '@/lib/store/onboarding-store';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });

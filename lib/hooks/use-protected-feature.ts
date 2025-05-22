@@ -1,4 +1,4 @@
-import { useAuthStore } from '@/store/auth-store';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { useState } from 'react';
 
 export function useProtectedFeature(featureName?: string) {
