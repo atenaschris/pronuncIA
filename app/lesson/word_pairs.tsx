@@ -1,38 +1,314 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { RNEText } from '@/components/ui/RNEText';
+import { RNEView } from '@/components/ui/RNEView';
+import { useTheme } from '@rneui/themed';
+import { useAudioPlayer } from 'expo-audio';
+import * as Haptics from 'expo-haptics';
+import React, { useEffect, useState } from 'react';
+import { Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
+
+// Sample word pairs for the game
+const WORD_PAIRS = [
+  { english: 'of the', translation: 'dello' },
+  { english: 'me at', translation: 'mi a' },
+  { english: 'after', translation: 'dopo' },
+  { english: 'since', translation: 'da' },
+  { english: 'which', translation: 'quale' },
+  { english: 'this', translation: 'questo' },
+  { english: 'that', translation: 'quello' },
+  { english: 'here', translation: 'qui' },
+];
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function WordPairsScreen() {
+  const { theme } = useTheme();
+  const [englishWords, setEnglishWords] = useState<string[]>([]);
+  const [translationWords, setTranslationWords] = useState<string[]>([]);
+  const [selectedPair, setSelectedPair] = useState<{index: number, column: 'english' | 'translation'} | null>(null);
+  const [matchedPairs, setMatchedPairs] = useState<number[]>([]);
+  const [score, setScore] = useState(0);
+  
+  // Animation values
+  const scaleAnimation = useSharedValue(1);
+  
+  // Sound effects using expo-audio
+  const correctSound = useAudioPlayer(require('../../assets/sounds/correct.mp3'));
+  const incorrectSound = useAudioPlayer(require('../../assets/sounds/incorrect.mp3'));
+
+  // Initialize the game
+  useEffect(() => {
+    initializeGame();
+  }, []);
+
+  const initializeGame = () => {
+    // Extract and shuffle words
+    const english = WORD_PAIRS.map(pair => pair.english);
+    const translations = WORD_PAIRS.map(pair => pair.translation);
+    
+    // Shuffle the translations
+    const shuffledTranslations = [...translations].sort(() => Math.random() - 0.5);
+    
+    setEnglishWords(english);
+    setTranslationWords(shuffledTranslations);
+    setSelectedPair(null);
+    setMatchedPairs([]);
+    setScore(0);
+  };
+
+  const handleWordPress = (index: number, column: 'english' | 'translation') => {
+    // Trigger a small scale animation
+    scaleAnimation.value = withSpring(1.05, { damping: 10 });
+    setTimeout(() => {
+      scaleAnimation.value = withSpring(1);
+    }, 150);
+    
+    // If the word is already matched, do nothing
+    if (matchedPairs.includes(index) && column === 'english') {
+      return;
+    }
+    
+    // If no word is selected yet
+    if (!selectedPair) {
+      setSelectedPair({ index, column });
+      return;
+    }
+    
+    // If clicking the same column, just update the selection
+    if (selectedPair.column === column) {
+      setSelectedPair({ index, column });
+      return;
+    }
+    
+    // Check if the pair matches
+    const englishIndex = column === 'english' ? index : selectedPair.index;
+    const translationIndex = column === 'translation' ? index : selectedPair.index;
+    
+    const englishWord = englishWords[englishIndex];
+    const translationWord = translationWords[translationIndex];
+    
+    // Find if this is a correct match
+    const correctTranslation = WORD_PAIRS.find(pair => pair.english === englishWord)?.translation;
+    
+    if (translationWord === correctTranslation) {
+      // Correct match
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      correctSound.play();
+      
+      setMatchedPairs(prev => [...prev, englishIndex]);
+      setScore(prev => prev + 10);
+      
+      // Check if all pairs are matched
+      if (matchedPairs.length + 1 === WORD_PAIRS.length) {
+        setTimeout(() => {
+          Alert.alert(
+            "Congratulations!",
+            `You've completed the exercise with a score of ${score + 10}!`,
+            [{ text: "Play Again", onPress: initializeGame }]
+          );
+        }, 1000);
+      }
+    } else {
+      // Incorrect match
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      incorrectSound.play();
+    }
+    
+    // Reset selection
+    setSelectedPair(null);
+  };
+
+  const isSelected = (index: number, column: 'english' | 'translation') => {
+    return selectedPair?.index === index && selectedPair?.column === column;
+  };
+
+  const isMatched = (index: number) => {
+    return matchedPairs.includes(index);
+  };
+
+  // Create theme-based styles
+  const themeStyles = {
+    wordCell: {
+      backgroundColor: theme.colors.grey5,
+      shadowColor: theme.colors.black,
+    },
+    selectedCell: {
+      backgroundColor: theme.colors.primary + '20', // Adding transparency
+      borderColor: theme.colors.primary,
+    },
+    matchedCell: {
+      backgroundColor: theme.colors.success + '20', // Adding transparency
+      borderColor: theme.colors.success,
+    },
+    wordText: {
+      color: theme.colors.black,
+    },
+    selectedText: {
+      color: theme.colors.primary,
+      fontWeight: '700' as const,
+    },
+    matchedText: {
+      color: theme.colors.success,
+      fontWeight: '700' as const,
+    },
+    resetButton: {
+      backgroundColor: theme.colors.primary,
+    },
+    resetButtonText: {
+      color: theme.colors.white,
+    }
+  };
+
+  const getWordCellStyle = (index: number, column: 'english' | 'translation') => {
+    const isWordMatched = 
+      (column === 'english' && isMatched(index)) ||
+      (column === 'translation' && matchedPairs.some(englishIndex => {
+        const englishWord = englishWords[englishIndex];
+        const correctTranslation = WORD_PAIRS.find(pair => pair.english === englishWord)?.translation;
+        return correctTranslation === translationWords[index];
+      }));
+    
+    if (isWordMatched) {
+      return [styles.wordCell, styles.matchedCell, themeStyles.wordCell, themeStyles.matchedCell];
+    }
+    
+    if (isSelected(index, column)) {
+      return [styles.wordCell, styles.selectedCell, themeStyles.wordCell, themeStyles.selectedCell];
+    }
+    
+    return [styles.wordCell, themeStyles.wordCell];
+  };
+  
+  const getWordTextStyle = (index: number, column: 'english' | 'translation') => {
+    const isWordMatched = 
+      (column === 'english' && isMatched(index)) ||
+      (column === 'translation' && matchedPairs.some(englishIndex => {
+        const englishWord = englishWords[englishIndex];
+        const correctTranslation = WORD_PAIRS.find(pair => pair.english === englishWord)?.translation;
+        return correctTranslation === translationWords[index];
+      }));
+    
+    if (isWordMatched) {
+      return [styles.wordText, themeStyles.matchedText];
+    }
+    
+    if (isSelected(index, column)) {
+      return [styles.wordText, themeStyles.selectedText];
+    }
+    
+    return [styles.wordText, themeStyles.wordText];
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Word Pairs Screen</Text>
-        <Text style={styles.subtitle}>Content for Word Pairs will go here.</Text>
-      </View>
-    </SafeAreaView>
+    <RNESafeAreaView style={styles.container}>
+      <RNEView style={styles.header}>
+        <OnboardingTitle>Match the Pairs</OnboardingTitle>
+        <OnboardingSubtitle>Tap the matching word pairs</OnboardingSubtitle>
+        <RNEText style={styles.scoreText}>Score: {score}</RNEText>
+      </RNEView>
+      
+      <RNEView style={styles.gameContainer}>
+        <RNEView style={styles.column}>
+          {englishWords.map((word, index) => (
+            <AnimatedTouchable
+              key={`english-${index}`}
+              style={[getWordCellStyle(index, 'english'), useAnimatedStyle(() => ({
+                transform: [{ scale: isSelected(index, 'english') ? scaleAnimation.value : 1 }]
+              }))]} 
+              onPress={() => handleWordPress(index, 'english')}
+              disabled={isMatched(index)}
+            >
+              <RNEText style={getWordTextStyle(index, 'english')}>{word}</RNEText>
+            </AnimatedTouchable>
+          ))}
+        </RNEView>
+        
+        <RNEView style={styles.column}>
+          {translationWords.map((word, index) => (
+            <AnimatedTouchable
+              key={`translation-${index}`}
+              style={[getWordCellStyle(index, 'translation'), useAnimatedStyle(() => ({
+                transform: [{ scale: isSelected(index, 'translation') ? scaleAnimation.value : 1 }]
+              }))]} 
+              onPress={() => handleWordPress(index, 'translation')}
+            >
+              <RNEText style={getWordTextStyle(index, 'translation')}>{word}</RNEText>
+            </AnimatedTouchable>
+          ))}
+        </RNEView>
+      </RNEView>
+      
+      <TouchableOpacity 
+        style={[styles.resetButton, themeStyles.resetButton]} 
+        onPress={initializeGame}
+      >
+        <RNEText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNEText>
+      </TouchableOpacity>
+    </RNESafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#fff',
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  header: {
     padding: 20,
+    alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
+  scoreText: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+    marginTop: 10,
   },
-  subtitle: {
+  gameContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    padding: 10,
+  },
+  column: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  wordCell: {
+    borderRadius: 12,
+    padding: 15,
+    marginVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 60,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  selectedCell: {
+    borderWidth: 2,
+    transform: [{ scale: 1.02 }],
+  },
+  matchedCell: {
+    borderWidth: 2,
+  },
+  wordText: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    fontWeight: '500',
+  },
+  resetButton: {
+    padding: 15,
+    margin: 20,
+    borderRadius: 30,
+    alignItems: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  resetButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

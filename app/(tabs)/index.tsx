@@ -54,7 +54,6 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
-    paddingBottom: 10,
   },
   scrollView: {
     flex: 1,
