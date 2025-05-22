@@ -1,21 +1,17 @@
+import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNEText } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
 import { WORD_PAIRS } from '@/lib/constants/constants';
+import { ColumnType, EnglishWord, TranslationWord } from '@/lib/types/types';
 import { useTheme } from '@rneui/themed';
 import { useAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
-
-// Define types based on the WORD_PAIRS constant structure
-type WordPair = typeof WORD_PAIRS[number];
-type EnglishWord = WordPair['english'];
-type TranslationWord = WordPair['translation'];
-type ColumnType = 'english' | 'translation';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -44,12 +40,20 @@ export default function WordPairsScreen() {
     return matchedPairs.includes(index);
   }, [matchedPairs]);
   
-  // Create a single animated style function that will be used for all items
-  const getAnimatedStyle = useCallback((index: number, column: ColumnType) => {
+  // Pre-compute animated styles for all possible items
+  const englishAnimatedStyles = WORD_PAIRS.map((_, index) => {
+    const scale = isSelected(index, 'english') ? scaleAnimation.value : 1
     return useAnimatedStyle(() => ({
-      transform: [{ scale: isSelected(index, column) ? scaleAnimation.value : 1 }]
+      transform: [{ scale }]
     }));
-  }, [scaleAnimation, isSelected]); // Use isSelected in dependencies instead of selectedPair
+  });
+  
+  const translationAnimatedStyles = WORD_PAIRS.map((_, index) => {
+    const scale = isSelected(index, 'translation') ? scaleAnimation.value : 1
+    return useAnimatedStyle(() => ({
+      transform: [{ scale  }]
+    }));
+  });
 
   // Initialize the game
   useEffect(() => {
@@ -218,37 +222,40 @@ export default function WordPairsScreen() {
       
       <RNEView style={styles.gameContainer}>
         <RNEView style={styles.column}>
-          {englishWords.map((word, index) => (
-            <AnimatedTouchable
-              key={`english-${index}`}
-              style={[getWordCellStyle(index, 'english'), getAnimatedStyle(index, 'english')]} 
-              onPress={() => handleWordPress(index, 'english')}
-              disabled={isMatched(index)}
-            >
-              <RNEText style={getWordTextStyle(index, 'english')}>{word}</RNEText>
-            </AnimatedTouchable>
-          ))}
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {englishWords.map((word, index) => (
+              <AnimatedTouchable
+                key={`english-${index}`}
+                style={[getWordCellStyle(index, 'english'), englishAnimatedStyles]} 
+                onPress={() => handleWordPress(index, 'english')}
+                disabled={isMatched(index)}
+              >
+                <RNEText style={getWordTextStyle(index, 'english')}>{word}</RNEText>
+              </AnimatedTouchable>
+            ))}
+          </ScrollView>
         </RNEView>
         
         <RNEView style={styles.column}>
-          {translationWords.map((word, index) => (
-            <AnimatedTouchable
-              key={`translation-${index}`}
-              style={[getWordCellStyle(index, 'translation'), getAnimatedStyle(index, 'translation')]} 
-              onPress={() => handleWordPress(index, 'translation')}
-            >
-              <RNEText style={getWordTextStyle(index, 'translation')}>{word}</RNEText>
-            </AnimatedTouchable>
-          ))}
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {translationWords.map((word, index) => (
+              <AnimatedTouchable
+                key={`translation-${index}`}
+                style={[getWordCellStyle(index, 'translation'), translationAnimatedStyles]} 
+                onPress={() => handleWordPress(index, 'translation')}
+              >
+                <RNEText style={getWordTextStyle(index, 'translation')}>{word}</RNEText>
+              </AnimatedTouchable>
+            ))}
+          </ScrollView>
         </RNEView>
       </RNEView>
       
-      <TouchableOpacity 
-        style={[styles.resetButton, themeStyles.resetButton]} 
+      <NextButton 
         onPress={initializeGame}
       >
         <RNEText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNEText>
-      </TouchableOpacity>
+      </NextButton>
     </RNESafeAreaView>
   );
 }
@@ -256,6 +263,7 @@ export default function WordPairsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 20,
   },
   header: {
     padding: 20,
@@ -269,7 +277,6 @@ const styles = StyleSheet.create({
   gameContainer: {
     flex: 1,
     flexDirection: 'row',
-    padding: 10,
   },
   column: {
     flex: 1,
