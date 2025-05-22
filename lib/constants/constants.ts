@@ -1,4 +1,3 @@
-import { NativeLanguageCode } from "../types/onboarding-types";
 
 export const LANGUAGE_LEVELS = [
   { id: 'A1', label: 'Beginner (A1)', description: 'Basic phrases and expressions' },
@@ -31,7 +30,7 @@ export const NATIVE_LANGUAGES = [
   { id: 'ar', label: 'Arabic', description: 'Semitic language with rich phonetic system and distinctive sounds' },
 ] as const;
 
-export const NATIVE_LANGUAGE_LABELS: Record<NativeLanguageCode, string> = {
+export const NATIVE_LANGUAGE_LABELS = {
   it: 'Italian',
   es: 'Spanish',
   fr: 'French',
@@ -42,7 +41,7 @@ export const NATIVE_LANGUAGE_LABELS: Record<NativeLanguageCode, string> = {
   ja: 'Japanese',
   ko: 'Korean',
   ar: 'Arabic',
-};
+} as const;
 
 export const LEARNING_GOALS = [
   {
@@ -120,3 +119,13 @@ export const WORD_PAIRS = [
   { english: 'that', translation: 'quello' },
   { english: 'here', translation: 'qui' },
 ] as const;
+
+export const LESSON_ICONS = {
+  vocabulary: 'book-open-variant',
+  listening: 'headphones',
+  pronunciation: 'microphone',
+  roleplay: 'account-tie-voice',
+  shadowing: 'account-voice-off',
+  'voice_journaling': 'notebook',
+  'word_pairs': 'cards-outline',
+} as const;

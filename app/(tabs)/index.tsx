@@ -20,9 +20,12 @@ export default function LearnScreen() {
     }
   }, []);
 
-  const handleLessonPress = (lessonType: LessonType) => {
-    // TODO: Navigate to specific lesson screen based on type
-    router.push(`/lessons/${lessonType}`);
+  const handleLessonPress = (lessonType: LessonType) => {    
+    if (lessonType === 'voice_journaling' || lessonType === 'word_pairs') {
+      // Replace all underscores with hyphens for these specific lesson types
+      lessonType = lessonType.replaceAll('_', '-') as LessonType;
+    }
+      router.push(`/lessons/${lessonType}`);
   };
 
   return (
