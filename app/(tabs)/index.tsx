@@ -22,7 +22,7 @@ export default function LearnScreen() {
 
   const handleLessonPress = (lessonType: LessonType) => {
     // TODO: Navigate to specific lesson screen based on type
-    router.push(`/lesson/${lessonType}`);
+    router.push(`/lessons/${lessonType}`);
   };
 
   return (
