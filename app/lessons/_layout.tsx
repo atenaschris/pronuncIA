@@ -9,8 +9,8 @@ export default function LessonLayout() {
       <Stack.Screen name="pronunciation" options={{ title: 'Pronunciation Lesson', headerShown: false  }} />
       <Stack.Screen name="roleplay" options={{ title: 'Roleplay Lesson', headerShown: false  }} />
       <Stack.Screen name="shadowing" options={{ title: 'Shadowing Lesson', headerShown: false  }} />
-      <Stack.Screen name="voice_journaling" options={{ title: 'Voice Journaling', headerShown: false  }} />
-      <Stack.Screen name="word_pairs" options={{ title: 'Word Pairs Lesson', headerShown: false  }} />
+      <Stack.Screen name="voice-journaling" options={{ title: 'Voice Journaling', headerShown: false  }} />
+      <Stack.Screen name="word-pairs" options={{ title: 'Word Pairs Lesson', headerShown: false  }} />
     </Stack>
   );
 }

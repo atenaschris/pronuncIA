@@ -14,6 +14,8 @@ import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/On
 
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+const correctAudioSource = require('../../assets/sounds/correct.mp3');
+const incorrectAudioSource = require('../../assets/sounds/incorrect.mp3');
 
 export default function WordPairsScreen() {
   // All hooks must be called at the top level, before any conditional logic
@@ -29,8 +31,8 @@ export default function WordPairsScreen() {
   const scaleAnimation = useSharedValue(1);
   
   // Sound effects using expo-audio
-  const correctSound = useAudioPlayer(require('../../assets/sounds/correct.mp3'));
-  const incorrectSound = useAudioPlayer(require('../../assets/sounds/incorrect.mp3'));
+  const correctSound = useAudioPlayer(correctAudioSource, 100);
+  const incorrectSound = useAudioPlayer(incorrectAudioSource,100);
   
   // Helper functions - defined before they're used
   const isSelected = useCallback((index: number, column: ColumnType) => {
@@ -117,7 +119,7 @@ export default function WordPairsScreen() {
     if (translationWord === correctTranslation) {
       // Correct match
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      correctSound.play();
+      correctSound.play()
       
       setMatchedPairs(prev => [...prev, englishIndex]);
       setScore(prev => prev + 10);
@@ -135,7 +137,7 @@ export default function WordPairsScreen() {
     } else {
       // Incorrect match
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      incorrectSound.play();
+      incorrectSound.play()
       setIncorrectPair({ 
         english: column === 'english' ? index : selectedPair.index, 
         translation: column === 'translation' ? index : selectedPair.index 
@@ -280,7 +282,6 @@ export default function WordPairsScreen() {
           </ScrollView>
         </RNEView>
       </RNEView>
-      
       <NextButton 
         onPress={initializeGame}
       >
