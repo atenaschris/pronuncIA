@@ -1,4 +1,4 @@
-import { useAuthStore } from '@/store/auth-store';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { Button, Overlay } from '@rneui/themed';
 import { useRouter } from 'expo-router';
 import { StyleSheet } from 'react-native';

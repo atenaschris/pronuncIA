@@ -3,8 +3,8 @@ import LottieView from 'lottie-react-native';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { useAuthStore } from '../../store/auth-store';
-import { useOnboardingStore } from '../../store/onboarding-store';
+import { useAuthStore } from '../../lib/store/auth-store';
+import { useOnboardingStore } from '../../lib/store/onboarding-store';
 
 export function SplashScreen() {
   const opacity = useSharedValue(0);

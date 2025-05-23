@@ -1,4 +1,5 @@
-import { Lesson, LessonType } from '@/store/lesson-store';
+import { LESSON_ICONS } from '@/lib/constants/constants';
+import { Lesson, LessonType } from '@/lib/store/lesson-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, useTheme } from '@rneui/themed';
 import { StyleSheet, View } from 'react-native';
@@ -8,16 +9,6 @@ interface LessonBlockProps {
   lesson: Lesson;
   onPress: (lessonType: LessonType) => void;
 }
-
-const LESSON_ICONS = {
-  vocabulary: 'book-open-variant',
-  listening: 'headphones',
-  pronunciation: 'microphone',
-  roleplay: 'account-tie-voice',
-  shadowing: 'account-voice-off',
-  voice_journaling: 'notebook',
-  word_pairs: 'cards-outline',
-} as const;
 
 export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
   const { theme } = useTheme();

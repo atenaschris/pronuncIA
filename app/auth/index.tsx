@@ -1,7 +1,7 @@
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNEText } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
-import { useAuthStore } from '@/store/auth-store';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { Button } from '@rneui/themed';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Link } from 'expo-router';
