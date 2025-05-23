@@ -23,6 +23,7 @@ export default function WordPairsScreen() {
   const [selectedPair, setSelectedPair] = useState<{index: number, column: ColumnType} | null>(null);
   const [matchedPairs, setMatchedPairs] = useState<number[]>([]);
   const [score, setScore] = useState(0);
+  const [incorrectPair, setIncorrectPair] = useState<{ english: number; translation: number } | null>(null);
   
   // Animation values
   const scaleAnimation = useSharedValue(1);
@@ -62,6 +63,7 @@ export default function WordPairsScreen() {
 
   const initializeGame = () => {
     // Extract and shuffle words
+    debugger;
     const english = WORD_PAIRS.map(pair => pair.english);
     const translations = WORD_PAIRS.map(pair => pair.translation);
     
@@ -73,6 +75,7 @@ export default function WordPairsScreen() {
     setSelectedPair(null);
     setMatchedPairs([]);
     setScore(0);
+    setIncorrectPair(null);
   };
 
   const handleWordPress = (index: number, column: ColumnType) => {
@@ -90,12 +93,14 @@ export default function WordPairsScreen() {
     // If no word is selected yet
     if (!selectedPair) {
       setSelectedPair({ index, column });
+      setIncorrectPair(null); // Clear incorrect pair on new selection
       return;
     }
     
     // If clicking the same column, just update the selection
     if (selectedPair.column === column) {
       setSelectedPair({ index, column });
+      setIncorrectPair(null); // Clear incorrect pair on new selection
       return;
     }
     
@@ -131,6 +136,11 @@ export default function WordPairsScreen() {
       // Incorrect match
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       incorrectSound.play();
+      setIncorrectPair({ 
+        english: column === 'english' ? index : selectedPair.index, 
+        translation: column === 'translation' ? index : selectedPair.index 
+      });
+      setTimeout(() => setIncorrectPair(null), 1000); // Clear after 1 second
     }
     
     // Reset selection
@@ -151,6 +161,10 @@ export default function WordPairsScreen() {
       backgroundColor: theme.colors.success + '20', // Adding transparency
       borderColor: theme.colors.success,
     },
+    incorrectCell: {
+      backgroundColor: theme.colors.error + '20',
+      borderColor: theme.colors.error,
+    },
     wordText: {
       color: theme.colors.black,
     },
@@ -160,6 +174,10 @@ export default function WordPairsScreen() {
     },
     matchedText: {
       color: theme.colors.success,
+      fontWeight: '700' as const,
+    },
+    incorrectText: {
+      color: theme.colors.error,
       fontWeight: '700' as const,
     },
     resetButton: {
@@ -188,13 +206,19 @@ export default function WordPairsScreen() {
     if (isWordMatched) {
       return [styles.wordCell, styles.matchedCell, themeStyles.wordCell, themeStyles.matchedCell];
     }
+
+    if (incorrectPair && 
+        ((column === 'english' && incorrectPair.english === index) || 
+         (column === 'translation' && incorrectPair.translation === index))) {
+      return [styles.wordCell, styles.incorrectCell, themeStyles.wordCell, themeStyles.incorrectCell];
+    }
     
     if (isSelected(index, column)) {
       return [styles.wordCell, styles.selectedCell, themeStyles.wordCell, themeStyles.selectedCell];
     }
     
     return [styles.wordCell, themeStyles.wordCell];
-  }, [isMatched, isSelected, isTranslationMatched, themeStyles]);
+  }, [isMatched, isSelected, isTranslationMatched, themeStyles, incorrectPair]);
   
   const getWordTextStyle = useCallback((index: number, column: ColumnType) => {
     const isWordMatched = 
@@ -204,13 +228,19 @@ export default function WordPairsScreen() {
     if (isWordMatched) {
       return [styles.wordText, themeStyles.matchedText];
     }
+
+    if (incorrectPair && 
+        ((column === 'english' && incorrectPair.english === index) || 
+         (column === 'translation' && incorrectPair.translation === index))) {
+      return [styles.wordText, themeStyles.incorrectText];
+    }
     
     if (isSelected(index, column)) {
       return [styles.wordText, themeStyles.selectedText];
     }
     
     return [styles.wordText, themeStyles.wordText];
-  }, [isMatched, isSelected, isTranslationMatched, themeStyles]);
+  }, [isMatched, isSelected, isTranslationMatched, themeStyles, incorrectPair]);
 
   return (
     <RNESafeAreaView style={styles.container}>
@@ -297,6 +327,9 @@ const styles = StyleSheet.create({
   selectedCell: {
     borderWidth: 2,
     transform: [{ scale: 1.02 }],
+  },
+  incorrectCell: {
+    borderWidth: 2,
   },
   matchedCell: {
     borderWidth: 2,
