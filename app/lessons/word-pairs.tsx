@@ -3,10 +3,10 @@ import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNEText } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
 import { WORD_PAIRS } from '@/lib/constants/constants';
-import { ColumnType, EnglishWord, TranslationWord } from '@/lib/types/types';
+import { useHaptic } from '@/lib/hooks/use-haptic';
+import { ColumnType, EnglishWord, TranslationWord } from '@/lib/types/word-pairs';
 import { useTheme } from '@rneui/themed';
 import { createAudioPlayer } from 'expo-audio';
-import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -14,8 +14,6 @@ import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/On
 
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
-const correctAudioSource = require('../../assets/sounds/correct.mp3');
-const incorrectAudioSource = require('../../assets/sounds/incorrect.mp3');
 
 export default function WordPairsScreen() {
   // All hooks must be called at the top level, before any conditional logic
@@ -26,6 +24,8 @@ export default function WordPairsScreen() {
   const [matchedPairs, setMatchedPairs] = useState<number[]>([]);
   const [score, setScore] = useState(0);
   const [incorrectPair, setIncorrectPair] = useState<{ english: number; translation: number } | null>(null);
+  const HapticSuccess = useHaptic('success');
+  const HapticError = useHaptic('error');
   
   // Animation values - individual scale values for each item
   const englishScaleValues = WORD_PAIRS.map(() => useSharedValue(1));
@@ -33,8 +33,8 @@ export default function WordPairsScreen() {
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Sound effects using expo-audio
-  const correctSound = createAudioPlayer(correctAudioSource);
-  const incorrectSound = createAudioPlayer(incorrectAudioSource);
+  const correctSound = createAudioPlayer(require('../../assets/sounds/correct.mp3'));
+  const incorrectSound = createAudioPlayer(require('../../assets/sounds/incorrect.mp3'));
   
   // Helper functions - defined before they're used
   const isSelected = useCallback((index: number, column: ColumnType) => {
@@ -175,7 +175,7 @@ export default function WordPairsScreen() {
     
     if (translationWord === correctTranslation) {
       // Correct match
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      HapticSuccess?.();
       correctSound.play()
       
       setMatchedPairs(prev => [...prev, englishIndex]);
@@ -189,17 +189,18 @@ export default function WordPairsScreen() {
             `You've completed the exercise with a score of ${score + 10}!`,
             [{ text: "Play Again", onPress: initializeGame }]
           );
-        }, 1000);
+        }, 500);
       }
     } else {
       // Incorrect match
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      HapticError?.();
       incorrectSound.play()
       setIncorrectPair({ 
         english: column === 'english' ? index : selectedPair.index, 
         translation: column === 'translation' ? index : selectedPair.index 
       });
-      setTimeout(() => setIncorrectPair(null), 1000); // Clear after 1 second
+      setScore(prev => prev !== 0 ?  prev - 10 : 0);
+      setTimeout(() => setIncorrectPair(null), 500); // Clear after 1 second
     }
     
     // Reset selection

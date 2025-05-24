@@ -12,8 +12,8 @@
       "supportsTablet": true
     },
     "plugins": [
-      "expo-secure-store",
-      "expo-audio"
+      "expo-secure-store"
+
     ]
   },
   "android": {
