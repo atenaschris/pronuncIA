@@ -7,9 +7,11 @@ import { useHaptic } from '@/lib/hooks/use-haptic';
 import { ColumnType, EnglishWord, TranslationWord } from '@/lib/types/word-pairs';
 import { useTheme } from '@rneui/themed';
 import { Audio } from 'expo-av';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { LessonType, useLessonStore } from '../../lib/store/lesson-store';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 
@@ -24,8 +26,11 @@ export default function WordPairsScreen() {
   const [matchedPairs, setMatchedPairs] = useState<number[]>([]);
   const [score, setScore] = useState(0);
   const [incorrectPair, setIncorrectPair] = useState<{ english: number; translation: number } | null>(null);
+  const [lessonCompleted, setLessonCompleted] = useState(false); // New state for lesson completion
   const HapticSuccess = useHaptic('success');
   const HapticError = useHaptic('error');
+  const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
+  const { completeLesson, totalXp } = useLessonStore();
   
   // Animation values - individual scale values for each item
   const englishScaleValues = [
@@ -141,6 +146,7 @@ export default function WordPairsScreen() {
     setMatchedPairs([]);
     setScore(0);
     setIncorrectPair(null);
+    setLessonCompleted(false); // Reset lesson completed state
   };
 
   const handleWordPress = (index: number, column: ColumnType) => {
@@ -197,12 +203,21 @@ export default function WordPairsScreen() {
       setScore(prev => prev + 10);
       
       // Check if all pairs are matched
-      if (matchedPairs.length + 1 === WORD_PAIRS.length) {
+      if (matchedPairs.length + 1 === WORD_PAIRS.length && !lessonCompleted) {
+        if (lessonId) {
+          console.log('Before completeLesson XP:', totalXp);
+          completeLesson(lessonId);
+          console.log('After completeLesson XP:', useLessonStore.getState().totalXp); // Log updated XP
+          setLessonCompleted(true); // Mark lesson as completed
+        }
         setTimeout(() => {
           Alert.alert(
             "Congratulations!",
-            `You've completed the exercise with a score of ${score + 10}!`,
-            [{ text: "Play Again", onPress: initializeGame }]
+            `You've completed the lesson with a score of ${score + 10}!`, 
+            [
+              { text: "Play Again", onPress: initializeGame },
+              { text: "Back to Home", onPress: () => router.push('/') }
+            ]
           );
         }, 300);
         winningSound?.replayAsync();

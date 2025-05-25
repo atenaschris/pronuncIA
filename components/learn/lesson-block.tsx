@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, useTheme } from '@rneui/themed';
 import { StyleSheet, View } from 'react-native';
 import { RNEText } from '../ui/RNEText';
+import { RNEView } from '../ui/RNEView';
 
 interface LessonBlockProps {
   lesson: Lesson;
@@ -27,7 +28,7 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
       disabledStyle={styles.completed}
       type="outline"
     >
-      <View>
+      <RNEView>
         <View style={styles.titleContainer}>
           <RNEText h3 h3Style={{color: theme.colors.primary}}>{lesson.title}</RNEText>
           <MaterialCommunityIcons
@@ -39,12 +40,15 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
         </View>
         <View style={styles.belowLessonBlockContainer}>
           <RNEText h4 h4Style={{fontWeight:'300'}}>{lesson.description}</RNEText>
+          <View style={styles.xpAndLessonCompletedIconWrapper}>
           <RNEText h4 style={{fontWeight: '500',color: theme.colors.success}}>+{lesson.xpReward} XP</RNEText>
           {lesson.completed && (
-            <MaterialCommunityIcons name="check-circle" size={20} color={theme.colors.success} />
+            <MaterialCommunityIcons name="check-circle" size={30} color={theme.colors.success} />
           )}
+          </View>
+          
         </View>
-      </View>
+      </RNEView>
     </Button>
   );
 }
@@ -82,5 +86,10 @@ const styles = StyleSheet.create({
   description: {
     color: '#666',
     marginTop: 2,
+  },
+  xpAndLessonCompletedIconWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 5,
   }
 });

@@ -28,7 +28,7 @@ interface LessonState {
   isLoading: boolean;
   error: string | null;
   setDailyPlan: (plan: DailyPlan) => void;
-  completeLesson: (lessonId: string) => void;
+  completeLesson: (lessonId:LessonType) => void;
   generateDailyPlan: () => Promise<void>;
 }
 
@@ -41,19 +41,19 @@ export const useLessonStore = create<LessonState>()(persist(
   error: null,
 
   setDailyPlan: (plan) => set({ dailyPlan: plan }),
-
-  completeLesson: (lessonId) => {
+  completeLesson: (lessonId: LessonType) => {
     const { dailyPlan } = get();
     if (!dailyPlan) return;
 
     const updatedLessons = dailyPlan.lessons.map((lesson) =>
-      lesson.id === lessonId ? { ...lesson, completed: true } : lesson
+      lesson.type === lessonId ? { ...lesson, completed: true } : lesson
     );
 
-    const completedLesson = dailyPlan.lessons.find((l) => l.id === lessonId);
-    if (completedLesson) {
+    const completedLesson = dailyPlan.lessons.find((l) => l.type === lessonId);
+    if (completedLesson && !completedLesson.completed) { // Check if not already completed to avoid multiple increments
       set((state) => ({
         totalXp: state.totalXp + completedLesson.xpReward,
+        currentStreak: state.currentStreak + 1, // Increment current streak
         dailyPlan: {
           ...dailyPlan,
           lessons: updatedLessons,
