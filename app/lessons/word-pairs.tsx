@@ -3,11 +3,11 @@ import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNEText } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
 import { WORD_PAIRS } from '@/lib/constants/constants';
-import { ColumnType, EnglishWord, TranslationWord } from '@/lib/types/types';
+import { useHaptic } from '@/lib/hooks/use-haptic';
+import { ColumnType, EnglishWord, TranslationWord } from '@/lib/types/word-pairs';
 import { useTheme } from '@rneui/themed';
-import { useAudioPlayer } from 'expo-audio';
-import * as Haptics from 'expo-haptics';
-import React, { useCallback, useEffect, useState } from 'react';
+import { Audio } from 'expo-av';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
@@ -24,13 +24,56 @@ export default function WordPairsScreen() {
   const [matchedPairs, setMatchedPairs] = useState<number[]>([]);
   const [score, setScore] = useState(0);
   const [incorrectPair, setIncorrectPair] = useState<{ english: number; translation: number } | null>(null);
+  const HapticSuccess = useHaptic('success');
+  const HapticError = useHaptic('error');
   
-  // Animation values
-  const scaleAnimation = useSharedValue(1);
+  // Animation values - individual scale values for each item
+  const englishScaleValues = [
+    useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1),
+    useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1),
+  ];
+  const translationScaleValues = [
+    useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1),
+    useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1),
+  ];
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Sound effects using expo-audio
-  const correctSound = useAudioPlayer(require('../../assets/sounds/correct.mp3'));
-  const incorrectSound = useAudioPlayer(require('../../assets/sounds/incorrect.mp3'));
+  // Sound effects using expo-av
+  const [correctSound, setCorrectSound] = useState<Audio.Sound | null>(null);
+  const [incorrectSound, setIncorrectSound] = useState<Audio.Sound | null>(null);
+  const [winningSound, setWinningSound] = useState<Audio.Sound | null>(null);
+
+  // Load audio files
+  useEffect(() => {
+    const loadAudio = async () => {
+      try {
+        const { sound: correct } = await Audio.Sound.createAsync(
+          require('../../assets/sounds/correct.mp3')
+        );
+        const { sound: incorrect } = await Audio.Sound.createAsync(
+          require('../../assets/sounds/incorrect.mp3')
+        );
+        const { sound: winning } = await Audio.Sound.createAsync(
+          require('../../assets/sounds/win.mp3')
+        );
+        
+        setCorrectSound(correct);
+        setIncorrectSound(incorrect);
+        setWinningSound(winning);
+      } catch (error) {
+        console.warn('Failed to load audio files:', error);
+      }
+    };
+
+    loadAudio();
+
+    // Cleanup function
+    return () => {
+      correctSound?.unloadAsync();
+      incorrectSound?.unloadAsync();
+      winningSound?.unloadAsync();
+    };
+  }, []);
   
   // Helper functions - defined before they're used
   const isSelected = useCallback((index: number, column: ColumnType) => {
@@ -41,20 +84,43 @@ export default function WordPairsScreen() {
     return matchedPairs.includes(index);
   }, [matchedPairs]);
   
-  // Pre-compute animated styles for all possible items
-  const englishAnimatedStyles = WORD_PAIRS.map((_, index) => {
-    const scale = isSelected(index, 'english') ? scaleAnimation.value : 1
-    return useAnimatedStyle(() => ({
-      transform: [{ scale }]
-    }));
-  });
+  // Create individual animated styles for each item (fixed number of hooks)
+  const englishAnimatedStyle0 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[0].value }] }));
+  const englishAnimatedStyle1 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[1].value }] }));
+  const englishAnimatedStyle2 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[2].value }] }));
+  const englishAnimatedStyle3 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[3].value }] }));
+  const englishAnimatedStyle4 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[4].value }] }));
+  const englishAnimatedStyle5 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[5].value }] }));
+  const englishAnimatedStyle6 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[6].value }] }));
+  const englishAnimatedStyle7 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[7].value }] }));
   
-  const translationAnimatedStyles = WORD_PAIRS.map((_, index) => {
-    const scale = isSelected(index, 'translation') ? scaleAnimation.value : 1
-    return useAnimatedStyle(() => ({
-      transform: [{ scale  }]
-    }));
-  });
+  const translationAnimatedStyle0 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[0].value }] }));
+  const translationAnimatedStyle1 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[1].value }] }));
+  const translationAnimatedStyle2 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[2].value }] }));
+  const translationAnimatedStyle3 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[3].value }] }));
+  const translationAnimatedStyle4 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[4].value }] }));
+  const translationAnimatedStyle5 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[5].value }] }));
+  const translationAnimatedStyle6 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[6].value }] }));
+  const translationAnimatedStyle7 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[7].value }] }));
+
+  // Arrays of animated styles for easier access
+  const englishAnimatedStyles = [
+    englishAnimatedStyle0, englishAnimatedStyle1, englishAnimatedStyle2, englishAnimatedStyle3,
+    englishAnimatedStyle4, englishAnimatedStyle5, englishAnimatedStyle6, englishAnimatedStyle7,
+  ];
+  const translationAnimatedStyles = [
+    translationAnimatedStyle0, translationAnimatedStyle1, translationAnimatedStyle2, translationAnimatedStyle3,
+    translationAnimatedStyle4, translationAnimatedStyle5, translationAnimatedStyle6, translationAnimatedStyle7,
+  ];
+  
+  // Helper function to get the correct animated style
+  const getEnglishAnimatedStyle = (index: number) => {
+    return englishAnimatedStyles[index] || englishAnimatedStyles[0]; // Default to first if out of bounds
+  };
+  
+  const getTranslationAnimatedStyle = (index: number) => {
+    return translationAnimatedStyles[index] || translationAnimatedStyles[0]; // Default to first if out of bounds
+  };
 
   // Initialize the game
   useEffect(() => {
@@ -63,7 +129,6 @@ export default function WordPairsScreen() {
 
   const initializeGame = () => {
     // Extract and shuffle words
-    debugger;
     const english = WORD_PAIRS.map(pair => pair.english);
     const translations = WORD_PAIRS.map(pair => pair.translation);
     
@@ -79,11 +144,20 @@ export default function WordPairsScreen() {
   };
 
   const handleWordPress = (index: number, column: ColumnType) => {
-    // Trigger a small scale animation
-    scaleAnimation.value = withSpring(1.05, { damping: 10 });
-    setTimeout(() => {
-      scaleAnimation.value = withSpring(1);
-    }, 150);
+    // Clear any existing animation timeout
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+      animationTimeoutRef.current = null;
+    }
+
+    // Get the appropriate scale value for this specific item
+    const scaleValue = column === 'english' ? englishScaleValues[index] : translationScaleValues[index];
+    
+    // Trigger a small scale animation for this specific item
+    scaleValue.value = withSpring(1.10, { damping: 10 });
+    animationTimeoutRef.current = setTimeout(() => {
+      scaleValue.value = withSpring(1);
+    }, 50);
     
     // If the word is already matched, do nothing
     if (matchedPairs.includes(index) && column === 'english') {
@@ -116,8 +190,8 @@ export default function WordPairsScreen() {
     
     if (translationWord === correctTranslation) {
       // Correct match
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      correctSound.play();
+      HapticSuccess?.();
+      correctSound?.replayAsync()
       
       setMatchedPairs(prev => [...prev, englishIndex]);
       setScore(prev => prev + 10);
@@ -130,17 +204,19 @@ export default function WordPairsScreen() {
             `You've completed the exercise with a score of ${score + 10}!`,
             [{ text: "Play Again", onPress: initializeGame }]
           );
-        }, 1000);
+        }, 300);
+        winningSound?.replayAsync();
       }
     } else {
       // Incorrect match
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      incorrectSound.play();
+      HapticError?.();
+      incorrectSound?.replayAsync()
       setIncorrectPair({ 
         english: column === 'english' ? index : selectedPair.index, 
         translation: column === 'translation' ? index : selectedPair.index 
       });
-      setTimeout(() => setIncorrectPair(null), 1000); // Clear after 1 second
+      setScore(prev => prev !== 0 ?  prev - 10 : 0);
+      setTimeout(() => setIncorrectPair(null), 500); // Clear after 1 second
     }
     
     // Reset selection
@@ -256,7 +332,7 @@ export default function WordPairsScreen() {
             {englishWords.map((word, index) => (
               <AnimatedTouchable
                 key={`english-${index}`}
-                style={[getWordCellStyle(index, 'english'), englishAnimatedStyles]} 
+                style={[getWordCellStyle(index, 'english'), getEnglishAnimatedStyle(index)]} 
                 onPress={() => handleWordPress(index, 'english')}
                 disabled={isMatched(index)}
               >
@@ -271,7 +347,7 @@ export default function WordPairsScreen() {
             {translationWords.map((word, index) => (
               <AnimatedTouchable
                 key={`translation-${index}`}
-                style={[getWordCellStyle(index, 'translation'), translationAnimatedStyles]} 
+                style={[getWordCellStyle(index, 'translation'), getTranslationAnimatedStyle(index)]} 
                 onPress={() => handleWordPress(index, 'translation')}
               >
                 <RNEText style={getWordTextStyle(index, 'translation')}>{word}</RNEText>
@@ -280,7 +356,6 @@ export default function WordPairsScreen() {
           </ScrollView>
         </RNEView>
       </RNEView>
-      
       <NextButton 
         onPress={initializeGame}
       >
