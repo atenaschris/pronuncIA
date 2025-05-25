@@ -204,16 +204,17 @@ export default function WordPairsScreen() {
       
       // Check if all pairs are matched
       if (matchedPairs.length + 1 === WORD_PAIRS.length && !lessonCompleted) {
+        const finalScore = score + 10; // Calculate final score before calling completeLesson
         if (lessonId) {
-          console.log('Before completeLesson XP:', totalXp);
-          completeLesson(lessonId);
+          console.log('Before completeLesson XP:', totalXp, 'Final Score:', finalScore);
+          completeLesson(lessonId, finalScore); // Pass the final score
           console.log('After completeLesson XP:', useLessonStore.getState().totalXp); // Log updated XP
           setLessonCompleted(true); // Mark lesson as completed
         }
         setTimeout(() => {
           Alert.alert(
             "Congratulations!",
-            `You've completed the lesson with a score of ${score + 10}!`, 
+            `You've completed the lesson with a score of ${finalScore}!`, 
             [
               { text: "Play Again", onPress: initializeGame },
               { text: "Back to Home", onPress: () => router.push('/') }

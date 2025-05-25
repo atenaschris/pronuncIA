@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
+import { useOnboardingStore } from './onboarding-store'; // Import onboarding store
 
 export type LessonType = 'vocabulary' | 'listening' | 'pronunciation' | 'roleplay' | 'shadowing' | 'voice_journaling' | 'word_pairs';
 
@@ -28,7 +29,7 @@ interface LessonState {
   isLoading: boolean;
   error: string | null;
   setDailyPlan: (plan: DailyPlan) => void;
-  completeLesson: (lessonId:LessonType) => void;
+  completeLesson: (lessonId: LessonType, actualScore?: number) => void; // Add actualScore parameter
   generateDailyPlan: () => Promise<void>;
 }
 
@@ -41,7 +42,7 @@ export const useLessonStore = create<LessonState>()(persist(
   error: null,
 
   setDailyPlan: (plan) => set({ dailyPlan: plan }),
-  completeLesson: (lessonId: LessonType) => {
+  completeLesson: (lessonId: LessonType, actualScore?: number) => {
     const { dailyPlan } = get();
     if (!dailyPlan) return;
 
@@ -51,8 +52,9 @@ export const useLessonStore = create<LessonState>()(persist(
 
     const completedLesson = dailyPlan.lessons.find((l) => l.type === lessonId);
     if (completedLesson && !completedLesson.completed) { // Check if not already completed to avoid multiple increments
+      const scoreToAdd = actualScore !== undefined ? actualScore : completedLesson.xpReward;
       set((state) => ({
-        totalXp: state.totalXp + completedLesson.xpReward,
+        totalXp: state.totalXp + scoreToAdd, // Use actualScore if provided, otherwise xpReward
         currentStreak: state.currentStreak + 1, // Increment current streak
         dailyPlan: {
           ...dailyPlan,
@@ -66,7 +68,26 @@ export const useLessonStore = create<LessonState>()(persist(
   generateDailyPlan: async () => {
     set({ isLoading: true, error: null });
     try {
-      // TODO: Integrate with AI service to generate personalized plan
+      const { languageLevel, nativeLanguage, learningGoal, timeCommitment, learningStyle } = useOnboardingStore.getState();
+
+      // Construct the prompt for the AI service
+      const prompt = `Generate a personalized daily lesson plan for a user with the following preferences:
+        Language Level: ${languageLevel}
+        Native Language: ${nativeLanguage}
+        Learning Goal: ${learningGoal}
+        Time Commitment: ${timeCommitment} minutes per day
+        Learning Style: ${learningStyle}
+        
+        The plan should include a variety of lesson types for each lesson, such as vocabulary, listening, pronunciation, roleplay, shadowing, voice journaling, and word pairs.
+        Each lesson should have an id, type, title, description, xpReward, completed (boolean, default false), and locked (boolean, default false).
+        The response should be a JSON object matching the DailyPlan interface.`;
+
+      // Placeholder for AI service call
+      console.log('Sending to AI Service:', prompt);
+      // const aiGeneratedPlan = await callAIService(prompt); // Replace with actual AI service call
+
+      // For now, we'll continue to use the mock plan until AI integration is complete
+      // In a real scenario, you would parse the aiGeneratedPlan response here.
       const mockPlan: DailyPlan = {
         date: new Date().toISOString(),
         lessons: [
