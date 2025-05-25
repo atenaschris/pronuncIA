@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 export default function LearnScreen() {
-  const { dailyPlan, currentStreak, totalXp, generateDailyPlan, completeLesson, isLoading } = useLessonStore();
+  const { dailyPlan, currentStreak, totalXp, generateDailyPlan, isLoading } = useLessonStore();
 
   useEffect(() => {
     if (!dailyPlan) {
@@ -21,11 +21,13 @@ export default function LearnScreen() {
   }, []);
 
   const handleLessonPress = (lessonType: LessonType) => {    
+    let routePath = lessonType.toLowerCase();
     if (lessonType === 'voice_journaling' || lessonType === 'word_pairs') {
       // Replace all underscores with hyphens for these specific lesson types
-      lessonType = lessonType.replaceAll('_', '-') as LessonType;
+      routePath = lessonType.replaceAll('_', '-');
     }
-      router.push(`/lessons/${lessonType}`);
+    // Navigate to the lesson screen based on lessonType, using lessonType as lessonId
+    router.push({ pathname: `/lessons/${routePath}`, params: { lessonId: lessonType } });
   };
 
   return (
@@ -43,7 +45,7 @@ export default function LearnScreen() {
           <LessonBlock
             key={lesson.id}
             lesson={lesson}
-            onPress={handleLessonPress}
+            onPress={() => handleLessonPress(lesson.type)}
           />
         ))}
       </ScrollView>
