@@ -45,7 +45,7 @@ export const useLessonStore = create<LessonState>()(persist(
   completeLesson: (lessonId: LessonType, actualScore?: number) => {
     const { dailyPlan } = get();
     if (!dailyPlan) return;
-
+    // Issue: completed is true only when all sets of the lesson are completed
     const updatedLessons = dailyPlan.lessons.map((lesson) =>
       lesson.type === lessonId ? { ...lesson, completed: true } : lesson
     );
@@ -150,12 +150,12 @@ export const useLessonStore = create<LessonState>()(persist(
             type: 'word_pairs',
             title: 'Match Business Terms',
             description: 'Match related business vocabulary pairs',
-            xpReward: 130,
+            xpReward: 900,
             completed: false,
             locked: false,
           },
         ],
-        totalXp: 900,
+        totalXp: 2000,
         completedLessons: 0,
       };
       set({ dailyPlan: mockPlan, isLoading: false });

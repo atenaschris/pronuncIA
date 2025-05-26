@@ -2,7 +2,7 @@ import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNEText } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
-import { WORD_PAIRS } from '@/lib/constants/constants';
+import { WORD_PAIR_SETS, WORD_PAIRS_SET_KEYS } from '@/lib/constants/constants';
 import { useHaptic } from '@/lib/hooks/use-haptic';
 import { ColumnType, EnglishWord, TranslationWord } from '@/lib/types/word-pairs';
 import { useTheme } from '@rneui/themed';
@@ -31,6 +31,8 @@ export default function WordPairsScreen() {
   const HapticError = useHaptic('error');
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
   const { completeLesson, totalXp } = useLessonStore();
+  const [currentSetIndex, setCurrentSetIndex] = useState(0);
+  const [madeError, setMadeError] = useState(false); // Track if an error was made in the current game
   
   // Animation values - individual scale values for each item
   const englishScaleValues = [
@@ -130,12 +132,15 @@ export default function WordPairsScreen() {
   // Initialize the game
   useEffect(() => {
     initializeGame();
-  }, []);
+  }, [currentSetIndex]); // Re-initialize when currentSetIndex changes
 
   const initializeGame = () => {
+    const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
+    const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
+
     // Extract and shuffle words
-    const english = WORD_PAIRS.map(pair => pair.english);
-    const translations = WORD_PAIRS.map(pair => pair.translation);
+    const english = currentWordPairs.map(pair => pair.english);
+    const translations = currentWordPairs.map(pair => pair.translation);
     
     // Shuffle the translations
     const shuffledTranslations = [...translations].sort(() => Math.random() - 0.5);
@@ -147,6 +152,11 @@ export default function WordPairsScreen() {
     setScore(0);
     setIncorrectPair(null);
     setLessonCompleted(false); // Reset lesson completed state
+    setMadeError(false); // Reset error tracking for the new game
+    if (animationTimeoutRef.current) { // Clear any existing animation timeout reference on initiGame
+      clearTimeout(animationTimeoutRef.current);
+      animationTimeoutRef.current = null;
+    }
   };
 
   const handleWordPress = (index: number, column: ColumnType) => {
@@ -192,7 +202,9 @@ export default function WordPairsScreen() {
     const translationWord = translationWords[translationIndex];
     
     // Find if this is a correct match
-    const correctTranslation = WORD_PAIRS.find(pair => pair.english === englishWord)?.translation;
+    const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
+    const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
+    const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation;
     
     if (translationWord === correctTranslation) {
       // Correct match
@@ -203,7 +215,9 @@ export default function WordPairsScreen() {
       setScore(prev => prev + 10);
       
       // Check if all pairs are matched
-      if (matchedPairs.length + 1 === WORD_PAIRS.length && !lessonCompleted) {
+      const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
+      const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
+      if (matchedPairs.length + 1 === currentWordPairs.length && !lessonCompleted) {
         const finalScore = score + 10; // Calculate final score before calling completeLesson
         if (lessonId) {
           console.log('Before completeLesson XP:', totalXp, 'Final Score:', finalScore);
@@ -212,14 +226,32 @@ export default function WordPairsScreen() {
           setLessonCompleted(true); // Mark lesson as completed
         }
         setTimeout(() => {
-          Alert.alert(
-            "Congratulations!",
-            `You've completed the lesson with a score of ${finalScore}!`, 
-            [
-              { text: "Play Again", onPress: initializeGame },
-              { text: "Back to Home", onPress: () => router.push('/') }
-            ]
-          );
+          let alertTitle = "Congratulations!";
+          let alertMessage = `You've completed this set with a score of ${finalScore}!`;
+          const alertButtons = [];
+
+          if (madeError) {
+            alertMessage += "\n\nTry playing again to get a perfect score and unlock more XP!";
+          }
+
+          if (currentSetIndex < WORD_PAIRS_SET_KEYS.length - 1 && !madeError) {
+            alertTitle = "Set Complete!";
+            alertMessage = `Great job! You scored ${finalScore}. Ready for the next set?`;
+            alertButtons.push({ 
+              text: "Next Set", 
+              onPress: () => {
+                setCurrentSetIndex(prevIndex => prevIndex + 1);
+                // initializeGame will be called by useEffect due to currentSetIndex change
+              }
+            });
+          } else if (currentSetIndex >= WORD_PAIRS_SET_KEYS.length - 1) {
+            alertMessage += "\n\nYou've completed all available word sets!";
+          }
+
+          alertButtons.push({ text: "Play Again", onPress: initializeGame });
+          alertButtons.push({ text: "Back to Home", onPress: () => router.push('/') });
+
+          Alert.alert(alertTitle, alertMessage, alertButtons);
         }, 300);
         winningSound?.replayAsync();
       }
@@ -227,6 +259,7 @@ export default function WordPairsScreen() {
       // Incorrect match
       HapticError?.();
       incorrectSound?.replayAsync()
+      setMadeError(true); // Mark that an error was made
       setIncorrectPair({ 
         english: column === 'english' ? index : selectedPair.index, 
         translation: column === 'translation' ? index : selectedPair.index 
@@ -282,12 +315,14 @@ export default function WordPairsScreen() {
 
   // Helper function to check if a translation word is matched
   const isTranslationMatched = useCallback((translationIndex: number) => {
+    const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
+    const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
     return matchedPairs.some(englishIndex => {
       const englishWord = englishWords[englishIndex];
-      const correctTranslation = WORD_PAIRS.find(pair => pair.english === englishWord)?.translation;
+      const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation;
       return correctTranslation === translationWords[translationIndex];
     });
-  }, [matchedPairs, englishWords, translationWords]);
+  }, [matchedPairs, englishWords, translationWords, currentSetIndex]);
 
   // Memoize style functions to ensure consistent hook calls
   const getWordCellStyle = useCallback((index: number, column: ColumnType) => {
