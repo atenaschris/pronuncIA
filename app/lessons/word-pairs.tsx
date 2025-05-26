@@ -31,7 +31,6 @@ export default function WordPairsScreen() {
   const HapticError = useHaptic('error');
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
   const { completeLesson, dailyPlan } = useLessonStore();
-  const wordPairsLesson = dailyPlan?.lessons.find(lesson => lesson.type === lessonId && lesson.type === 'word_pairs');
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [madeError, setMadeError] = useState(false); // Track if an error was made in the current game
   
@@ -275,7 +274,7 @@ export default function WordPairsScreen() {
         english: column === 'english' ? index : selectedPair.index, 
         translation: column === 'translation' ? index : selectedPair.index 
       });
-      setScore(prev => prev !== 0 ?  prev - 10 : 0);
+      setScore(prev => prev - 10);
       setTimeout(() => setIncorrectPair(null), 500); // Clear after 1 second
     }
     
