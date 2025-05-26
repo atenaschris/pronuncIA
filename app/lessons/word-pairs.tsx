@@ -30,7 +30,8 @@ export default function WordPairsScreen() {
   const HapticSuccess = useHaptic('success');
   const HapticError = useHaptic('error');
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
-  const { completeLesson, totalXp } = useLessonStore();
+  const { completeLesson, dailyPlan } = useLessonStore();
+  const wordPairsLesson = dailyPlan?.lessons.find(lesson => lesson.type === lessonId && lesson.type === 'word_pairs');
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
   const [madeError, setMadeError] = useState(false); // Track if an error was made in the current game
   
@@ -220,36 +221,46 @@ export default function WordPairsScreen() {
       if (matchedPairs.length + 1 === currentWordPairs.length && !lessonCompleted) {
         const finalScore = score + 10; // Calculate final score before calling completeLesson
         if (lessonId) {
-          console.log('Before completeLesson XP:', totalXp, 'Final Score:', finalScore);
-          completeLesson(lessonId, finalScore); // Pass the final score
-          console.log('After completeLesson XP:', useLessonStore.getState().totalXp); // Log updated XP
+          // Pass the score for the current set and the current set's index
+          console.log('Before completeLesson - Current Set Score:', finalScore, 'Set Index:', currentSetIndex);
+          completeLesson(lessonId, finalScore, currentSetIndex);
+          // Fetch the updated lesson state to display accumulated XP
+          const updatedLessonState = useLessonStore.getState().dailyPlan?.lessons.find(l => l.type === lessonId);
+          console.log('After completeLesson - Accumulated Lesson XP:', updatedLessonState?.xpReward);
           setLessonCompleted(true); // Mark lesson as completed
         }
         setTimeout(() => {
-          let alertTitle = "Congratulations!";
-          let alertMessage = `You've completed this set with a score of ${finalScore}!`;
+          const updatedWPLesson = useLessonStore.getState().dailyPlan?.lessons.find(l => l.type === lessonId && l.type === 'word_pairs');
+          const accumulatedLessonXP = updatedWPLesson?.xpReward || 0;
+          const allSetsAttempted = (updatedWPLesson?.completedSets || 0) >= (updatedWPLesson?.totalSets || WORD_PAIRS_SET_KEYS.length);
+
+          let alertTitle = "Set Complete!";
+          let alertMessage = `You scored ${finalScore} for this set.`;
           const alertButtons = [];
 
-          if (madeError) {
-            alertMessage += "\n\nTry playing again to get a perfect score and unlock more XP!";
-          }
-
-          if (currentSetIndex < WORD_PAIRS_SET_KEYS.length - 1 && !madeError) {
-            alertTitle = "Set Complete!";
-            alertMessage = `Great job! You scored ${finalScore}. Ready for the next set?`;
-            alertButtons.push({ 
-              text: "Next Set", 
+          if (allSetsAttempted) {
+            alertTitle = "All Sets Mastered!";
+            alertMessage = `You've completed all sets! Your total XP for this lesson is ${accumulatedLessonXP}.`;
+            if (madeError) { // If any error was made throughout all sets (this logic might need refinement if 'madeError' is only for current set)
+                alertMessage += "\n\nSome sets had errors. Play again to perfect your score!";
+            }
+          } else {
+            // Not all sets are completed yet
+            alertMessage += ` Your current total XP for this lesson is ${accumulatedLessonXP}.`;
+            if (madeError) {
+              alertMessage += "\n\nTry this set again for a perfect score, or move to the next one.";
+            }
+            alertButtons.push({
+              text: "Next Set",
               onPress: () => {
                 setCurrentSetIndex(prevIndex => prevIndex + 1);
-                // initializeGame will be called by useEffect due to currentSetIndex change
+                // initializeGame will be called by useEffect
               }
             });
-          } else if (currentSetIndex >= WORD_PAIRS_SET_KEYS.length - 1) {
-            alertMessage += "\n\nYou've completed all available word sets!";
           }
 
-          alertButtons.push({ text: "Play Again", onPress: initializeGame });
-          alertButtons.push({ text: "Back to Home", onPress: () => router.push('/') });
+          alertButtons.push({ text: "Play This Set Again", onPress: initializeGame }); // initializeGame resets the current set
+          alertButtons.push({ text: "Back to Planner", onPress: () => router.push('/(tabs)/planner') });
 
           Alert.alert(alertTitle, alertMessage, alertButtons);
         }, 300);

@@ -10,9 +10,12 @@ export interface Lesson {
   type: LessonType;
   title: string;
   description: string;
-  xpReward: number;
+  xpReward: number; // For word_pairs, this is the sum of best scores for each set
   completed: boolean;
   locked: boolean;
+  totalSets?: number; // Total number of sets for this lesson (e.g., 10 for word_pairs)
+  completedSets?: number; // Number of unique sets attempted at least once
+  setBestScores?: number[]; // Stores the best score achieved for each set
 }
 
 export interface DailyPlan {
@@ -29,7 +32,9 @@ interface LessonState {
   isLoading: boolean;
   error: string | null;
   setDailyPlan: (plan: DailyPlan) => void;
-  completeLesson: (lessonId: LessonType, actualScore?: number) => void; // Add actualScore parameter
+  // For word_pairs, pass currentSetIndex (0-indexed) and score for that attempt
+  // For other lessons, actualScore is the total score for the lesson
+  completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => void;
   generateDailyPlan: () => Promise<void>;
 }
 
@@ -42,27 +47,80 @@ export const useLessonStore = create<LessonState>()(persist(
   error: null,
 
   setDailyPlan: (plan) => set({ dailyPlan: plan }),
-  completeLesson: (lessonId: LessonType, actualScore?: number) => {
-    const { dailyPlan } = get();
+  completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
+    const { dailyPlan, totalXp, currentStreak } = get();
     if (!dailyPlan) return;
-    // Issue: completed is true only when all sets of the lesson are completed
-    const updatedLessons = dailyPlan.lessons.map((lesson) =>
-      lesson.type === lessonId ? { ...lesson, completed: true } : lesson
-    );
 
-    const completedLesson = dailyPlan.lessons.find((l) => l.type === lessonId);
-    if (completedLesson && !completedLesson.completed) { // Check if not already completed to avoid multiple increments
-      const scoreToAdd = actualScore !== undefined ? actualScore : completedLesson.xpReward;
-      set((state) => ({
-        totalXp: state.totalXp + scoreToAdd, // Use actualScore if provided, otherwise xpReward
-        currentStreak: state.currentStreak + 1, // Increment current streak
-        dailyPlan: {
-          ...dailyPlan,
-          lessons: updatedLessons,
-          completedLessons: dailyPlan.completedLessons + 1,
-        },
-      }));
+    let lessonNewlyFullyCompleted = false; // Tracks if this action makes the lesson fully complete for the first time
+    let xpDeltaForTotal = 0; // How much the global totalXp should change
+    let newTotalXp = totalXp;
+    let newCurrentStreak = currentStreak;
+    let newCompletedLessonsCount = dailyPlan.completedLessons;
+
+    const newLessonsArray = dailyPlan.lessons.map(lesson => {
+      if (lesson.type === lessonId) {
+        const lessonToUpdate = { ...lesson }; // Create a mutable copy
+
+        if (lessonToUpdate.type === 'word_pairs' && currentSetIndex !== undefined && lessonToUpdate.totalSets !== undefined) {
+          lessonToUpdate.setBestScores = lessonToUpdate.setBestScores || Array(lessonToUpdate.totalSets).fill(0);
+          
+          const oldBestScoreForSet = lessonToUpdate.setBestScores[currentSetIndex] || 0;
+          const newBestScoreForSet = Math.max(oldBestScoreForSet, scoreForAttemptOrLesson);
+          
+          if (newBestScoreForSet > oldBestScoreForSet) {
+            xpDeltaForTotal += (newBestScoreForSet - oldBestScoreForSet);
+            lessonToUpdate.setBestScores[currentSetIndex] = newBestScoreForSet;
+            // Recalculate lesson's total xpReward from all best set scores
+            lessonToUpdate.xpReward = lessonToUpdate.setBestScores.reduce((sum, score) => sum + score, 0);
+          }
+
+          // Increment completedSets if this set is being successfully played for the first time
+          // (assuming scoreForAttemptOrLesson > 0 means a successful play for set counting purposes)
+          // and it wasn't counted before (oldBestScoreForSet was 0)
+          if (oldBestScoreForSet === 0 && scoreForAttemptOrLesson > 0) {
+            lessonToUpdate.completedSets = (lessonToUpdate.completedSets || 0) + 1;
+          }
+
+          if (!lessonToUpdate.completed && (lessonToUpdate.completedSets || 0) >= lessonToUpdate.totalSets) {
+            lessonToUpdate.completed = true;
+            lessonNewlyFullyCompleted = true;
+          }
+
+        } else if (lessonToUpdate.type !== 'word_pairs') {
+          // For other lesson types, standard completion logic
+          if (!lessonToUpdate.completed) {
+            lessonToUpdate.completed = true;
+            lessonNewlyFullyCompleted = true;
+            // For non-word-pairs, scoreForAttemptOrLesson is the total XP for that lesson
+            // If it's a fixed reward lesson, it should already be in lessonToUpdate.xpReward
+            // If scoreForAttemptOrLesson is provided, it overrides
+            xpDeltaForTotal += scoreForAttemptOrLesson; // This assumes scoreForAttemptOrLesson is the XP for this lesson
+            lessonToUpdate.xpReward = scoreForAttemptOrLesson; // Update lesson's xpReward to what was scored
+          }
+        }
+        return lessonToUpdate;
+      }
+      return lesson;
+    });
+
+    newTotalXp += xpDeltaForTotal;
+
+    if (lessonNewlyFullyCompleted) {
+      // This logic ensures streak and completed count only increment if the lesson state *changed* to completed
+      // No need to check originalLesson.completed as lessonNewlyFullyCompleted is only true if it wasn't completed before.
+      newCurrentStreak += 1;
+      newCompletedLessonsCount += 1;
     }
+
+    set({
+      totalXp: newTotalXp,
+      currentStreak: newCurrentStreak,
+      dailyPlan: {
+        ...dailyPlan,
+        lessons: newLessonsArray,
+        completedLessons: newCompletedLessonsCount,
+      },
+    });
   },
 
   generateDailyPlan: async () => {
@@ -150,9 +208,12 @@ export const useLessonStore = create<LessonState>()(persist(
             type: 'word_pairs',
             title: 'Match Business Terms',
             description: 'Match related business vocabulary pairs',
-            xpReward: 900,
+            xpReward: 0, // Initial XP for word_pairs is 0, sum of setBestScores
             completed: false,
             locked: false,
+            totalSets: 10, // Example: 10 sets for word_pairs
+            completedSets: 0, // Number of unique sets attempted
+            setBestScores: Array(10).fill(0), // Initialize best scores for 10 sets
           },
         ],
         totalXp: 2000,
