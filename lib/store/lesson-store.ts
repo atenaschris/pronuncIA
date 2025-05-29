@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
+import { EnglishWord, TranslationWord } from '../types/word-pairs';
 import { useOnboardingStore } from './onboarding-store'; // Import onboarding store
 
 export type LessonType = 'vocabulary' | 'listening' | 'pronunciation' | 'roleplay' | 'shadowing' | 'voice_journaling' | 'word_pairs';
@@ -31,11 +32,34 @@ interface LessonState {
   dailyPlan: DailyPlan | null;
   isLoading: boolean;
   error: string | null;
+  
+  // Word-pairs game state
+  englishWords: EnglishWord[];
+  translationWords: TranslationWord[];
+  selectedPair: {index: number, column: 'english' | 'translation'} | null;
+  matchedPairs: number[];
+  score: number;
+  incorrectPair: { english: number; translation: number } | null;
+  lessonCompleted: boolean;
+  currentSetIndex: number;
+  madeError: boolean;
+  
   setDailyPlan: (plan: DailyPlan) => void;
   // For word_pairs, pass currentSetIndex (0-indexed) and score for that attempt
   // For other lessons, actualScore is the total score for the lesson
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => void;
   generateDailyPlan: () => Promise<void>;
+  
+  // Word-pairs setters
+  setEnglishWords: (words: EnglishWord[]) => void;
+  setTranslationWords: (words: TranslationWord[]) => void;
+  setSelectedPair: (pair: {index: number, column: 'english' | 'translation'} | null) => void;
+  setMatchedPairs: (pairs: number[]) => void;
+  setScore: (score: number) => void;
+  setIncorrectPair: (pair: { english: number; translation: number } | null) => void;
+  setLessonCompleted: (completed: boolean) => void;
+  setCurrentSetIndex: (index: number) => void;
+  setMadeError: (error: boolean) => void;
 }
 
 export const useLessonStore = create<LessonState>()(persist(
@@ -45,6 +69,17 @@ export const useLessonStore = create<LessonState>()(persist(
   dailyPlan: null,
   isLoading: false,
   error: null,
+  
+  // Word-pairs game state initial values
+  englishWords: [],
+  translationWords: [],
+  selectedPair: null,
+  matchedPairs: [],
+  score: 0,
+  incorrectPair: null,
+  lessonCompleted: false,
+  currentSetIndex: 0,
+  madeError: false,
 
   setDailyPlan: (plan) => set({ dailyPlan: plan }),
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
@@ -224,6 +259,17 @@ export const useLessonStore = create<LessonState>()(persist(
       set({ error: (error as Error).message, isLoading: false });
     }
   },
+  
+  // Word-pairs setters
+  setEnglishWords: (words) => set({ englishWords: words }),
+  setTranslationWords: (words) => set({ translationWords: words }),
+  setSelectedPair: (pair) => set({ selectedPair: pair }),
+  setMatchedPairs: (pairs) => set({ matchedPairs: pairs }),
+  setScore: (score) => set({ score }),
+  setIncorrectPair: (pair) => set({ incorrectPair: pair }),
+  setLessonCompleted: (completed) => set({ lessonCompleted: completed }),
+  setCurrentSetIndex: (index) => set({ currentSetIndex: index }),
+  setMadeError: (error) => set({ madeError: error }),
 }),
 {
   name: 'lesson-storage',
