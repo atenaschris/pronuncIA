@@ -40,7 +40,8 @@ export default function WordPairsScreen() {
     setCurrentSetIndex,
     setMadeError,
     completeLesson,
-    dailyPlan
+    dailyPlan,
+    resetWordPairsLesson
   } = useLessonStore();
 
   console.log({
@@ -119,12 +120,16 @@ export default function WordPairsScreen() {
 
   // Initialize the game
   useEffect(() => {
+    console.log('🔄 useEffect triggered - currentSetIndex changed to:', currentSetIndex);
     initializeGame();
   }, [currentSetIndex]); // Re-initialize when currentSetIndex changes
 
   const initializeGame = () => {
+    console.log('🎮 InitializeGame called with currentSetIndex:', currentSetIndex);
     const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
+    console.log('🔑 Current set key:', currentSetKey);
     const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
+    console.log('📝 Current word pairs:', currentWordPairs);
 
     // Extract and shuffle words
     const english = currentWordPairs.map(pair => pair.english);
@@ -247,8 +252,22 @@ export default function WordPairsScreen() {
           }
 
           alertButtons.push({ text: "Play This Set Again", onPress: initializeGame }); // initializeGame resets the current set
+          
+          // Only show "Start From Scratch" if all sets are completed
+          if (allSetsAttempted) {
+            alertButtons.push({ 
+              text: "Start From Scratch", 
+              onPress: () => {
+                // Reset all word-pairs lesson progress and game state
+                resetWordPairsLesson('word_pairs');
+                setCurrentSetIndex(0);
+                // Initialize the first set
+                setTimeout(() => initializeGame(), 300);
+              }
+            });
+          }
+          
           alertButtons.push({text: "Go Back", onPress: () => router.replace("/(tabs)")});
-
           Alert.alert(alertTitle, alertMessage, alertButtons);
         }, 300);
         winningSound?.replayAsync();

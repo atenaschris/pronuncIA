@@ -32,7 +32,6 @@ interface LessonState {
   dailyPlan: DailyPlan | null;
   isLoading: boolean;
   error: string | null;
-  
   // Word-pairs game state
   englishWords: EnglishWord[];
   translationWords: TranslationWord[];
@@ -49,6 +48,7 @@ interface LessonState {
   // For other lessons, actualScore is the total score for the lesson
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => void;
   generateDailyPlan: () => Promise<void>;
+  resetWordPairsLesson: (lessonId: LessonType) => void;
   
   // Word-pairs setters
   setEnglishWords: (words: EnglishWord[]) => void;
@@ -258,6 +258,61 @@ export const useLessonStore = create<LessonState>()(persist(
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }
+  },
+  
+  resetWordPairsLesson: (lessonId: LessonType) => {
+    const { dailyPlan, totalXp } = get();
+    if (!dailyPlan) return;
+
+    // Find the lesson and calculate XP to subtract
+    const targetLesson = dailyPlan.lessons.find(lesson => lesson.type === lessonId);
+    if (!targetLesson) return;
+
+    const xpToSubtract = targetLesson.xpReward;
+    let newCompletedLessonsCount = dailyPlan.completedLessons;
+    let newCurrentStreak = get().currentStreak;
+    
+    // If lesson was completed, decrement completed lessons count and streak
+    if (targetLesson.completed) {
+      newCompletedLessonsCount = Math.max(0, dailyPlan.completedLessons - 1);
+      // Decrement current streak by 1 since we're undoing one lesson completion
+      newCurrentStreak = Math.max(0, newCurrentStreak - 1);
+    }
+
+    // Reset the lesson progress in daily plan
+    const newLessonsArray = dailyPlan.lessons.map(lesson => {
+      if (lesson.type === lessonId) {
+        return {
+          ...lesson,
+          xpReward: 0,
+          completed: false,
+          completedSets: 0,
+          setBestScores: lesson.totalSets ? Array(lesson.totalSets).fill(0) : [],
+        };
+      }
+      return lesson;
+    });
+
+    // Update the store with reset lesson progress and adjusted XP
+    set({
+      dailyPlan: {
+        ...dailyPlan,
+        lessons: newLessonsArray,
+        completedLessons: newCompletedLessonsCount,
+      },
+      totalXp: Math.max(0, totalXp - xpToSubtract),
+      currentStreak: newCurrentStreak,
+      // Reset game state
+      englishWords: [],
+      translationWords: [],
+      selectedPair: null,
+      matchedPairs: [],
+      score: 0,
+      incorrectPair: null,
+      lessonCompleted: false,
+      currentSetIndex: 0,
+      madeError: false,
+    });
   },
   
   // Word-pairs setters
