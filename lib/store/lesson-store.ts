@@ -39,6 +39,16 @@ export interface WordPairsState {
   lessonCompleted: boolean;
   currentSetIndex: number;
   madeError: boolean;
+  errorDetails: {
+    incorrectMatches: Array<{
+      englishWord: string;
+      attemptedTranslation: string;
+      correctTranslation: string;
+      timestamp: number;
+      setIndex: number;
+    }>;
+    totalErrors: number;
+  };
 }
 
 // Placeholder interfaces for other lesson types
@@ -94,6 +104,8 @@ interface LessonState {
   setLessonCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
   setMadeError: (lessonId: string, error: boolean) => void;
+  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, correctTranslation: string, setIndex: number) => void;
+  clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
   getWordPairsState: (lessonId: string) => WordPairsState | null;
   
@@ -315,6 +327,10 @@ export const useLessonStore = create<LessonState>()(persist(
                 lessonCompleted: false,
                 currentSetIndex: 0,
                 madeError: false,
+                errorDetails: {
+                  incorrectMatches: [],
+                  totalErrors: 0,
+                },
               } as WordPairsState;
               break;
             default:
@@ -426,6 +442,10 @@ export const useLessonStore = create<LessonState>()(persist(
             incorrectPair: null,
             lessonCompleted: false,
             madeError: false,
+            errorDetails: {
+              incorrectMatches: [],
+              totalErrors: 0,
+            },
           } as WordPairsState,
         };
       }
@@ -611,6 +631,75 @@ export const useLessonStore = create<LessonState>()(persist(
           sessionState: {
             ...lesson.sessionState,
             incorrectPair: pair,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+  
+  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, correctTranslation: string, setIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as WordPairsState;
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            errorDetails: {
+              incorrectMatches: [
+                ...currentState.errorDetails.incorrectMatches,
+                {
+                  englishWord,
+                  attemptedTranslation,
+                  correctTranslation,
+                  timestamp: Date.now(),
+                  setIndex,
+                }
+              ],
+              totalErrors: currentState.errorDetails.totalErrors + 1,
+            },
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  clearCurrentSetErrors: (lessonId: string, setIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as WordPairsState;
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            errorDetails: {
+              ...currentState.errorDetails,
+              incorrectMatches: currentState.errorDetails.incorrectMatches.filter(
+                error => error.setIndex !== setIndex
+              ),
+            },
           } as WordPairsState,
         };
       }
