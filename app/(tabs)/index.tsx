@@ -26,8 +26,13 @@ export default function LearnScreen() {
       // Replace all underscores with hyphens for these specific lesson types
       routePath = lessonType.replaceAll('_', '-');
     }
-    // Navigate to the lesson screen based on lessonType, using lessonType as lessonId
-    router.push({ pathname: `/lessons/${routePath}`, params: { lessonId: lessonType } });
+    
+    // Find the actual lesson ID from the daily plan
+    const lesson = dailyPlan?.lessons.find(l => l.type === lessonType);
+    const lessonId = lesson?.id || lessonType; // Fallback to lessonType if not found
+    
+    // Navigate to the lesson screen based on lessonType, using actual lessonId
+    router.push({ pathname: `/lessons/${routePath}`, params: { lessonId } });
   };
 
   return (
