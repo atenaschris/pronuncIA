@@ -17,6 +17,8 @@ export interface Lesson {
   totalSets?: number; // Total number of sets for this lesson (e.g., 10 for word_pairs)
   completedSets?: number; // Number of unique sets attempted at least once
   setBestScores?: number[]; // Stores the best score achieved for each set
+  // Session state embedded directly in the lesson
+  sessionState?: WordPairsState | VocabularyState | ListeningState | PronunciationState | RoleplayState | ShadowingState | VoiceJournalingState;
 }
 
 export interface DailyPlan {
@@ -26,13 +28,8 @@ export interface DailyPlan {
   completedLessons: number;
 }
 
-interface LessonState {
-  currentStreak: number;
-  totalXp: number;
-  dailyPlan: DailyPlan | null;
-  isLoading: boolean;
-  error: string | null;
-  // Word-pairs game state
+// Word-pairs specific state
+export interface WordPairsState {
   englishWords: EnglishWord[];
   translationWords: TranslationWord[];
   selectedPair: {index: number, column: 'english' | 'translation'} | null;
@@ -42,44 +39,76 @@ interface LessonState {
   lessonCompleted: boolean;
   currentSetIndex: number;
   madeError: boolean;
+}
+
+// Placeholder interfaces for other lesson types
+export interface VocabularyState {
+  // Vocabulary-specific session state
+}
+
+export interface ListeningState {
+  // Listening-specific session state
+}
+
+export interface PronunciationState {
+  // Pronunciation-specific session state
+}
+
+export interface RoleplayState {
+  // Roleplay-specific session state
+}
+
+export interface ShadowingState {
+  // Shadowing-specific session state
+}
+
+export interface VoiceJournalingState {
+  // Voice journaling-specific session state
+}
+
+// Word-pairs actions interface
+export interface WordPairsActions {
   
+}
+
+interface LessonState {
+  // Common lesson state
+  currentStreak: number;
+  totalXp: number;
+  dailyPlan: DailyPlan | null;
+  isLoading: boolean;
+  error: string | null;
+  
+  // Common actions
   setDailyPlan: (plan: DailyPlan) => void;
-  // For word_pairs, pass currentSetIndex (0-indexed) and score for that attempt
-  // For other lessons, actualScore is the total score for the lesson
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => void;
   generateDailyPlan: () => Promise<void>;
-  resetWordPairsLesson: (lessonId: LessonType) => void;
   
-  // Word-pairs setters
-  setEnglishWords: (words: EnglishWord[]) => void;
-  setTranslationWords: (words: TranslationWord[]) => void;
-  setSelectedPair: (pair: {index: number, column: 'english' | 'translation'} | null) => void;
-  setMatchedPairs: (pairs: number[]) => void;
-  setScore: (score: number) => void;
-  setIncorrectPair: (pair: { english: number; translation: number } | null) => void;
-  setLessonCompleted: (completed: boolean) => void;
-  setCurrentSetIndex: (index: number) => void;
-  setMadeError: (error: boolean) => void;
+  // Lesson-specific actions
+  setEnglishWords: (lessonId: string, words: EnglishWord[]) => void;
+  setTranslationWords: (lessonId: string, words: TranslationWord[]) => void;
+  setSelectedPair: (lessonId: string, pair: {index: number, column: 'english' | 'translation'} | null) => void;
+  setMatchedPairs: (lessonId: string, pairs: number[]) => void;
+  setScore: (lessonId: string, score: number) => void;
+  setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => void;
+  setLessonCompleted: (lessonId: string, completed: boolean) => void;
+  setCurrentSetIndex: (lessonId: string, index: number) => void;
+  setMadeError: (lessonId: string, error: boolean) => void;
+  resetWordPairsLesson: (lessonId: string) => void;
+  getWordPairsState: (lessonId: string) => WordPairsState | null;
+  
+  // Helper methods
+  initializeLessonSessionState: (lessonId: string, lessonType: LessonType) => void;
 }
 
 export const useLessonStore = create<LessonState>()(persist(
   (set, get) => ({
+  // Common lesson state
   currentStreak: 0,
   totalXp: 0,
   dailyPlan: null,
   isLoading: false,
   error: null,
-  
-  // Word-pairs game state initial values
-  englishWords: [],
-  translationWords: [],
-  selectedPair: null,
-  matchedPairs: [],
-  score: 0,
-  incorrectPair: null,
-  lessonCompleted: false,
-  currentSetIndex: 0,
-  madeError: false,
 
   setDailyPlan: (plan) => set({ dailyPlan: plan }),
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
@@ -93,7 +122,7 @@ export const useLessonStore = create<LessonState>()(persist(
     let newCompletedLessonsCount = dailyPlan.completedLessons;
 
     const newLessonsArray = dailyPlan.lessons.map(lesson => {
-      if (lesson.type === lessonId) {
+      if (lesson.id === lessonId) {
         const lessonToUpdate = { ...lesson }; // Create a mutable copy
 
         if (lessonToUpdate.type === 'word_pairs' && currentSetIndex !== undefined && lessonToUpdate.totalSets !== undefined) {
@@ -260,71 +289,342 @@ export const useLessonStore = create<LessonState>()(persist(
     }
   },
   
-  resetWordPairsLesson: (lessonId: LessonType) => {
-    const { dailyPlan, totalXp } = get();
-    if (!dailyPlan) return;
+  // Helper method to initialize lesson session state
+  initializeLessonSessionState: (lessonId: string, lessonType: LessonType) => {
+    set((state) => {
+      if (!state.dailyPlan) return state;
+      
+      const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+        if (lesson.id === lessonId && lesson.type === lessonType) {
+          // Only initialize if no session state exists
+          if (lesson.sessionState) {
+            return lesson; // Keep existing session state
+          }
+          
+          let sessionState;
+          
+          switch (lessonType) {
+            case 'word_pairs':
+              sessionState = {
+                englishWords: [],
+                translationWords: [],
+                selectedPair: null,
+                matchedPairs: [],
+                score: 0,
+                incorrectPair: null,
+                lessonCompleted: false,
+                currentSetIndex: 0,
+                madeError: false,
+              } as WordPairsState;
+              break;
+            default:
+              sessionState = {};
+          }
+          
+          return {
+            ...lesson,
+            sessionState,
+          };
+        }
+        return lesson;
+      });
+      
+      return {
+        ...state,
+        dailyPlan: {
+          ...state.dailyPlan,
+          lessons: updatedLessons,
+        },
+      };
+    });
+  },
 
-    // Find the lesson and calculate XP to subtract
-    const targetLesson = dailyPlan.lessons.find(lesson => lesson.type === lessonId);
-    if (!targetLesson) return;
-
-    const xpToSubtract = targetLesson.xpReward;
-    let newCompletedLessonsCount = dailyPlan.completedLessons;
-    let newCurrentStreak = get().currentStreak;
+// Word-pairs actions
+  getWordPairsState: (lessonId: string) => {
+    const { dailyPlan } = get();
+    if (!dailyPlan) return null;
     
-    // If lesson was completed, decrement completed lessons count and streak
-    if (targetLesson.completed) {
-      newCompletedLessonsCount = Math.max(0, dailyPlan.completedLessons - 1);
-      // Decrement current streak by 1 since we're undoing one lesson completion
-      newCurrentStreak = Math.max(0, newCurrentStreak - 1);
-    }
-
-    // Reset the lesson progress in daily plan
-    const newLessonsArray = dailyPlan.lessons.map(lesson => {
-      if (lesson.type === lessonId) {
+    const lesson = dailyPlan.lessons.find(l => l.id === lessonId);
+    return lesson?.sessionState as WordPairsState || null;
+  },
+  
+  setLessonCompleted: (lessonId: string, completed: boolean) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            lessonCompleted: completed,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+  
+  setMadeError: (lessonId: string, error: boolean) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            madeError: error,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+  
+  resetWordPairsLesson: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    // Find the lesson to get its current xpReward and completion status
+    const lessonToReset = state.dailyPlan.lessons.find(lesson => lesson.id === lessonId);
+    if (!lessonToReset) return state;
+    
+    const wasCompleted = lessonToReset.completed;
+    const currentLessonXp = lessonToReset.xpReward || 0;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId) {
         return {
           ...lesson,
           xpReward: 0,
           completed: false,
           completedSets: 0,
-          setBestScores: lesson.totalSets ? Array(lesson.totalSets).fill(0) : [],
+          setBestScores: [],
+          sessionState: {
+            englishWords: [],
+            translationWords: [],
+            currentSetIndex: 0,
+            selectedPair: null,
+            matchedPairs: [],
+            score: 0,
+            incorrectPair: null,
+            lessonCompleted: false,
+            madeError: false,
+          } as WordPairsState,
         };
       }
       return lesson;
     });
-
-    // Update the store with reset lesson progress and adjusted XP
-    set({
+    
+    // Calculate new global state values
+    const newTotalXp = Math.max(0, state.totalXp - currentLessonXp);
+    const newCurrentStreak = wasCompleted ? Math.max(0, state.currentStreak - 1) : state.currentStreak;
+    const newCompletedLessonsCount = wasCompleted ? Math.max(0, state.dailyPlan.completedLessons - 1) : state.dailyPlan.completedLessons;
+    const newDailyPlanTotalXp = Math.max(0, state.dailyPlan.totalXp - currentLessonXp);
+    
+    return {
+      ...state,
+      totalXp: newTotalXp,
+      currentStreak: newCurrentStreak,
       dailyPlan: {
-        ...dailyPlan,
-        lessons: newLessonsArray,
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+        totalXp: newDailyPlanTotalXp,
         completedLessons: newCompletedLessonsCount,
       },
-      totalXp: Math.max(0, totalXp - xpToSubtract),
-      currentStreak: newCurrentStreak,
-      // Reset game state
-      englishWords: [],
-      translationWords: [],
-      selectedPair: null,
-      matchedPairs: [],
-      score: 0,
-      incorrectPair: null,
-      lessonCompleted: false,
-      currentSetIndex: 0,
-      madeError: false,
-    });
-  },
+    };
+  }),
   
-  // Word-pairs setters
-  setEnglishWords: (words) => set({ englishWords: words }),
-  setTranslationWords: (words) => set({ translationWords: words }),
-  setSelectedPair: (pair) => set({ selectedPair: pair }),
-  setMatchedPairs: (pairs) => set({ matchedPairs: pairs }),
-  setScore: (score) => set({ score }),
-  setIncorrectPair: (pair) => set({ incorrectPair: pair }),
-  setLessonCompleted: (completed) => set({ lessonCompleted: completed }),
-  setCurrentSetIndex: (index) => set({ currentSetIndex: index }),
-  setMadeError: (error) => set({ madeError: error }),
+  setEnglishWords: (lessonId: string, words: EnglishWord[]) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            englishWords: words,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+  
+  setTranslationWords: (lessonId: string, words: TranslationWord[]) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            translationWords: words,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+  
+  setCurrentSetIndex: (lessonId: string, index: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            currentSetIndex: index,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+  
+  setSelectedPair: (lessonId: string, pair: {index: number, column: 'english' | 'translation'} | null) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            selectedPair: pair,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+  
+  setMatchedPairs: (lessonId: string, pairs: number[]) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            matchedPairs: pairs,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+  
+  setScore: (lessonId: string, score: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            score: score,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+  
+  setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            incorrectPair: pair,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
 }),
 {
   name: 'lesson-storage',

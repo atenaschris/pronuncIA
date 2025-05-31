@@ -20,16 +20,12 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 export default function WordPairsScreen() {
   // All hooks must be called at the top level, before any conditional logic
   const { theme } = useTheme();
+  const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
   const {
-    englishWords,
-    translationWords,
-    selectedPair,
-    matchedPairs,
-    score,
-    incorrectPair,
-    lessonCompleted,
-    currentSetIndex,
-    madeError,
+    completeLesson,
+    dailyPlan,
+    initializeLessonSessionState,
+    getWordPairsState,
     setEnglishWords,
     setTranslationWords,
     setSelectedPair,
@@ -39,26 +35,34 @@ export default function WordPairsScreen() {
     setLessonCompleted,
     setCurrentSetIndex,
     setMadeError,
-    completeLesson,
-    dailyPlan,
-    resetWordPairsLesson
+    resetWordPairsLesson,
   } = useLessonStore();
 
-  console.log({
-    englishWords,
-    translationWords,
-    selectedPair,
-    matchedPairs,
-    score,
-    incorrectPair,
-    lessonCompleted,
-    currentSetIndex,
-    madeError,
-    dailyPlan 
-  })
+  // Initialize the lesson session state if needed
+  useEffect(() => {
+    if (lessonId) {
+      initializeLessonSessionState(lessonId, 'word_pairs');
+    }
+  }, [lessonId, initializeLessonSessionState]);
+  // Get the current word pairs state for this specific lesson
+  const wordPairsState = lessonId ? getWordPairsState(lessonId) : null;
+
+  // Destructure word-pairs state for easier access
+  const {
+    englishWords = [],
+    translationWords = [],
+    selectedPair = null,
+    matchedPairs = [],
+    score = 0,
+    incorrectPair = null,
+    lessonCompleted = false,
+    currentSetIndex = 0,
+    madeError = false,
+  } = wordPairsState || {};
+
   const HapticSuccess = useHaptic('success');
   const HapticError = useHaptic('error');
-  const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
+  // lessonId is already declared above, removing duplicate
   const { correctSound, incorrectSound, winningSound } = useAudio();
   
   // Animation values - individual scale values for each item
@@ -117,14 +121,10 @@ export default function WordPairsScreen() {
   const getTranslationAnimatedStyle = (index: number) => {
     return translationAnimatedStyles[index] || translationAnimatedStyles[0]; // Default to first if out of bounds
   };
-
-  // Initialize the game
-  useEffect(() => {
-    console.log('🔄 useEffect triggered - currentSetIndex changed to:', currentSetIndex);
-    initializeGame();
-  }, [currentSetIndex]); // Re-initialize when currentSetIndex changes
-
-  const initializeGame = () => {
+  
+  const initializeGame = useCallback(() => {
+    if (!lessonId || !setEnglishWords || !setTranslationWords) return;
+    
     console.log('🎮 InitializeGame called with currentSetIndex:', currentSetIndex);
     const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
     console.log('🔑 Current set key:', currentSetKey);
@@ -138,21 +138,32 @@ export default function WordPairsScreen() {
     // Shuffle the translations
     const shuffledTranslations = [...translations].sort(() => Math.random() - 0.5);
     
-    setEnglishWords(english);
-    setTranslationWords(shuffledTranslations);
-    setSelectedPair(null);
-    setMatchedPairs([]);
-    setScore(0);
-    setIncorrectPair(null);
-    setLessonCompleted(false); // Reset lesson completed state
-    setMadeError(false); // Reset error tracking for the new game
+    setEnglishWords(lessonId, english);
+    setTranslationWords(lessonId, shuffledTranslations);
+    setSelectedPair(lessonId, null);
+    setMatchedPairs(lessonId, []);
+    setScore(lessonId, 0);
+    setIncorrectPair(lessonId, null);
+    setLessonCompleted(lessonId, false); // Reset lesson completed state
+    setMadeError(lessonId, false); // Reset error tracking for the new game
     if (animationTimeoutRef.current) { // Clear any existing animation timeout reference on initiGame
       clearTimeout(animationTimeoutRef.current);
       animationTimeoutRef.current = null;
     }
-  };
+  }, [lessonId, currentSetIndex, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setLessonCompleted, setMadeError]);
+
+  // Initialize the game
+  useEffect(() => {
+    console.log('🔄 useEffect triggered - currentSetIndex changed to:', currentSetIndex);
+    if (lessonId) {
+      initializeGame();
+    }
+  }, [currentSetIndex, lessonId, initializeGame]); // Re-initialize when currentSetIndex or lessonId changes
+
 
   const handleWordPress = (index: number, column: ColumnType) => {
+    if (!lessonId) return;
+    
     // Clear any existing animation timeout
     if (animationTimeoutRef.current) {
       clearTimeout(animationTimeoutRef.current);
@@ -175,15 +186,15 @@ export default function WordPairsScreen() {
     
     // If no word is selected yet
     if (!selectedPair) {
-      setSelectedPair({ index, column });
-      setIncorrectPair(null); // Clear incorrect pair on new selection
+      setSelectedPair?.(lessonId, { index, column });
+      setIncorrectPair?.(lessonId, null); // Clear incorrect pair on new selection
       return;
     }
     
     // If clicking the same column, just update the selection
     if (selectedPair.column === column) {
-      setSelectedPair({ index, column });
-      setIncorrectPair(null); // Clear incorrect pair on new selection
+      setSelectedPair(lessonId, { index, column });
+      setIncorrectPair(lessonId, null); // Clear incorrect pair on new selection
       return;
     }
     
@@ -204,8 +215,8 @@ export default function WordPairsScreen() {
       HapticSuccess?.();
       correctSound?.replayAsync()
       
-      setMatchedPairs([...matchedPairs, englishIndex]);
-      setScore(score + 10);
+      setMatchedPairs(lessonId, [...matchedPairs, englishIndex]);
+      setScore(lessonId, score + 10);
       
       // Check if all pairs are matched
       const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
@@ -217,12 +228,12 @@ export default function WordPairsScreen() {
           console.log('Before completeLesson - Current Set Score:', finalScore, 'Set Index:', currentSetIndex);
           completeLesson(lessonId, finalScore, currentSetIndex);
           // Fetch the updated lesson state to display accumulated XP
-          const updatedLessonState = useLessonStore.getState().dailyPlan?.lessons.find(l => l.type === lessonId);
+          const updatedLessonState = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId);
           console.log('After completeLesson - Accumulated Lesson XP:', updatedLessonState?.xpReward);
-          setLessonCompleted(true); // Mark lesson as completed
+          setLessonCompleted(lessonId, true); // Mark lesson as completed
         }
         setTimeout(() => {
-          const updatedWPLesson = useLessonStore.getState().dailyPlan?.lessons.find(l => l.type === lessonId && l.type === 'word_pairs');
+          const updatedWPLesson = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId && l.type === 'word_pairs');
           const accumulatedLessonXP = updatedWPLesson?.xpReward || 0;
           const allSetsAttempted = (updatedWPLesson?.completedSets || 0) >= (updatedWPLesson?.totalSets || WORD_PAIRS_SET_KEYS.length);
 
@@ -245,7 +256,7 @@ export default function WordPairsScreen() {
             alertButtons.push({
               text: "Next Set",
               onPress: () => {
-                setCurrentSetIndex(currentSetIndex + 1);
+                setCurrentSetIndex?.(lessonId, currentSetIndex + 1);
                 // initializeGame will be called by useEffect
               }
             });
@@ -259,10 +270,9 @@ export default function WordPairsScreen() {
               text: "Start From Scratch", 
               onPress: () => {
                 // Reset all word-pairs lesson progress and game state
-                resetWordPairsLesson('word_pairs');
-                setCurrentSetIndex(0);
+                resetWordPairsLesson(lessonId);
                 // Initialize the first set
-                setTimeout(() => initializeGame(), 300);
+                 initializeGame();
               }
             });
           }
@@ -276,17 +286,17 @@ export default function WordPairsScreen() {
       // Incorrect match
       HapticError?.();
       incorrectSound?.replayAsync()
-      setMadeError(true); // Mark that an error was made
-      setIncorrectPair({ 
+      setMadeError(lessonId, true); // Mark that an error was made
+      setIncorrectPair(lessonId, { 
         english: column === 'english' ? index : selectedPair.index, 
         translation: column === 'translation' ? index : selectedPair.index 
       });
-      setScore(score - 10);
-      setTimeout(() => setIncorrectPair(null), 500); // Clear after 1 second
+      setScore(lessonId, score - 10);
+      setTimeout(() => setIncorrectPair(lessonId, null), 500); // Clear after 1 second
     }
     
     // Reset selection
-    setSelectedPair(null);
+    setSelectedPair(lessonId, null);
   };
 
   // Create theme-based styles
@@ -425,7 +435,7 @@ export default function WordPairsScreen() {
         </RNEView>
       </RNEView>
       <NextButton 
-        onPress={initializeGame}
+        onPress={() => resetWordPairsLesson(lessonId!)}
       >
         <RNEText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNEText>
       </NextButton>
