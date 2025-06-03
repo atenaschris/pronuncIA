@@ -34,7 +34,6 @@ export default function WordPairsScreen() {
     setIncorrectPair,
     setLessonCompleted,
     setCurrentSetIndex,
-    setMadeError,
     addErrorDetail,
     clearCurrentSetErrors,
     resetWordPairsLesson,
@@ -59,7 +58,6 @@ export default function WordPairsScreen() {
     incorrectPair = null,
     lessonCompleted = false,
     currentSetIndex = 0,
-    madeError = false,
     errorDetails
   } = wordPairsState || {};
 
@@ -145,13 +143,12 @@ export default function WordPairsScreen() {
     setScore(lessonId, 0);
     setIncorrectPair(lessonId, null);
     setLessonCompleted(lessonId, false); // Reset lesson completed state
-    setMadeError(lessonId, false); // Reset error tracking for the new game
     // Note: We don't automatically clear errors here anymore to preserve error history
     if (animationTimeoutRef.current) { // Clear any existing animation timeout reference on initiGame
       clearTimeout(animationTimeoutRef.current);
       animationTimeoutRef.current = null;
     }
-  }, [lessonId, currentSetIndex, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setLessonCompleted, setMadeError]);
+  }, [lessonId, currentSetIndex, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setLessonCompleted]);
 
   // Initialize the game
   useEffect(() => {
@@ -292,11 +289,11 @@ export default function WordPairsScreen() {
           }
           if(!allSetsAttempted || (allSetsAttempted && !errorDetails?.totalErrors)) {
             // Enhanced button text for "Play This Set Again"
-            const replayButtonText = madeError ? "🔄 Replay Set (Fix Errors)" : "🔄 Play This Set Again";
+            const replayButtonText = errorDetails?.totalErrors ? "🔄 Replay Set (Fix Errors)" : "🔄 Play This Set Again";
             alertButtons.push({ 
               text: replayButtonText, 
               onPress: () => {
-                if (madeError) {
+                if (errorDetails?.totalErrors) {
                   clearCurrentSetErrors(lessonId, currentSetIndex); // Clear errors when explicitly fixing
                 }
                 initializeGame();
@@ -318,7 +315,6 @@ export default function WordPairsScreen() {
                 text: `🎯 Fix Set ${setIndex + 1} (${errorCount} error${errorCount > 1 ? 's' : ''})`,
                 onPress: () => {
                   clearCurrentSetErrors(lessonId, setIndex); // Clear errors for this specific set
-                  setMadeError(lessonId, false); // Reset error flag for fresh tracking
                   setLessonCompleted(lessonId, false); // Reset lesson completed state when fixing a specific set
                   if (currentSetIndex === setIndex) {
                     // If we're already on this set, force re-initialization
@@ -390,7 +386,6 @@ export default function WordPairsScreen() {
       // Incorrect match
       HapticError?.();
       incorrectSound?.replayAsync()
-      setMadeError(lessonId, true); // Mark that an error was made
       
       // Track detailed error information
        addErrorDetail(lessonId, englishWord, translationWord, correctTranslation || '', currentSetIndex);

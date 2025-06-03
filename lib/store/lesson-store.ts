@@ -38,7 +38,6 @@ export interface WordPairsState {
   incorrectPair: { english: number; translation: number } | null;
   lessonCompleted: boolean;
   currentSetIndex: number;
-  madeError: boolean;
   errorDetails: {
     incorrectMatches: Array<{
       englishWord: EnglishWord;
@@ -103,7 +102,6 @@ interface LessonState {
   setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => void;
   setLessonCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
-  setMadeError: (lessonId: string, error: boolean) => void;
   addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, correctTranslation: string, setIndex: number) => void;
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
@@ -121,7 +119,6 @@ export const useLessonStore = create<LessonState>()(persist(
   dailyPlan: null,
   isLoading: false,
   error: null,
-
   setDailyPlan: (plan) => set({ dailyPlan: plan }),
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
     const { dailyPlan, totalXp, currentStreak } = get();
@@ -329,7 +326,6 @@ export const useLessonStore = create<LessonState>()(persist(
                 incorrectPair: null,
                 lessonCompleted: false,
                 currentSetIndex: 0,
-                madeError: false,
                 errorDetails: {
                   incorrectMatches: [],
                   totalErrors: 0,
@@ -392,31 +388,6 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
   
-  setMadeError: (lessonId: string, error: boolean) => set((state) => {
-    if (!state.dailyPlan) return state;
-    
-    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
-      if (lesson.id === lessonId && lesson.sessionState) {
-        return {
-          ...lesson,
-          sessionState: {
-            ...lesson.sessionState,
-            madeError: error,
-          } as WordPairsState,
-        };
-      }
-      return lesson;
-    });
-    
-    return {
-      ...state,
-      dailyPlan: {
-        ...state.dailyPlan,
-        lessons: updatedLessons,
-      },
-    };
-  }),
-  
   resetWordPairsLesson: (lessonId: string) => set((state) => {
     if (!state.dailyPlan) return state;
     
@@ -444,7 +415,6 @@ export const useLessonStore = create<LessonState>()(persist(
             score: 0,
             incorrectPair: null,
             lessonCompleted: false,
-            madeError: false,
             errorDetails: {
               incorrectMatches: [],
               totalErrors: 0,
