@@ -363,7 +363,7 @@ export default function WordPairsScreen() {
               onPress: () => {
                 Alert.alert(
                   "Save Progress?",
-                  "Your overall lesson progress is automatically saved! 💾\n\nOnly the current set will need to be replayed when you return (as a refresher). You won't earn additional XP for this set unless you achieve a higher score.\n\nGo back to main menu?",
+                  "Your overall lesson progress is automatically saved, along with the current score for this set! 💾\n\nBy the way, you will have to play it again in order to move on, make sure you read carefully the words, otherwise you could score lower\n\nGo back to main menu?",
                   [
                     { text: "Next Set", style: "cancel",  onPress: () => setCurrentSetIndex?.(lessonId, currentSetIndex + 1) },
                     { text: "Go Back", onPress: () => {
