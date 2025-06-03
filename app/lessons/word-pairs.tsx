@@ -35,6 +35,8 @@ export default function WordPairsScreen() {
     setLessonCompleted,
     setCurrentSetIndex,
     setMadeError,
+    addErrorDetail,
+    clearCurrentSetErrors,
     resetWordPairsLesson,
   } = useLessonStore();
 
@@ -58,7 +60,10 @@ export default function WordPairsScreen() {
     lessonCompleted = false,
     currentSetIndex = 0,
     madeError = false,
+    errorDetails
   } = wordPairsState || {};
+
+  console.log('------------->', wordPairsState)
 
   const HapticSuccess = useHaptic('success');
   const HapticError = useHaptic('error');
@@ -124,13 +129,8 @@ export default function WordPairsScreen() {
   
   const initializeGame = useCallback(() => {
     if (!lessonId || !setEnglishWords || !setTranslationWords) return;
-    
-    console.log('🎮 InitializeGame called with currentSetIndex:', currentSetIndex);
     const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
-    console.log('🔑 Current set key:', currentSetKey);
     const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
-    console.log('📝 Current word pairs:', currentWordPairs);
-
     // Extract and shuffle words
     const english = currentWordPairs.map(pair => pair.english);
     const translations = currentWordPairs.map(pair => pair.translation);
@@ -146,6 +146,7 @@ export default function WordPairsScreen() {
     setIncorrectPair(lessonId, null);
     setLessonCompleted(lessonId, false); // Reset lesson completed state
     setMadeError(lessonId, false); // Reset error tracking for the new game
+    // Note: We don't automatically clear errors here anymore to preserve error history
     if (animationTimeoutRef.current) { // Clear any existing animation timeout reference on initiGame
       clearTimeout(animationTimeoutRef.current);
       animationTimeoutRef.current = null;
@@ -154,7 +155,6 @@ export default function WordPairsScreen() {
 
   // Initialize the game
   useEffect(() => {
-    console.log('🔄 useEffect triggered - currentSetIndex changed to:', currentSetIndex);
     if (lessonId) {
       initializeGame();
     }
@@ -233,26 +233,55 @@ export default function WordPairsScreen() {
           setLessonCompleted(lessonId, true); // Mark lesson as completed
         }
         setTimeout(() => {
-          const updatedWPLesson = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId && l.type === 'word_pairs');
+          const updatedWPLesson = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId);
           const accumulatedLessonXP = updatedWPLesson?.xpReward || 0;
           const allSetsAttempted = (updatedWPLesson?.completedSets || 0) >= (updatedWPLesson?.totalSets || WORD_PAIRS_SET_KEYS.length);
 
           let alertTitle = "Set Complete!";
           let alertMessage = `You scored ${finalScore} for this set.`;
           const alertButtons = [];
-
+          
           if (allSetsAttempted) {
             alertTitle = "All Sets Mastered!";
             alertMessage = `You've completed all sets! Your total XP for this lesson is ${accumulatedLessonXP}.`;
-            if (madeError) { // If any error was made throughout all sets (this logic might need refinement if 'madeError' is only for current set)
-                alertMessage += "\n\nSome sets had errors. Play again to perfect your score!";
+            if (errorDetails && errorDetails.totalErrors > 0) {
+              // Group errors by set index
+              const errorsBySet = errorDetails.incorrectMatches.reduce((acc, error) => {
+                if (!acc[error.setIndex]) acc[error.setIndex] = [];
+                acc[error.setIndex].push(error);
+                return acc;
+              }, {} as Record<number, typeof errorDetails.incorrectMatches>);
+              
+              const setCount = Object.keys(errorsBySet).length;
+              alertMessage += `\n\n⚠️ You made ${errorDetails.totalErrors} error(s) across ${setCount} set(s). Here's a breakdown:`;
+              
+              Object.entries(errorsBySet).forEach(([setIdx, errors]) => {
+                alertMessage += `\n\n📍 Set ${parseInt(setIdx) + 1} (${errors.length} error${errors.length > 1 ? 's' : ''}):`;  
+                errors.forEach(error => {
+                  alertMessage += `\n• "${error.englishWord}" ≠ "${error.attemptedTranslation}"`;  
+                });
+              });
+              
+              alertMessage += `\n\nYou can replay specific sets to fix these errors and earn additional XP!`;
+            } else {
+              // All errors have been fixed!
+              alertMessage += `\n\n🎉 Perfect! You've mastered all sets with no errors remaining!`;
             }
           } else {
             // Not all sets are completed yet
             alertMessage += ` Your current total XP for this lesson is ${accumulatedLessonXP}.`;
-            if (madeError) {
-              alertMessage += "\n\nTry this set again for a perfect score, or move to the next one.";
-            }
+            if (errorDetails && errorDetails.incorrectMatches.length > 0) {
+               const currentSetErrors = errorDetails.incorrectMatches.filter(error => 
+                 error.setIndex === currentSetIndex
+               );
+               if (currentSetErrors.length > 0) {
+                 alertMessage += `\n\n❌ Errors in this set:`;
+                 currentSetErrors.forEach(error => {
+                   alertMessage += `\n• "${error.englishWord}" ≠ "${error.attemptedTranslation}"`;
+                 });
+                 alertMessage += `\n\nTry this set again for a perfect score, or move to the next one.`;
+               }
+             }
             alertButtons.push({
               text: "Next Set",
               onPress: () => {
@@ -261,23 +290,98 @@ export default function WordPairsScreen() {
               }
             });
           }
-
-          alertButtons.push({ text: "Play This Set Again", onPress: initializeGame }); // initializeGame resets the current set
+          if(!allSetsAttempted || (allSetsAttempted && !errorDetails?.totalErrors)) {
+            // Enhanced button text for "Play This Set Again"
+            const replayButtonText = madeError ? "🔄 Replay Set (Fix Errors)" : "🔄 Play This Set Again";
+            alertButtons.push({ 
+              text: replayButtonText, 
+              onPress: () => {
+                if (madeError) {
+                  clearCurrentSetErrors(lessonId, currentSetIndex); // Clear errors when explicitly fixing
+                }
+                initializeGame();
+              }
+            });
+          }    
+          // Add buttons for sets with errors (only when all sets are completed)
+          if (allSetsAttempted && errorDetails && errorDetails.totalErrors > 0) {
+            const errorsBySet = errorDetails.incorrectMatches.reduce((acc, error) => {
+              if (!acc[error.setIndex]) acc[error.setIndex] = [];
+              acc[error.setIndex].push(error);
+              return acc;
+            }, {} as Record<number, typeof errorDetails.incorrectMatches>);
+            
+            Object.keys(errorsBySet).forEach(setIdx => {
+              const setIndex = parseInt(setIdx);
+              const errorCount = errorsBySet[setIndex].length;
+              alertButtons.push({
+                text: `🎯 Fix Set ${setIndex + 1} (${errorCount} error${errorCount > 1 ? 's' : ''})`,
+                onPress: () => {
+                  clearCurrentSetErrors(lessonId, setIndex); // Clear errors for this specific set
+                  setMadeError(lessonId, false); // Reset error flag for fresh tracking
+                  setLessonCompleted(lessonId, false); // Reset lesson completed state when fixing a specific set
+                  if (currentSetIndex === setIndex) {
+                    // If we're already on this set, force re-initialization
+                    initializeGame();
+                  } else {
+                    setCurrentSetIndex?.(lessonId, setIndex);
+                    // initializeGame will be called by useEffect when currentSetIndex changes
+                  }
+                }
+              });
+            });
+          }
           
           // Only show "Start From Scratch" if all sets are completed
           if (allSetsAttempted) {
             alertButtons.push({ 
-              text: "Start From Scratch", 
+              text: "🔄 Start From Scratch", 
               onPress: () => {
-                // Reset all word-pairs lesson progress and game state
-                resetWordPairsLesson(lessonId);
-                // Initialize the first set
-                 initializeGame();
+                Alert.alert(
+                  "Start From Scratch?",
+                  "This will reset ALL progress for this lesson. Your global XP and streak will be adjusted accordingly. Are you sure?",
+                  [
+                    { text: "Cancel and Go to the lessons page", style: "cancel",  onPress: () => router.replace("/(tabs)") },
+                    { 
+                      text: "Reset Lesson", 
+                      style: "destructive",
+                      onPress: () => {
+                        resetWordPairsLesson(lessonId);
+                        initializeGame();
+                      }
+                    }
+                  ]
+                );
               }
             });
           }
           
-          alertButtons.push({text: "Go Back", onPress: () => router.replace("/(tabs)")});
+          // Only show "Go Back" with save progress modal if there are still errors or not all sets completed
+          if (!allSetsAttempted || (errorDetails && errorDetails.totalErrors > 0)) {
+            alertButtons.push({
+              text: "🏠 Go Back", 
+              onPress: () => {
+                Alert.alert(
+                  "Save Progress?",
+                  "Your overall lesson progress is automatically saved! 💾\n\nOnly the current set will need to be replayed when you return (as a refresher). You won't earn additional XP for this set unless you achieve a higher score.\n\nGo back to main menu?",
+                  [
+                    { text: "Next Set", style: "cancel",  onPress: () => setCurrentSetIndex?.(lessonId, currentSetIndex + 1) },
+                    { text: "Go Back", onPress: () => {
+                      // Clear current set errors when leaving to prevent accumulation
+                      clearCurrentSetErrors(lessonId, currentSetIndex);
+                      router.replace("/(tabs)");
+                    }}
+                  ]
+                );
+              }
+            });
+          } else {
+            // All sets completed with no errors - show simple go back option
+            alertButtons.push({
+              text: "🏠 Return to Lessons", 
+              onPress: () => router.replace("/(tabs)")
+            });
+          }
           Alert.alert(alertTitle, alertMessage, alertButtons);
         }, 300);
         winningSound?.replayAsync();
@@ -287,6 +391,10 @@ export default function WordPairsScreen() {
       HapticError?.();
       incorrectSound?.replayAsync()
       setMadeError(lessonId, true); // Mark that an error was made
+      
+      // Track detailed error information
+       addErrorDetail(lessonId, englishWord, translationWord, correctTranslation || '', currentSetIndex);
+      
       setIncorrectPair(lessonId, { 
         english: column === 'english' ? index : selectedPair.index, 
         translation: column === 'translation' ? index : selectedPair.index 
@@ -435,7 +543,10 @@ export default function WordPairsScreen() {
         </RNEView>
       </RNEView>
       <NextButton 
-        onPress={() => resetWordPairsLesson(lessonId!)}
+        onPress={() => {
+          resetWordPairsLesson(lessonId!);
+          initializeGame();
+        }}
       >
         <RNEText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNEText>
       </NextButton>
