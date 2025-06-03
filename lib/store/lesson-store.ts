@@ -41,9 +41,9 @@ export interface WordPairsState {
   madeError: boolean;
   errorDetails: {
     incorrectMatches: Array<{
-      englishWord: string;
-      attemptedTranslation: string;
-      correctTranslation: string;
+      englishWord: EnglishWord;
+      attemptedTranslation: TranslationWord;
+      correctTranslation: TranslationWord;
       timestamp: number;
       setIndex: number;
     }>;
@@ -141,14 +141,17 @@ export const useLessonStore = create<LessonState>()(persist(
           lessonToUpdate.setBestScores = lessonToUpdate.setBestScores || Array(lessonToUpdate.totalSets).fill(0);
           
           const oldBestScoreForSet = lessonToUpdate.setBestScores[currentSetIndex] || 0;
-          const newBestScoreForSet = Math.max(oldBestScoreForSet, scoreForAttemptOrLesson);
           
-          if (newBestScoreForSet > oldBestScoreForSet) {
-            xpDeltaForTotal += (newBestScoreForSet - oldBestScoreForSet);
-            lessonToUpdate.setBestScores[currentSetIndex] = newBestScoreForSet;
-            // Recalculate lesson's total xpReward from all best set scores
-            lessonToUpdate.xpReward = lessonToUpdate.setBestScores.reduce((sum, score) => sum + score, 0);
-          }
+          // Always update the score for the current attempt, whether it's better or worse
+          // This ensures XP is always accurate based on the most recent performance
+          const scoreDifference = scoreForAttemptOrLesson - oldBestScoreForSet;
+          xpDeltaForTotal += scoreDifference; // Can be positive or negative
+          
+          // Update the set's score with the current attempt score
+          lessonToUpdate.setBestScores[currentSetIndex] = scoreForAttemptOrLesson;
+          
+          // Recalculate lesson's total xpReward from all set scores
+          lessonToUpdate.xpReward = lessonToUpdate.setBestScores.reduce((sum, score) => sum + score, 0);
 
           // Increment completedSets if this set is being successfully played for the first time
           // (assuming scoreForAttemptOrLesson > 0 means a successful play for set counting purposes)
@@ -287,9 +290,9 @@ export const useLessonStore = create<LessonState>()(persist(
             xpReward: 0, // Initial XP for word_pairs is 0, sum of setBestScores
             completed: false,
             locked: false,
-            totalSets: 10, // Example: 10 sets for word_pairs
+            totalSets: 5, // Example: 10 sets for word_pairs
             completedSets: 0, // Number of unique sets attempted
-            setBestScores: Array(10).fill(0), // Initialize best scores for 10 sets
+            setBestScores: Array(5).fill(0), // Initialize best scores for 10 sets
           },
         ],
         totalXp: 2000,
@@ -690,15 +693,16 @@ export const useLessonStore = create<LessonState>()(persist(
     const updatedLessons = state.dailyPlan.lessons.map(lesson => {
       if (lesson.id === lessonId && lesson.sessionState) {
         const currentState = lesson.sessionState as WordPairsState;
+        const filteredMatches = currentState.errorDetails.incorrectMatches.filter(
+          error => error.setIndex !== setIndex
+        );
         return {
           ...lesson,
           sessionState: {
             ...currentState,
             errorDetails: {
-              ...currentState.errorDetails,
-              incorrectMatches: currentState.errorDetails.incorrectMatches.filter(
-                error => error.setIndex !== setIndex
-              ),
+              incorrectMatches: filteredMatches,
+              totalErrors: filteredMatches.length, // Recalculate totalErrors based on remaining errors
             },
           } as WordPairsState,
         };

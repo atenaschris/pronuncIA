@@ -160,7 +160,7 @@ export const WORD_PAIR_SETS = {
     { english: 'orange', translation: 'arancione' },
     { english: 'purple', translation: 'viola' },
   ],
-  set6: [
+  /* set6: [
     { english: 'one', translation: 'uno' },
     { english: 'two', translation: 'due' },
     { english: 'three', translation: 'tre' },
@@ -209,7 +209,7 @@ export const WORD_PAIR_SETS = {
     { english: 'evening', translation: 'sera' },
     { english: 'night', translation: 'notte' },
     { english: 'week', translation: 'settimana' },
-  ],
+  ], */
 } as const;
 
 export const WORD_PAIRS_SET_KEYS = Object.keys(WORD_PAIR_SETS) as (keyof typeof WORD_PAIR_SETS)[];
