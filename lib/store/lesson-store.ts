@@ -100,7 +100,7 @@ interface LessonState {
   setMatchedPairs: (lessonId: string, pairs: number[]) => void;
   setScore: (lessonId: string, score: number) => void;
   setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => void;
-  setLessonCompleted: (lessonId: string, completed: boolean) => void;
+  setCurrentSetCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
   addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, correctTranslation: string, setIndex: number) => void;
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
@@ -363,7 +363,7 @@ export const useLessonStore = create<LessonState>()(persist(
     return lesson?.sessionState as WordPairsState || null;
   },
   
-  setLessonCompleted: (lessonId: string, completed: boolean) => set((state) => {
+  setCurrentSetCompleted: (lessonId: string, completed: boolean) => set((state) => {
     if (!state.dailyPlan) return state;
     
     const updatedLessons = state.dailyPlan.lessons.map(lesson => {

@@ -24,7 +24,6 @@ export default function WordPairsScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
   const {
     completeLesson,
-    dailyPlan,
     initializeLessonSessionState,
     getWordPairsState,
     setEnglishWords,
@@ -33,7 +32,7 @@ export default function WordPairsScreen() {
     setMatchedPairs,
     setScore,
     setIncorrectPair,
-    setLessonCompleted,
+    setCurrentSetCompleted,
     setCurrentSetIndex,
     addErrorDetail,
     clearCurrentSetErrors,
@@ -146,13 +145,13 @@ export default function WordPairsScreen() {
     setMatchedPairs(lessonId, []);
     setScore(lessonId, 0);
     setIncorrectPair(lessonId, null);
-    setLessonCompleted(lessonId, false); // Reset lesson completed state
+    setCurrentSetCompleted(lessonId, false); // Reset lesson completed state
     // Note: We don't automatically clear errors here anymore to preserve error history
     if (animationTimeoutRef.current) { // Clear any existing animation timeout reference on initiGame
       clearTimeout(animationTimeoutRef.current);
       animationTimeoutRef.current = null;
     }
-  }, [lessonId, currentSetIndex, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setLessonCompleted]);
+  }, [lessonId, currentSetIndex, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted]);
 
   // Initialize the game
   useEffect(() => {
@@ -227,7 +226,7 @@ export default function WordPairsScreen() {
           // Pass the score for the current set and the current set's index
           console.log('Before completeLesson - Current Set Score:', finalScore, 'Set Index:', currentSetIndex);
           completeLesson(lessonId, finalScore, currentSetIndex);
-          setLessonCompleted(lessonId, true); // Mark lesson as completed after dialog is shown
+          setCurrentSetCompleted(lessonId, true); // Mark lesson as completed after dialog is shown
           // Fetch the updated lesson state to display accumulated XP
           const updatedLessonState = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId);
           console.log('After completeLesson - Accumulated Lesson XP:', updatedLessonState?.xpReward);
@@ -316,7 +315,7 @@ export default function WordPairsScreen() {
                 text: `🎯 Fix Set ${setIndex + 1} (${errorCount} error${errorCount > 1 ? 's' : ''})`,
                 onPress: () => {
                   clearCurrentSetErrors(lessonId, setIndex); // Clear errors for this specific set
-                  setLessonCompleted(lessonId, false); // Reset lesson completed state when fixing a specific set
+                  setCurrentSetCompleted(lessonId, false); // Reset lesson completed state when fixing a specific set
                   if (currentSetIndex === setIndex) {
                     // If we're already on this set, force re-initialization
                     initializeGame();
@@ -503,11 +502,11 @@ export default function WordPairsScreen() {
 
   return (
     <>
-    <CustomDialog
+    { dialogVisible && <CustomDialog
         isVisible={dialogVisible}
         content={dialogContent}
         onClose={hideDialog}
-      />
+      /> }
       <RNESafeAreaView style={styles.container}>
         <RNEView style={styles.header}>
           <OnboardingTitle>Match the Pairs</OnboardingTitle>
