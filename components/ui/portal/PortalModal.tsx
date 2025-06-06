@@ -1,8 +1,8 @@
 import { PortalModalButton, PortalModalContent } from '@/lib/store/portal-modal-store';
+import { usePortalStore } from '@/lib/store/portal-store';
 import { useTheme } from '@rneui/themed';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Animated, Dimensions, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { usePortalStore } from '@/lib/store/portal-store';
 
 interface PortalModalProps {
   visible: boolean;
@@ -71,7 +71,7 @@ export function PortalModal({ visible, content, onClose, id }: PortalModalProps)
         }
       ]}
     >
-      <Pressable style={styles.overlayPressable} onPress={onClose} />
+      <Pressable style={styles.overlayPressable} />
       <Animated.View 
         style={[
           styles.modalContainer, 
@@ -83,34 +83,36 @@ export function PortalModal({ visible, content, onClose, id }: PortalModalProps)
         ]}
       >
         <View style={[styles.modal, { borderColor: theme.colors.primary }]}>
-          <Text style={[styles.title, { color: theme.colors.black }]}>
-            {content.title}
-          </Text>
-          
           <ScrollView 
-            style={styles.messageContainer}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.messageContent}
+            style={styles.scrollContainer}
+            showsVerticalScrollIndicator={true}
+            indicatorStyle="black"
+            contentContainerStyle={styles.scrollContent}
+            bounces={false}
           >
+            <Text style={[styles.title, { color: theme.colors.black }]}>
+              {content.title}
+            </Text>
+            
             <Text style={[styles.message, { color: theme.colors.black }]}>
               {content.message}
             </Text>
+            
+            <View style={styles.buttonContainer}>
+              {content.buttons.map((button, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={getButtonStyle(button)}
+                  onPress={() => handleButtonPress(button)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.buttonText, { color: getButtonTextColor(button) }]}>
+                    {button.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </ScrollView>
-          
-          <View style={styles.buttonContainer}>
-            {content.buttons.map((button, index) => (
-              <TouchableOpacity
-                key={index}
-                style={getButtonStyle(button)}
-                onPress={() => handleButtonPress(button)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.buttonText, { color: getButtonTextColor(button) }]}>
-                  {button.text}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
       </Animated.View>
     </Animated.View>
@@ -203,17 +205,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
   },
-  messageContainer: {
-    maxHeight: 200,
-    marginBottom: 20,
+  scrollContainer: {
+    maxHeight: 400,
   },
-  messageContent: {
-    flexGrow: 1,
+  scrollContent: {
+    paddingBottom: 8,
   },
   message: {
     fontSize: 16,
     lineHeight: 22,
     textAlign: 'center',
+    marginBottom: 20,
   },
   buttonContainer: {
     gap: 8,
