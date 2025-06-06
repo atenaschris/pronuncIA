@@ -19,22 +19,21 @@ export default function RootLayout() {
     return null;
   }
 
-
   return (
-    <SafeAreaProvider>
-      <RNEThemeProvider>
-        <PortalProvider>
+    <RNEThemeProvider>
+      <PortalProvider>
+        <SafeAreaProvider>
           <Stack screenOptions={{ headerShown: false }}>
             {!useOnboardingStore.getState().isComplete ? (
               <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-            ) : 
+            ) :
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             }
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style="auto" />
-        </PortalProvider>
-      </RNEThemeProvider>
-    </SafeAreaProvider>
+        </SafeAreaProvider>
+      </PortalProvider>
+    </RNEThemeProvider>
   );
 }

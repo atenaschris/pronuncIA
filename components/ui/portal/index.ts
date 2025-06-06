@@ -1,3 +1,2 @@
-export { PortalProvider, usePortal } from './Portal';
+export { PortalProvider } from './Portal';
 export { PortalModal } from './PortalModal';
-export { usePortalModal } from './usePortalModal';

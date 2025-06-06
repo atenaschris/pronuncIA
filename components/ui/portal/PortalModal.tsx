@@ -1,28 +1,8 @@
+import { PortalModalButton, PortalModalContent } from '@/lib/store/portal-modal-store';
 import { useTheme } from '@rneui/themed';
 import React, { useCallback, useEffect, useRef } from 'react';
-import {
-  Animated,
-  Dimensions,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { usePortal } from './Portal';
-
-interface PortalModalButton {
-  text: string;
-  onPress: () => void;
-  style?: 'default' | 'cancel' | 'destructive';
-}
-
-interface PortalModalContent {
-  title: string;
-  message: string;
-  buttons: PortalModalButton[];
-}
+import { Animated, Dimensions, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { usePortalStore } from '@/lib/store/portal-store';
 
 interface PortalModalProps {
   visible: boolean;
@@ -33,14 +13,15 @@ interface PortalModalProps {
 
 export function PortalModal({ visible, content, onClose, id }: PortalModalProps) {
   const { theme } = useTheme();
-  const { addPortal, removePortal } = usePortal();
+  const addPortal = usePortalStore((state) => state.addPortal);
+  const removePortal = usePortalStore((state) => state.removePortal);
   const { width, height } = Dimensions.get('window');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
   const handleButtonPress = useCallback((button: PortalModalButton) => {
-    onClose();
     button.onPress();
+    onClose();
   }, [onClose]);
 
   const getButtonStyle = useCallback((button: PortalModalButton) => {
@@ -80,6 +61,61 @@ export function PortalModal({ visible, content, onClose, id }: PortalModalProps)
     }
   }, [theme.colors.black, theme.colors.white]);
 
+  // Create portal content with stable reference
+  const portalContent = useCallback(() => (
+    <Animated.View 
+      style={[
+        styles.overlay,
+        {
+          opacity: fadeAnim,
+        }
+      ]}
+    >
+      <Pressable style={styles.overlayPressable} onPress={onClose} />
+      <Animated.View 
+        style={[
+          styles.modalContainer, 
+          { 
+            maxWidth: width * 0.9, 
+            maxHeight: height * 0.8,
+            transform: [{ scale: scaleAnim }],
+          }
+        ]}
+      >
+        <View style={[styles.modal, { borderColor: theme.colors.primary }]}>
+          <Text style={[styles.title, { color: theme.colors.black }]}>
+            {content.title}
+          </Text>
+          
+          <ScrollView 
+            style={styles.messageContainer}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.messageContent}
+          >
+            <Text style={[styles.message, { color: theme.colors.black }]}>
+              {content.message}
+            </Text>
+          </ScrollView>
+          
+          <View style={styles.buttonContainer}>
+            {content.buttons.map((button, index) => (
+              <TouchableOpacity
+                key={index}
+                style={getButtonStyle(button)}
+                onPress={() => handleButtonPress(button)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.buttonText, { color: getButtonTextColor(button) }]}>
+                  {button.text}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Animated.View>
+    </Animated.View>
+  ), [fadeAnim, scaleAnim, width, height, theme.colors.primary, theme.colors.black, content, onClose, getButtonStyle, handleButtonPress, getButtonTextColor]);
+
   useEffect(() => {
     if (visible) {
       // Show animation
@@ -98,61 +134,7 @@ export function PortalModal({ visible, content, onClose, id }: PortalModalProps)
       ]).start();
 
       // Add to portal
-      const portalContent = (
-        <Animated.View 
-          style={[
-            styles.overlay,
-            {
-              opacity: fadeAnim,
-            }
-          ]}
-        >
-          <Pressable style={styles.overlayPressable} onPress={onClose} />
-          <Animated.View 
-            style={[
-              styles.modalContainer, 
-              { 
-                maxWidth: width * 0.9, 
-                maxHeight: height * 0.8,
-                transform: [{ scale: scaleAnim }],
-              }
-            ]}
-          >
-            <View style={[styles.modal, { borderColor: theme.colors.primary }]}>
-              <Text style={[styles.title, { color: theme.colors.black }]}>
-                {content.title}
-              </Text>
-              
-              <ScrollView 
-                style={styles.messageContainer}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.messageContent}
-              >
-                <Text style={[styles.message, { color: theme.colors.black }]}>
-                  {content.message}
-                </Text>
-              </ScrollView>
-              
-              <View style={styles.buttonContainer}>
-                {content.buttons.map((button, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={getButtonStyle(button)}
-                    onPress={() => handleButtonPress(button)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.buttonText, { color: getButtonTextColor(button) }]}>
-                      {button.text}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </Animated.View>
-        </Animated.View>
-      );
-      
-      addPortal(id, portalContent);
+      addPortal(id, portalContent());
     } else {
       // Hide animation
       Animated.parallel([
@@ -170,7 +152,7 @@ export function PortalModal({ visible, content, onClose, id }: PortalModalProps)
         removePortal(id);
       });
     }
-  }, [visible, id]);
+  }, [visible, id, fadeAnim, scaleAnim, addPortal, removePortal, portalContent]);
 
   // This component doesn't render anything directly
   return null;

@@ -1,11 +1,12 @@
-import { PortalModal, usePortalModal } from '@/components/ui/portal';
 import { NextButton } from '@/components/ui/NextButton';
+import { PortalModal } from '@/components/ui/portal';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNEText } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
 import { WORD_PAIR_SETS, WORD_PAIRS_SET_KEYS } from '@/lib/constants/constants';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
+import { usePortalModalStore } from '@/lib/store/portal-modal-store';
 import { ColumnType } from '@/lib/types/word-pairs';
 import { useTheme } from '@rneui/themed';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -14,6 +15,7 @@ import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { LessonType, useLessonStore } from '../../lib/store/lesson-store';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
+
 
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -61,6 +63,9 @@ export default function WordPairsScreen() {
     errorDetails
   } = wordPairsState || {};
 
+  // Then in your component:
+const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModalStore();
+
   console.log('------------->', wordPairsState)
 
   const HapticSuccess = useHaptic('success');
@@ -68,8 +73,6 @@ export default function WordPairsScreen() {
   // lessonId is already declared above, removing duplicate
   const { correctSound, incorrectSound, winningSound } = useAudio();
 
-  // Modal state using portal modal hook
-  const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModal();
 
   // Animation values - individual scale values for each item
   const englishScaleValues = [
@@ -333,21 +336,37 @@ export default function WordPairsScreen() {
             alertButtons.push({
               text: "🔄 Start From Scratch",
               onPress: () => {
-                showModal({
-                  title: "Start From Scratch?",
-                  message: "This will reset ALL progress for this lesson. Your global XP and streak will be adjusted accordingly. Are you sure?",
-                  buttons: [
-                    { text: "Cancel and Go to the lessons page", style: "cancel", onPress: () => router.replace("/(tabs)") },
-                    {
-                      text: "Reset Lesson",
-                      style: "destructive",
-                      onPress: () => {
-                        resetWordPairsLesson(lessonId);
-                        initializeGame();
+                // Close current modal first, then show the reset confirmation modal
+                hideModal();
+                setTimeout(() => {
+                  showModal({
+                    title: "Start From Scratch?",
+                    message: "This will reset ALL progress for this lesson. Your global XP and streak will be adjusted accordingly. Are you sure?",
+                    buttons: [
+                      { 
+                        text: "Cancel and Go to the lessons page", 
+                        style: "cancel", 
+                        onPress: () => {
+                          hideModal();
+                          setTimeout(() => {
+                            router.replace("/(tabs)");
+                          }, 100);
+                        }
+                      },
+                      {
+                        text: "Reset Lesson",
+                        style: "destructive",
+                        onPress: () => {
+                          hideModal();
+                          setTimeout(() => {
+                            resetWordPairsLesson(lessonId);
+                            initializeGame();
+                          }, 100);
+                        }
                       }
-                    }
-                  ]
-                });
+                    ]
+                  });
+                }, 150); // Small delay to ensure first modal is fully closed
               }
             });
           }
@@ -357,27 +376,49 @@ export default function WordPairsScreen() {
             alertButtons.push({
               text: "🏠 Go Back",
               onPress: () => {
-                showModal({
-                  title: "Save Progress?",
-                  message: "Your overall lesson progress is automatically saved, along with the current score for this set! 💾\n\nBy the way, you will have to play it again in order to move on, make sure you read carefully the words, otherwise you could score lower\n\nGo back to main menu?",
-                  buttons: [
-                    { text: "Next Set", style: "cancel", onPress: () => setCurrentSetIndex?.(lessonId, currentSetIndex + 1) },
-                    {
-                      text: "Go Back", onPress: () => {
-                        // Clear current set errors when leaving to prevent accumulation
-                        clearCurrentSetErrors(lessonId, currentSetIndex);
-                        router.replace("/(tabs)");
+                // Close current modal first, then show the save progress modal
+                hideModal();
+                setTimeout(() => {
+                  showModal({
+                    title: "Save Progress?",
+                    message: "Your overall lesson progress is automatically saved, along with the current score for this set! 💾\n\nBy the way, you will have to play it again in order to move on, make sure you read carefully the words, otherwise you could score lower\n\nGo back to main menu?",
+                    buttons: [
+                      { 
+                        text: "Next Set", 
+                        style: "cancel", 
+                        onPress: () => {
+                          hideModal();
+                          setTimeout(() => {
+                            setCurrentSetIndex?.(lessonId, currentSetIndex + 1);
+                          }, 100);
+                        }
+                      },
+                      {
+                        text: "Go Back", 
+                        onPress: () => {
+                          // Clear current set errors when leaving to prevent accumulation
+                          hideModal();
+                          setTimeout(() => {
+                            clearCurrentSetErrors(lessonId, currentSetIndex);
+                            router.replace("/(tabs)");
+                          }, 100);
+                        }
                       }
-                    }
-                  ]
-                });
+                    ]
+                  });
+                }, 150); // Small delay to ensure first modal is fully closed
               }
             });
           } else {
             // All sets completed with no errors - show simple go back option
             alertButtons.push({
               text: "🏠 Return to Lessons",
-              onPress: () => router.replace("/(tabs)")
+              onPress: () => {
+                hideModal();
+                setTimeout(() => {
+                  router.replace("/(tabs)");
+                }, 100);
+              }
             });
           }
           showModal({
@@ -546,6 +587,7 @@ export default function WordPairsScreen() {
         <NextButton
           onPress={() => {
             resetWordPairsLesson(lessonId!);
+            // Force re-initialization even if currentSetIndex was already 0
             initializeGame();
           }}
         >
