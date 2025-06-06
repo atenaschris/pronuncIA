@@ -1,4 +1,3 @@
-import { H5 } from '@/components/ui/RNEText';
 import { RNEView } from '@/components/ui/RNEView';
 import { Dialog, useTheme } from '@rneui/themed';
 import React from 'react';
@@ -55,12 +54,6 @@ export function CustomDialog({ isVisible, content, onClose }: CustomDialogProps)
         showsVerticalScrollIndicator={true}
         contentContainerStyle={{ paddingBottom: 10 }}
       >
-        <H5 style={{
-          color: theme.colors.black,
-          marginBottom: 20,
-        }}>
-          {content.message}
-        </H5>
       </ScrollView>
       <Dialog.Actions>
         <RNEView style={{

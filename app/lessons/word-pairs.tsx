@@ -1,4 +1,4 @@
-import { CustomDialog, useCustomDialog } from '@/components/ui/CustomDialog';
+import { PortalModal, usePortalModal } from '@/components/ui/portal';
 import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNEText } from '@/components/ui/RNEText';
@@ -68,8 +68,8 @@ export default function WordPairsScreen() {
   // lessonId is already declared above, removing duplicate
   const { correctSound, incorrectSound, winningSound } = useAudio();
 
-  // Dialog state using custom hook
-  const { isVisible: dialogVisible, content: dialogContent, showDialog: showCustomDialog, hideDialog } = useCustomDialog();
+  // Modal state using portal modal hook
+  const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModal();
 
   // Animation values - individual scale values for each item
   const englishScaleValues = [
@@ -333,10 +333,10 @@ export default function WordPairsScreen() {
             alertButtons.push({
               text: "🔄 Start From Scratch",
               onPress: () => {
-                showCustomDialog(
-                  "Start From Scratch?",
-                  "This will reset ALL progress for this lesson. Your global XP and streak will be adjusted accordingly. Are you sure?",
-                  [
+                showModal({
+                  title: "Start From Scratch?",
+                  message: "This will reset ALL progress for this lesson. Your global XP and streak will be adjusted accordingly. Are you sure?",
+                  buttons: [
                     { text: "Cancel and Go to the lessons page", style: "cancel", onPress: () => router.replace("/(tabs)") },
                     {
                       text: "Reset Lesson",
@@ -347,7 +347,7 @@ export default function WordPairsScreen() {
                       }
                     }
                   ]
-                );
+                });
               }
             });
           }
@@ -357,10 +357,10 @@ export default function WordPairsScreen() {
             alertButtons.push({
               text: "🏠 Go Back",
               onPress: () => {
-                showCustomDialog(
-                  "Save Progress?",
-                  "Your overall lesson progress is automatically saved, along with the current score for this set! 💾\n\nBy the way, you will have to play it again in order to move on, make sure you read carefully the words, otherwise you could score lower\n\nGo back to main menu?",
-                  [
+                showModal({
+                  title: "Save Progress?",
+                  message: "Your overall lesson progress is automatically saved, along with the current score for this set! 💾\n\nBy the way, you will have to play it again in order to move on, make sure you read carefully the words, otherwise you could score lower\n\nGo back to main menu?",
+                  buttons: [
                     { text: "Next Set", style: "cancel", onPress: () => setCurrentSetIndex?.(lessonId, currentSetIndex + 1) },
                     {
                       text: "Go Back", onPress: () => {
@@ -370,7 +370,7 @@ export default function WordPairsScreen() {
                       }
                     }
                   ]
-                );
+                });
               }
             });
           } else {
@@ -380,7 +380,11 @@ export default function WordPairsScreen() {
               onPress: () => router.replace("/(tabs)")
             });
           }
-          showCustomDialog(alertTitle, alertMessage, alertButtons);
+          showModal({
+            title: alertTitle,
+            message: alertMessage,
+            buttons: alertButtons
+          });
           winningSound?.replayAsync();
       }
     } else {
@@ -502,11 +506,6 @@ export default function WordPairsScreen() {
 
   return (
     <>
-    { dialogVisible && <CustomDialog
-        isVisible={dialogVisible}
-        content={dialogContent}
-        onClose={hideDialog}
-      /> }
       <RNESafeAreaView style={styles.container}>
         <RNEView style={styles.header}>
           <OnboardingTitle>Match the Pairs</OnboardingTitle>
@@ -553,6 +552,12 @@ export default function WordPairsScreen() {
           <RNEText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNEText>
         </NextButton>
       </RNESafeAreaView>
+      <PortalModal
+        visible={modalVisible}
+        content={modalContent}
+        onClose={hideModal}
+        id={modalId}
+      />
      </>
    );
 }
