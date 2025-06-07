@@ -39,6 +39,11 @@ export default function WordPairsScreen() {
     addErrorDetail,
     clearCurrentSetErrors,
     resetWordPairsLesson,
+    startSetTimer,
+    stopSetTimer,
+    updateCurrentSetElapsedTime,
+    clearSetTimer,
+    addTimeBonusXP,
   } = useLessonStore();
 
   // Initialize the lesson session state if needed
@@ -60,7 +65,11 @@ export default function WordPairsScreen() {
     incorrectPair = null,
     lessonCompleted = false,
     currentSetIndex = 0,
-    errorDetails
+    errorDetails,
+    setTimers = [],
+    currentSetStartTime = null,
+    currentSetElapsedTime = 0,
+    totalSessionTime = 0
   } = wordPairsState || {};
 
   // Then in your component:
@@ -154,7 +163,13 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
       clearTimeout(animationTimeoutRef.current);
       animationTimeoutRef.current = null;
     }
-  }, [lessonId, currentSetIndex, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted]);
+    
+    // Clear the timer for the current set when replaying
+    clearSetTimer(lessonId, currentSetIndex);
+    
+    // Start the timer for this set
+    startSetTimer(lessonId);
+  }, [lessonId, currentSetIndex, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer]);
 
   // Initialize the game
   useEffect(() => {
@@ -162,6 +177,17 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
       initializeGame();
     }
   }, [currentSetIndex, lessonId, initializeGame]); // Re-initialize when currentSetIndex or lessonId changes
+
+  // Timer update effect - updates the elapsed time every second
+  useEffect(() => {
+    if (!lessonId || !currentSetStartTime) return;
+    
+    const interval = setInterval(() => {
+      updateCurrentSetElapsedTime(lessonId);
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [lessonId, currentSetStartTime, updateCurrentSetElapsedTime]);
 
 
   const handleWordPress = (index: number, column: ColumnType) => {
@@ -225,6 +251,9 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
       const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
       const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
       if (matchedPairs.length + 1 === currentWordPairs.length && !lessonCompleted) {
+        // Stop the timer for this set
+        stopSetTimer(lessonId);
+        
         const finalScore = score + 10; // Calculate final score before calling completeLesson
           // Pass the score for the current set and the current set's index
           console.log('Before completeLesson - Current Set Score:', finalScore, 'Set Index:', currentSetIndex);
@@ -237,13 +266,27 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
           const accumulatedLessonXP = updatedWPLesson?.xpReward || 0;
           const allSetsAttempted = (updatedWPLesson?.completedSets || 0) >= (updatedWPLesson?.totalSets || WORD_PAIRS_SET_KEYS.length);
 
+          // Get the current set completion time
+          const currentSetTime = setTimers[currentSetIndex] || currentSetElapsedTime;
+          const totalTime = totalSessionTime + currentSetElapsedTime;
+          
           let alertTitle = "Set Complete!";
-          let alertMessage = `You scored ${finalScore} for this set.`;
+          let alertMessage = `You scored ${finalScore} for this set in ${formatTime(currentSetTime)}.`;
           const alertButtons = [];
 
           if (allSetsAttempted) {
+            // Calculate time bonus when all sets are completed
+            const timeBonus = calculateTimeBonusXP(totalTime, WORD_PAIRS_SET_KEYS.length);
+            
+            // Apply time bonus to the lesson
+            if (timeBonus.bonusXP > 0) {
+              addTimeBonusXP(lessonId, timeBonus.bonusXP);
+            }
+            
+            const totalXPWithBonus = accumulatedLessonXP + timeBonus.bonusXP;
+            
             alertTitle = "All Sets Mastered!";
-            alertMessage = `You've completed all sets! Your total XP for this lesson is ${accumulatedLessonXP}.`;
+            alertMessage = `You've completed all sets! Your total XP for this lesson is ${accumulatedLessonXP}.\n⏱️ Total time: ${formatTime(totalTime)}\n🏆 Speed bonus: +${timeBonus.bonusXP} XP (${timeBonus.timeCategory})\n✨ Final XP: ${totalXPWithBonus}`;
             if (errorDetails && errorDetails.totalErrors > 0) {
               // Group errors by set index
               const errorsBySet = errorDetails.incorrectMatches.reduce((acc, error) => {
@@ -269,7 +312,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
             }
           } else {
             // Not all sets are completed yet
-            alertMessage += ` Your current total XP for this lesson is ${accumulatedLessonXP}.`;
+            alertMessage += ` Your current total XP for this lesson is ${accumulatedLessonXP}.\n⏱️ Current session time: ${formatTime(totalTime)}`;
             if (errorDetails && errorDetails.incorrectMatches.length > 0) {
               const currentSetErrors = errorDetails.incorrectMatches.filter(error =>
                 error.setIndex === currentSetIndex
@@ -360,7 +403,6 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
                           hideModal();
                           setTimeout(() => {
                             resetWordPairsLesson(lessonId);
-                            initializeGame();
                           }, 100);
                         }
                       }
@@ -545,13 +587,41 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
     return [styles.wordText, themeStyles.wordText];
   }, [isMatched, isSelected, isTranslationMatched, themeStyles, incorrectPair]);
 
+  // Helper function to format time display
+  const formatTime = useCallback((seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }, []);
+
+  // Calculate bonus XP based on completion time
+  const calculateTimeBonusXP = (totalTimeInSeconds: number, totalSets: number): { bonusXP: number; timeCategory: string } => {
+    const averageTimePerSet = totalTimeInSeconds / totalSets;
+    
+    // Time thresholds (in seconds per set)
+    if (averageTimePerSet <= 30) {
+      return { bonusXP: 50, timeCategory: 'Lightning Fast' }; // Under 30 seconds per set
+    } else if (averageTimePerSet <= 45) {
+      return { bonusXP: 30, timeCategory: 'Very Fast' }; // 30-45 seconds per set
+    } else if (averageTimePerSet <= 60) {
+      return { bonusXP: 20, timeCategory: 'Fast' }; // 45-60 seconds per set
+    } else if (averageTimePerSet <= 90) {
+      return { bonusXP: 10, timeCategory: 'Good' }; // 60-90 seconds per set
+    } else {
+      return { bonusXP: 0, timeCategory: 'Take Your Time' }; // Over 90 seconds per set
+    }
+  };
+
   return (
     <>
       <RNESafeAreaView style={styles.container}>
         <RNEView style={styles.header}>
           <OnboardingTitle>Match the Pairs</OnboardingTitle>
           <OnboardingSubtitle>Tap the matching word pairs</OnboardingSubtitle>
-          <RNEText style={styles.scoreText}>Score: {score}</RNEText>
+          <RNEView style={styles.scoreContainer}>
+            <RNEText style={styles.scoreText}>Score: {score}</RNEText>
+            <RNEText style={styles.timerText}>Time: {formatTime(currentSetElapsedTime)}</RNEText>
+          </RNEView>
         </RNEView>
 
         <RNEView style={styles.gameContainer}>
@@ -613,10 +683,22 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
   },
+  scoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    width: '100%',
+    paddingHorizontal: 20,
+  },
   scoreText: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginTop: 10,
+  },
+  timerText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#666',
   },
   gameContainer: {
     flex: 1,
