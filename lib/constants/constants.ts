@@ -140,7 +140,7 @@ export const WORD_PAIR_SETS = {
     { english: 'friend', translation: 'amico' },
     { english: 'family', translation: 'famiglia' },
   ],
-  set4: [
+/*   set4: [
     { english: 'eat', translation: 'mangiare' },
     { english: 'drink', translation: 'bere' },
     { english: 'sleep', translation: 'dormire' },
@@ -160,7 +160,7 @@ export const WORD_PAIR_SETS = {
     { english: 'orange', translation: 'arancione' },
     { english: 'purple', translation: 'viola' },
   ],
-  /* set6: [
+   set6: [
     { english: 'one', translation: 'uno' },
     { english: 'two', translation: 'due' },
     { english: 'three', translation: 'tre' },

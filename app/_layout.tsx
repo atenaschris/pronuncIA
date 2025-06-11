@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RNEThemeProvider } from '@/components/ui/RNEThemeProvider';
+import { PortalProvider } from '@/components/ui/portal';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 
 export default function RootLayout() {
@@ -18,20 +19,21 @@ export default function RootLayout() {
     return null;
   }
 
-
   return (
-    <SafeAreaProvider>
-      <RNEThemeProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          {!useOnboardingStore.getState().isComplete ? (
-            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-          ) : 
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          }
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style="auto" />
-      </RNEThemeProvider>
-    </SafeAreaProvider>
+    <RNEThemeProvider>
+      <PortalProvider>
+        <SafeAreaProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            {!useOnboardingStore.getState().isComplete ? (
+              <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+            ) :
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            }
+            <Stack.Screen name="+not-found" />
+          </Stack>
+          <StatusBar style="auto" />
+        </SafeAreaProvider>
+      </PortalProvider>
+    </RNEThemeProvider>
   );
 }

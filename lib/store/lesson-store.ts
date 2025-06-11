@@ -17,6 +17,7 @@ export interface Lesson {
   totalSets?: number; // Total number of sets for this lesson (e.g., 10 for word_pairs)
   completedSets?: number; // Number of unique sets attempted at least once
   setBestScores?: number[]; // Stores the best score achieved for each set
+  currentTimeBonusXP?: number; // Current time bonus XP applied (can change as user takes more time)
   // Session state embedded directly in the lesson
   sessionState?: WordPairsState | VocabularyState | ListeningState | PronunciationState | RoleplayState | ShadowingState | VoiceJournalingState;
 }
@@ -38,7 +39,6 @@ export interface WordPairsState {
   incorrectPair: { english: number; translation: number } | null;
   lessonCompleted: boolean;
   currentSetIndex: number;
-  madeError: boolean;
   errorDetails: {
     incorrectMatches: Array<{
       englishWord: EnglishWord;
@@ -49,6 +49,15 @@ export interface WordPairsState {
     }>;
     totalErrors: number;
   };
+  // Timer functionality
+  setTimers: number[]; // Array of completion times for each set (in seconds)
+  currentSetStartTime: number | null; // Timestamp when current set started
+  currentSetElapsedTime: number; // Current elapsed time for the active set (in seconds)
+  totalSessionTime: number; // Total time spent across all sets in this session (in seconds)
+  isPaused: boolean; // Whether the current set timer is paused
+  pauseStartTime: number | null; // Timestamp when pause started
+  totalPauseTime: number; // Total time spent paused in current set (in seconds)
+  pauseCount: number; // Number of times user has paused in current set (max 2)
 }
 
 // Placeholder interfaces for other lesson types
@@ -101,13 +110,22 @@ interface LessonState {
   setMatchedPairs: (lessonId: string, pairs: number[]) => void;
   setScore: (lessonId: string, score: number) => void;
   setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => void;
-  setLessonCompleted: (lessonId: string, completed: boolean) => void;
+  setCurrentSetCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
-  setMadeError: (lessonId: string, error: boolean) => void;
   addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, correctTranslation: string, setIndex: number) => void;
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
   getWordPairsState: (lessonId: string) => WordPairsState | null;
+  
+  // Timer methods
+  startSetTimer: (lessonId: string) => void;
+  stopSetTimer: (lessonId: string) => void;
+  updateCurrentSetElapsedTime: (lessonId: string) => void;
+  pauseSetTimer: (lessonId: string) => void;
+  resumeSetTimer: (lessonId: string) => void;
+  resetTimers: (lessonId: string) => void;
+  clearSetTimer: (lessonId: string, setIndex: number) => void;
+  addTimeBonusXP: (lessonId: string, bonusXP: number) => void;
   
   // Helper methods
   initializeLessonSessionState: (lessonId: string, lessonType: LessonType) => void;
@@ -121,7 +139,6 @@ export const useLessonStore = create<LessonState>()(persist(
   dailyPlan: null,
   isLoading: false,
   error: null,
-
   setDailyPlan: (plan) => set({ dailyPlan: plan }),
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
     const { dailyPlan, totalXp, currentStreak } = get();
@@ -151,7 +168,10 @@ export const useLessonStore = create<LessonState>()(persist(
           lessonToUpdate.setBestScores[currentSetIndex] = scoreForAttemptOrLesson;
           
           // Recalculate lesson's total xpReward from all set scores
-          lessonToUpdate.xpReward = lessonToUpdate.setBestScores.reduce((sum, score) => sum + score, 0);
+          // Preserve any accumulated time bonus when recalculating
+          const baseXPFromSets = lessonToUpdate.setBestScores.reduce((sum, score) => sum + score, 0);
+          const currentTimeBonus = lessonToUpdate.currentTimeBonusXP || 0;
+          lessonToUpdate.xpReward = baseXPFromSets + currentTimeBonus;
 
           // Increment completedSets if this set is being successfully played for the first time
           // (assuming scoreForAttemptOrLesson > 0 means a successful play for set counting purposes)
@@ -290,9 +310,9 @@ export const useLessonStore = create<LessonState>()(persist(
             xpReward: 0, // Initial XP for word_pairs is 0, sum of setBestScores
             completed: false,
             locked: false,
-            totalSets: 5, // Example: 10 sets for word_pairs
+            totalSets: 3, // Example: 10 sets for word_pairs
             completedSets: 0, // Number of unique sets attempted
-            setBestScores: Array(5).fill(0), // Initialize best scores for 10 sets
+            setBestScores: Array(3).fill(0), // Initialize best scores for 10 sets
           },
         ],
         totalXp: 2000,
@@ -329,11 +349,18 @@ export const useLessonStore = create<LessonState>()(persist(
                 incorrectPair: null,
                 lessonCompleted: false,
                 currentSetIndex: 0,
-                madeError: false,
                 errorDetails: {
                   incorrectMatches: [],
                   totalErrors: 0,
                 },
+                setTimers: [],
+                currentSetStartTime: null,
+                currentSetElapsedTime: 0,
+                totalSessionTime: 0,
+                isPaused: false,
+                pauseStartTime: null,
+                totalPauseTime: 0,
+                pauseCount: 0,
               } as WordPairsState;
               break;
             default:
@@ -367,7 +394,7 @@ export const useLessonStore = create<LessonState>()(persist(
     return lesson?.sessionState as WordPairsState || null;
   },
   
-  setLessonCompleted: (lessonId: string, completed: boolean) => set((state) => {
+  setCurrentSetCompleted: (lessonId: string, completed: boolean) => set((state) => {
     if (!state.dailyPlan) return state;
     
     const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -377,31 +404,6 @@ export const useLessonStore = create<LessonState>()(persist(
           sessionState: {
             ...lesson.sessionState,
             lessonCompleted: completed,
-          } as WordPairsState,
-        };
-      }
-      return lesson;
-    });
-    
-    return {
-      ...state,
-      dailyPlan: {
-        ...state.dailyPlan,
-        lessons: updatedLessons,
-      },
-    };
-  }),
-  
-  setMadeError: (lessonId: string, error: boolean) => set((state) => {
-    if (!state.dailyPlan) return state;
-    
-    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
-      if (lesson.id === lessonId && lesson.sessionState) {
-        return {
-          ...lesson,
-          sessionState: {
-            ...lesson.sessionState,
-            madeError: error,
           } as WordPairsState,
         };
       }
@@ -435,21 +437,29 @@ export const useLessonStore = create<LessonState>()(persist(
           completed: false,
           completedSets: 0,
           setBestScores: [],
+          currentTimeBonusXP: 0,
           sessionState: {
-            englishWords: [],
-            translationWords: [],
-            currentSetIndex: 0,
-            selectedPair: null,
-            matchedPairs: [],
-            score: 0,
-            incorrectPair: null,
-            lessonCompleted: false,
-            madeError: false,
-            errorDetails: {
-              incorrectMatches: [],
-              totalErrors: 0,
-            },
-          } as WordPairsState,
+              englishWords: [],
+              translationWords: [],
+              currentSetIndex: 0,
+              selectedPair: null,
+              matchedPairs: [],
+              score: 0,
+              incorrectPair: null,
+              lessonCompleted: false,
+              errorDetails: {
+                incorrectMatches: [],
+                totalErrors: 0,
+              },
+              setTimers: [],
+              currentSetStartTime: null,
+              currentSetElapsedTime: 0,
+              totalSessionTime: 0,
+              isPaused: false,
+              pauseStartTime: null,
+              totalPauseTime: 0,
+              pauseCount: 0,
+            } as WordPairsState,
         };
       }
       return lesson;
@@ -718,6 +728,261 @@ export const useLessonStore = create<LessonState>()(persist(
       },
     };
   }),
+
+  // Timer methods implementation
+  startSetTimer: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as WordPairsState;
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            currentSetStartTime: Date.now(),
+            currentSetElapsedTime: 0,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  stopSetTimer: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as WordPairsState;
+        if (currentState.currentSetStartTime) {
+          // If paused, add current pause duration to total pause time
+          let totalPauseTime = currentState.totalPauseTime || 0;
+          if (currentState.isPaused && currentState.pauseStartTime) {
+            totalPauseTime += Math.floor((Date.now() - currentState.pauseStartTime) / 1000);
+          }
+          
+          const completionTime = Math.floor((Date.now() - currentState.currentSetStartTime - totalPauseTime * 1000) / 1000);
+          const newSetTimers = [...currentState.setTimers];
+          newSetTimers[currentState.currentSetIndex] = completionTime;
+          
+          return {
+            ...lesson,
+            sessionState: {
+              ...currentState,
+              setTimers: newSetTimers,
+              currentSetStartTime: null,
+              currentSetElapsedTime: completionTime,
+              totalSessionTime: currentState.totalSessionTime + completionTime,
+              isPaused: false,
+              pauseStartTime: null,
+              totalPauseTime: 0,
+              pauseCount: 0,
+            } as WordPairsState,
+          };
+        }
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  updateCurrentSetElapsedTime: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as WordPairsState;
+        if (currentState.currentSetStartTime && !currentState.isPaused) {
+          const elapsedTime = Math.floor((Date.now() - currentState.currentSetStartTime - (currentState.totalPauseTime || 0) * 1000) / 1000);
+          return {
+            ...lesson,
+            sessionState: {
+              ...currentState,
+              currentSetElapsedTime: elapsedTime,
+            } as WordPairsState,
+          };
+        }
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  pauseSetTimer: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as WordPairsState;
+        if (currentState.currentSetStartTime && !currentState.isPaused) {
+          return {
+            ...lesson,
+            sessionState: {
+              ...currentState,
+              isPaused: true,
+              pauseStartTime: Date.now(),
+              pauseCount: currentState.pauseCount + 1,
+            } as WordPairsState,
+          };
+        }
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  resumeSetTimer: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as WordPairsState;
+        if (currentState.isPaused && currentState.pauseStartTime) {
+          const pauseDuration = Math.floor((Date.now() - currentState.pauseStartTime) / 1000);
+          return {
+            ...lesson,
+            sessionState: {
+              ...currentState,
+              isPaused: false,
+              pauseStartTime: null,
+              totalPauseTime: (currentState.totalPauseTime || 0) + pauseDuration,
+            } as WordPairsState,
+          };
+        }
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  resetTimers: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as WordPairsState;
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            setTimers: [],
+            currentSetStartTime: null,
+            currentSetElapsedTime: 0,
+            totalSessionTime: 0,
+            isPaused: false,
+            pauseStartTime: null,
+            totalPauseTime: 0,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  clearSetTimer: (lessonId: string, setIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as WordPairsState;
+        const newSetTimers = [...currentState.setTimers];
+        delete newSetTimers[setIndex]; // Remove the timer for this specific set
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            setTimers: newSetTimers,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  // Add time bonus XP to a lesson
+  addTimeBonusXP: (lessonId: string, bonusXP: number) => {
+    const { dailyPlan, totalXp } = get();
+    if (!dailyPlan) return;
+
+    let bonusDifference = 0;
+    const updatedLessons = dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId) {
+        // Calculate the difference between new and current time bonus
+        const currentBonus = lesson.currentTimeBonusXP || 0;
+        bonusDifference = bonusXP - currentBonus;
+        
+        return {
+          ...lesson,
+          xpReward: lesson.xpReward + bonusDifference,
+          currentTimeBonusXP: bonusXP,
+        };
+      }
+      return lesson;
+    });
+
+    // Update totalXp to reflect the time bonus change
+    set({
+      totalXp: totalXp + bonusDifference,
+      dailyPlan: {
+        ...dailyPlan,
+        lessons: updatedLessons,
+      },
+    });
+  },
 }),
 {
   name: 'lesson-storage',
