@@ -44,6 +44,8 @@ export default function WordPairsScreen() {
     updateCurrentSetElapsedTime,
     clearSetTimer,
     addTimeBonusXP,
+    pauseSetTimer,
+    resumeSetTimer,
   } = useLessonStore();
 
   // Initialize the lesson session state if needed
@@ -69,7 +71,11 @@ export default function WordPairsScreen() {
     setTimers = [],
     currentSetStartTime = null,
     currentSetElapsedTime = 0,
-    totalSessionTime = 0
+    totalSessionTime = 0,
+    isPaused = false,
+    pauseStartTime = null,
+    totalPauseTime = 0,
+    pauseCount = 0
   } = wordPairsState || {};
 
   // Then in your component:
@@ -169,7 +175,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
     
     // Start the timer for this set
     startSetTimer(lessonId);
-  }, [lessonId, currentSetIndex, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer]);
+  }, [lessonId, currentSetIndex, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer, pauseSetTimer, resumeSetTimer]);
 
   // Initialize the game
   useEffect(() => {
@@ -192,6 +198,11 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
 
   const handleWordPress = (index: number, column: ColumnType) => {
     if (!lessonId) return;
+
+    // If the timer is paused, resume it when user clicks any word
+    if (isPaused) {
+      resumeSetTimer(lessonId);
+    }
 
     // Clear any existing animation timeout
     if (animationTimeoutRef.current) {
@@ -275,18 +286,29 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
           const alertButtons = [];
 
           if (allSetsAttempted) {
-            // Calculate time bonus when all sets are completed
+            // Calculate time bonus based on total session time (including error correction time)
             const timeBonus = calculateTimeBonusXP(totalTime, WORD_PAIRS_SET_KEYS.length);
             
-            // Apply time bonus to the lesson
-            if (timeBonus.bonusXP > 0) {
-              addTimeBonusXP(lessonId, timeBonus.bonusXP);
-            }
+            // Apply/update time bonus (this handles recalculation automatically)
+            addTimeBonusXP(lessonId, timeBonus.bonusXP);
             
-            const totalXPWithBonus = accumulatedLessonXP + timeBonus.bonusXP;
+            // Get updated lesson state after bonus application
+            // Force a fresh state read to ensure we get the updated values
+            const updatedState = useLessonStore.getState();
+            const lessonAfterBonus = updatedState.dailyPlan?.lessons.find(l => l.id === lessonId);
+            const finalLessonXP = lessonAfterBonus?.xpReward || accumulatedLessonXP;
             
             alertTitle = "All Sets Mastered!";
-            alertMessage = `You've completed all sets! Your total XP for this lesson is ${accumulatedLessonXP}.\n⏱️ Total time: ${formatTime(totalTime)}\n🏆 Speed bonus: +${timeBonus.bonusXP} XP (${timeBonus.timeCategory})\n✨ Final XP: ${totalXPWithBonus}`;
+            // Calculate baseXP correctly: finalLessonXP already includes the updated scores
+            // and any accumulated time bonus. We need to show the actual base scores.
+            const currentStoredBonus = lessonAfterBonus?.currentTimeBonusXP || 0;
+            const baseXP = finalLessonXP - currentStoredBonus;
+            
+            // Show the actual stored bonus (what's currently applied to the lesson)
+            // This prevents showing the bonus as being "added again" during replays
+            const actualAppliedBonus = currentStoredBonus;
+            
+            alertMessage = `You've completed all sets! Your base XP for this lesson is ${baseXP}.\n⏱️ Total time: ${formatTime(totalTime)}\n🏆 Speed bonus: +${actualAppliedBonus} XP (${timeBonus.timeCategory})\n✨ Final XP: ${finalLessonXP}`;
             if (errorDetails && errorDetails.totalErrors > 0) {
               // Group errors by set index
               const errorsBySet = errorDetails.incorrectMatches.reduce((acc, error) => {
@@ -334,12 +356,18 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
             });
           }
           if (!allSetsAttempted || (allSetsAttempted && !errorDetails?.totalErrors)) {
+            // Check for errors in the current set specifically
+            const currentSetErrors = errorDetails?.incorrectMatches.filter(error =>
+              error.setIndex === currentSetIndex
+            ) || [];
+            const hasCurrentSetErrors = currentSetErrors.length > 0;
+            
             // Enhanced button text for "Play This Set Again"
-            const replayButtonText = errorDetails?.totalErrors ? "🔄 Replay Set (Fix Errors)" : "🔄 Play This Set Again";
+            const replayButtonText = hasCurrentSetErrors ? "🔄 Replay Set (Fix Errors)" : "🔄 Play This Set Again";
             alertButtons.push({
               text: replayButtonText,
               onPress: () => {
-                if (errorDetails?.totalErrors) {
+                if (hasCurrentSetErrors) {
                   clearCurrentSetErrors(lessonId, currentSetIndex); // Clear errors when explicitly fixing
                 }
                 initializeGame();
@@ -620,7 +648,41 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
           <OnboardingSubtitle>Tap the matching word pairs</OnboardingSubtitle>
           <RNEView style={styles.scoreContainer}>
             <RNEText style={styles.scoreText}>Score: {score}</RNEText>
-            <RNEText style={styles.timerText}>Time: {formatTime(currentSetElapsedTime)}</RNEText>
+            <TouchableOpacity 
+              style={styles.pauseButton}
+              onPress={() => {
+                if (!lessonId) return;
+                if (isPaused) {
+                  resumeSetTimer(lessonId);
+                } else {
+                  // Check if user has reached pause limit
+                  if (pauseCount >= 2) {
+                    showModal({
+                      title: "Pause Limit Reached",
+                      message: "You've already used your 2 pause attempts for this set! ⏸️\n\nTo prevent abuse and maintain fair gameplay, you can only pause twice per set.\n\nKeep playing to complete this set!",
+                      buttons: [
+                        {
+                          text: "Got it!",
+                          onPress: () => {
+                            hideModal();
+                          }
+                        }
+                      ]
+                    });
+                  } else {
+                    pauseSetTimer(lessonId);
+                  }
+                }
+              }}
+              disabled={!currentSetStartTime}
+            >
+              <RNEText style={styles.pauseButtonText}>
+                {isPaused ? '▶️ Resume' : '⏸️ Pause'}
+              </RNEText>
+            </TouchableOpacity>
+            <RNEText style={[styles.timerText, isPaused && styles.pausedTimerText]}>
+              {isPaused ? '⏸️ PAUSED' : `Time: ${formatTime(currentSetElapsedTime)}`}
+            </RNEText>
           </RNEView>
         </RNEView>
 
@@ -656,9 +718,30 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
         </RNEView>
         <NextButton
           onPress={() => {
-            resetWordPairsLesson(lessonId!);
-            // Force re-initialization even if currentSetIndex was already 0
-            initializeGame();
+            showModal({
+              title: "Reset Game?",
+              message: "Are you sure you want to reset the entire word pairs game? 🔄\n\nThis will:\n• Reset all your progress in this lesson\n• Clear your current score\n• Start from the beginning\n\nThis action cannot be undone!",
+              buttons: [
+                { 
+                  text: "Cancel", 
+                  style: "cancel", 
+                  onPress: () => {
+                    hideModal();
+                  }
+                },
+                {
+                  text: "Reset Game", 
+                  onPress: () => {
+                    hideModal();
+                    setTimeout(() => {
+                      resetWordPairsLesson(lessonId!);
+                      // Force re-initialization even if currentSetIndex was already 0
+                      initializeGame();
+                    }, 100);
+                  }
+                }
+              ]
+            });
           }}
         >
           <RNEText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNEText>
@@ -699,6 +782,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#666',
+  },
+  pauseButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginHorizontal: 10,
+  },
+  pauseButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pausedTimerText: {
+    color: '#FF6B35',
+    fontWeight: 'bold',
   },
   gameContainer: {
     flex: 1,
