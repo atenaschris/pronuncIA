@@ -39,6 +39,7 @@ export interface WordPairsState {
   incorrectPair: { english: number; translation: number } | null;
   lessonCompleted: boolean;
   currentSetIndex: number;
+  isReplayingForErrors: boolean; // Tracks when replay button is clicked for error fixing
   errorDetails: {
     incorrectMatches: Array<{
       englishWord: EnglishWord;
@@ -112,6 +113,7 @@ interface LessonState {
   setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => void;
   setCurrentSetCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
+  setIsReplayingForErrors: (lessonId: string, isReplaying: boolean) => void;
   addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, correctTranslation: string, setIndex: number) => void;
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
@@ -358,6 +360,7 @@ export const useLessonStore = create<LessonState>()(persist(
                 currentSetElapsedTime: 0,
                 totalSessionTime: 0,
                 isPaused: false,
+                isReplayingForErrors: false,
                 pauseStartTime: null,
                 totalPauseTime: 0,
                 pauseCount: 0,
@@ -459,6 +462,7 @@ export const useLessonStore = create<LessonState>()(persist(
               pauseStartTime: null,
               totalPauseTime: 0,
               pauseCount: 0,
+              isReplayingForErrors: false,
             } as WordPairsState,
         };
       }
@@ -544,6 +548,31 @@ export const useLessonStore = create<LessonState>()(persist(
           sessionState: {
             ...lesson.sessionState,
             currentSetIndex: index,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  setIsReplayingForErrors: (lessonId: string, isReplaying: boolean) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            isReplayingForErrors: isReplaying,
           } as WordPairsState,
         };
       }
