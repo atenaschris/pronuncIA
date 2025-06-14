@@ -24,21 +24,10 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
   const { theme } = useTheme();
   console.log('re-rendered ProgressStepper')
   const getStepColor = useCallback((stepIndex: number) => {
-    debugger;
-    // If current step with errors, show error color
-    if (stepIndex === currentStep && stepsWithErrors.includes(stepIndex)) {
-      return theme.colors.error;
-    }
-    
-    // If current step without errors, show primary color
-    if (stepIndex === currentStep) {
-      return theme.colors.primary;
-    }
-    
     // If completed step
     if (completedSteps.includes(stepIndex)) {
       // If replaying and this is the current step, show primary
-      if (isReplaying && stepIndex === currentStep) {
+      if (isReplaying && stepIndex === currentStep && !stepsWithErrors.includes(stepIndex)) {
         return theme.colors.primary;
       }
       // If completed with errors, show red
@@ -47,6 +36,16 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
       }
       // If completed with no errors, show green
       return theme.colors.success;
+    }
+    
+    // If current step with errors, show error color
+    if (stepIndex === currentStep && stepsWithErrors.includes(stepIndex)) {
+      return theme.colors.error;
+    }
+    
+    // If current step without errors, show primary color
+    if (stepIndex === currentStep) {
+      return theme.colors.primary;
     }
     
     // If not completed, show grey

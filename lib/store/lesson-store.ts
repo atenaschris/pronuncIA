@@ -114,12 +114,10 @@ interface LessonState {
   setCurrentSetCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
   setIsReplayingForErrors: (lessonId: string, isReplaying: boolean) => void;
-  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, correctTranslation: string, setIndex: number) => void;
+  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number) => void;
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
   getWordPairsState: (lessonId: string) => WordPairsState | null;
-  getWordPairsLesson: (lessonId: string) => Lesson | null;
-  
   // Timer methods
   startSetTimer: (lessonId: string) => void;
   stopSetTimer: (lessonId: string) => void;
@@ -158,17 +156,19 @@ export const useLessonStore = create<LessonState>()(persist(
         const lessonToUpdate = { ...lesson }; // Create a mutable copy
 
         if (lessonToUpdate.type === 'word_pairs' && currentSetIndex !== undefined && lessonToUpdate.totalSets !== undefined) {
-          lessonToUpdate.setBestScores = lessonToUpdate.setBestScores || Array(lessonToUpdate.totalSets).fill(0);
+          const currentBestScores = lessonToUpdate.setBestScores || Array(lessonToUpdate.totalSets).fill(0);
           
-          const oldBestScoreForSet = lessonToUpdate.setBestScores[currentSetIndex] || 0;
+          const oldBestScoreForSet = currentBestScores[currentSetIndex] || 0;
           
           // Always update the score for the current attempt, whether it's better or worse
           // This ensures XP is always accurate based on the most recent performance
           const scoreDifference = scoreForAttemptOrLesson - oldBestScoreForSet;
           xpDeltaForTotal += scoreDifference; // Can be positive or negative
           
-          // Update the set's score with the current attempt score
-          lessonToUpdate.setBestScores[currentSetIndex] = scoreForAttemptOrLesson;
+          // Create a new array with the updated score to maintain immutability
+          const newBestScores = [...currentBestScores];
+          newBestScores[currentSetIndex] = scoreForAttemptOrLesson;
+          lessonToUpdate.setBestScores = newBestScores;
           
           // Recalculate lesson's total xpReward from all set scores
           // Preserve any accumulated time bonus when recalculating
@@ -396,14 +396,6 @@ export const useLessonStore = create<LessonState>()(persist(
     
     const lesson = dailyPlan.lessons.find(l => l.id === lessonId);
     return lesson?.sessionState as WordPairsState || null;
-  },
-  
-  getWordPairsLesson: (lessonId: string) => {
-    const { dailyPlan } = get();
-    if (!dailyPlan) return null;
-    
-    const lesson = dailyPlan.lessons.find(l => l.id === lessonId);
-    return lesson || null;
   },
   
   setCurrentSetCompleted: (lessonId: string, completed: boolean) => set((state) => {
@@ -697,7 +689,7 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
   
-  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, correctTranslation: string, setIndex: number) => set((state) => {
+  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number) => set((state) => {
     if (!state.dailyPlan) return state;
     
     const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -713,7 +705,6 @@ export const useLessonStore = create<LessonState>()(persist(
                 {
                   englishWord,
                   attemptedTranslation,
-                  correctTranslation,
                   timestamp: Date.now(),
                   setIndex,
                 }

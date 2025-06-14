@@ -29,7 +29,6 @@ export default function WordPairsScreen() {
   const {
     completeLesson,
     initializeLessonSessionState,
-    getWordPairsLesson,
     setEnglishWords,
     setTranslationWords,
     setSelectedPair,
@@ -49,7 +48,6 @@ export default function WordPairsScreen() {
     pauseSetTimer,
     resumeSetTimer,
     setIsReplayingForErrors,
-    
   } = useLessonStore();
 
   // Initialize the lesson session state if needed
@@ -59,7 +57,9 @@ export default function WordPairsScreen() {
     }
   }, [lessonId, initializeLessonSessionState]);
   // Get the whole lesson object for access to both lesson data and session state
-  const currentLesson = lessonId ? getWordPairsLesson(lessonId) : null;
+  // Access dailyPlan directly from store to ensure reactivity
+  const dailyPlan = useLessonStore(state => state.dailyPlan);
+  const currentLesson = lessonId && dailyPlan ? dailyPlan.lessons.find(l => l.id === lessonId) : null;
   const wordPairsState = (currentLesson?.sessionState as WordPairsState) || null;
 
   // Destructure word-pairs state for easier access
@@ -160,7 +160,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
   };
 
   const initializeGame = useCallback(() => {
-    if (!lessonId || !setEnglishWords || !setTranslationWords) return;
+    if (!lessonId) return;
     const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
     const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
     // Extract and shuffle words
@@ -405,6 +405,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
               onPress: () => {
                 if (hasCurrentSetErrors) {
                   setIsReplayingForErrors(lessonId, true); // Mark as replaying for error fixing
+                  clearCurrentSetErrors(lessonId, currentSetIndex); // Clear errors for this set
                 }
                 initializeGame();
               }
@@ -541,7 +542,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
       incorrectSound?.replayAsync()
 
       // Track detailed error information
-      addErrorDetail(lessonId, englishWord, translationWord, correctTranslation || '', currentSetIndex);
+      addErrorDetail(lessonId, englishWord, translationWord, currentSetIndex);
 
       setIncorrectPair(lessonId, {
         english: column === 'english' ? index : selectedPair.index,
