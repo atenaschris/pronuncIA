@@ -118,6 +118,7 @@ interface LessonState {
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
   getWordPairsState: (lessonId: string) => WordPairsState | null;
+  getWordPairsLesson: (lessonId: string) => Lesson | null;
   
   // Timer methods
   startSetTimer: (lessonId: string) => void;
@@ -395,6 +396,14 @@ export const useLessonStore = create<LessonState>()(persist(
     
     const lesson = dailyPlan.lessons.find(l => l.id === lessonId);
     return lesson?.sessionState as WordPairsState || null;
+  },
+  
+  getWordPairsLesson: (lessonId: string) => {
+    const { dailyPlan } = get();
+    if (!dailyPlan) return null;
+    
+    const lesson = dailyPlan.lessons.find(l => l.id === lessonId);
+    return lesson || null;
   },
   
   setCurrentSetCompleted: (lessonId: string, completed: boolean) => set((state) => {

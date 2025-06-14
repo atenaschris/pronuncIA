@@ -12,7 +12,8 @@ interface ProgressStepperProps {
   isReplaying?: boolean;
 }
 
-export function ProgressStepper({
+// Wrap the component with React.memo to prevent unnecessary re-renders
+const ProgressStepper = React.memo(function ProgressStepperComponent({
   totalSteps,
   currentStep,
   completedSteps,
@@ -21,7 +22,9 @@ export function ProgressStepper({
   isReplaying = false
 }: ProgressStepperProps) {
   const { theme } = useTheme();
+  console.log('re-rendered ProgressStepper')
   const getStepColor = useCallback((stepIndex: number) => {
+    debugger;
     // If current step with errors, show error color
     if (stepIndex === currentStep && stepsWithErrors.includes(stepIndex)) {
       return theme.colors.error;
@@ -146,7 +149,7 @@ export function ProgressStepper({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -183,3 +186,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
 });
+
+// Export the memoized component
+export { ProgressStepper };

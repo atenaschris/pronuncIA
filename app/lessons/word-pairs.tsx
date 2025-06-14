@@ -15,7 +15,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { LessonType, useLessonStore } from '../../lib/store/lesson-store';
+import { LessonType, useLessonStore, WordPairsState } from '../../lib/store/lesson-store';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 
@@ -29,7 +29,7 @@ export default function WordPairsScreen() {
   const {
     completeLesson,
     initializeLessonSessionState,
-    getWordPairsState,
+    getWordPairsLesson,
     setEnglishWords,
     setTranslationWords,
     setSelectedPair,
@@ -49,6 +49,7 @@ export default function WordPairsScreen() {
     pauseSetTimer,
     resumeSetTimer,
     setIsReplayingForErrors,
+    
   } = useLessonStore();
 
   // Initialize the lesson session state if needed
@@ -57,8 +58,9 @@ export default function WordPairsScreen() {
       initializeLessonSessionState(lessonId, 'word_pairs');
     }
   }, [lessonId, initializeLessonSessionState]);
-  // Get the current word pairs state for this specific lesson
-  const wordPairsState = lessonId ? getWordPairsState(lessonId) : null;
+  // Get the whole lesson object for access to both lesson data and session state
+  const currentLesson = lessonId ? getWordPairsLesson(lessonId) : null;
+  const wordPairsState = (currentLesson?.sessionState as WordPairsState) || null;
 
   // Destructure word-pairs state for easier access
   const {
@@ -77,7 +79,7 @@ export default function WordPairsScreen() {
     totalSessionTime = 0,
     isPaused = false,
     pauseCount = 0,
-    isReplayingForErrors = false
+    isReplayingForErrors = false,
   } = wordPairsState || {};
 
   // Portal Modal management
@@ -98,15 +100,14 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
     useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1),
   ];
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   // Memoized ProgressStepper props for performance optimization
   const completedSteps = useMemo(() => {
-    const currentLesson = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId);
-    const setBestScores = currentLesson?.setBestScores || [];
-    return setBestScores.map((_, index) => index).filter(index => setBestScores[index] > 0);
-  }, [lessonId, useLessonStore.getState().dailyPlan]);
+    console.log('calculated completedSteps')
+    return currentLesson?.setBestScores?.map((_, index) => index).filter(index => currentLesson?.setBestScores![index] > 0);
+  }, [currentLesson?.setBestScores]);
 
   const stepsWithErrors = useMemo(() => {
+    console.log('calculated stepsWithErrors')
     return errorDetails?.incorrectMatches ? 
       [...new Set(errorDetails.incorrectMatches.map(error => error.setIndex))] : [];
   }, [errorDetails?.incorrectMatches]);
@@ -179,9 +180,9 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
     // Note: We don't automatically clear errors here anymore to preserve error history
     
     // Reset replay state only if not currently replaying for errors
-    if (!isReplayingForErrors) {
+    /* if (!isReplayingForErrors) {
       setIsReplayingForErrors(lessonId, false);
-    }
+    } */
     
     if (animationTimeoutRef.current) { // Clear any existing animation timeout reference on initiGame
       clearTimeout(animationTimeoutRef.current);
@@ -223,6 +224,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
 
 
   const handleWordPress = (index: number, column: ColumnType) => {
+    console.log('re-calculate handleWordPress')
     if (!lessonId) return;
 
     // If the timer is paused, resume it when user clicks any word
@@ -298,7 +300,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
           
           // Clear errors and reset replay state when set is successfully completed
           // Always clear errors for the current set when completed with perfect score
-          clearCurrentSetErrors(lessonId, currentSetIndex);
+          /* clearCurrentSetErrors(lessonId, currentSetIndex); */
           if (isReplayingForErrors) {
             setIsReplayingForErrors(lessonId, false);
           }
@@ -424,7 +426,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
                 onPress: () => {
                   clearCurrentSetErrors(lessonId, setIndex); // Clear errors for this specific set
                   setCurrentSetCompleted(lessonId, false); // Reset lesson completed state when fixing a specific set
-                  setIsReplayingForErrors(lessonId, false); // Reset replay state when navigating to fix a specific set
+                  setIsReplayingForErrors(lessonId, true); // Reset replay state when navigating to fix a specific set
                   if (currentSetIndex === setIndex) {
                     // If we're already on this set, force re-initialization
                     initializeGame();
@@ -740,7 +742,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
         <ProgressStepper
           totalSteps={WORD_PAIRS_SET_KEYS.length}
           currentStep={currentSetIndex}
-          completedSteps={completedSteps}
+          completedSteps={completedSteps!}
           stepsWithErrors={stepsWithErrors}
           size="medium"
           isReplaying={isReplayingForErrors}
