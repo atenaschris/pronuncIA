@@ -59,6 +59,7 @@ export interface WordPairsState {
   pauseStartTime: number | null; // Timestamp when pause started
   totalPauseTime: number; // Total time spent paused in current set (in seconds)
   pauseCount: number; // Number of times user has paused in current set (max 2)
+  isGoingBack: boolean; // Whether user is going back From Go Back Modal
 }
 
 // Placeholder interfaces for other lesson types
@@ -127,7 +128,7 @@ interface LessonState {
   resetTimers: (lessonId: string) => void;
   clearSetTimer: (lessonId: string, setIndex: number) => void;
   addTimeBonusXP: (lessonId: string, bonusXP: number) => void;
-  
+  setIsGoingBack: (lessonId: string, isGoingBack: boolean) => void;
   // Helper methods
   initializeLessonSessionState: (lessonId: string, lessonType: LessonType) => void;
 }
@@ -365,6 +366,7 @@ export const useLessonStore = create<LessonState>()(persist(
                 pauseStartTime: null,
                 totalPauseTime: 0,
                 pauseCount: 0,
+                isGoingBack: false,
               } as WordPairsState;
               break;
             default:
@@ -464,6 +466,7 @@ export const useLessonStore = create<LessonState>()(persist(
               totalPauseTime: 0,
               pauseCount: 0,
               isReplayingForErrors: false,
+              isGoingBack: false,
             } as WordPairsState,
         };
       }
@@ -1011,6 +1014,29 @@ export const useLessonStore = create<LessonState>()(persist(
         lessons: updatedLessons,
       },
     });
+  },
+  setIsGoingBack: (lessonId, isGoingBack: boolean) => {
+    const {dailyPlan} = get();
+    if (!dailyPlan) return;
+
+    const updatedLessons = dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId) {
+        return {
+         ...lesson,
+          sessionState: {
+           ...lesson.sessionState,
+            isGoingBack: isGoingBack,
+          } as WordPairsState,
+        };
+      }
+      return lesson; 
+    })
+    set({
+      dailyPlan: {
+        ...dailyPlan,
+        lessons: updatedLessons,
+      },
+    })
   },
 }),
 {

@@ -48,6 +48,7 @@ export default function WordPairsScreen() {
     pauseSetTimer,
     resumeSetTimer,
     setIsReplayingForErrors,
+    setIsGoingBack,
   } = useLessonStore();
 
   // Initialize the lesson session state if needed
@@ -80,10 +81,11 @@ export default function WordPairsScreen() {
     isPaused = false,
     pauseCount = 0,
     isReplayingForErrors = false,
+    isGoingBack = false,
   } = wordPairsState || {};
 
   // Portal Modal management
-const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModalStore();
+  const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModalStore();
 
   const HapticSuccess = useHaptic('success');
   const HapticError = useHaptic('error');
@@ -177,13 +179,6 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
     setScore(lessonId, 0);
     setIncorrectPair(lessonId, null);
     setCurrentSetCompleted(lessonId, false); // Reset lesson completed state
-    // Note: We don't automatically clear errors here anymore to preserve error history
-    
-    // Reset replay state only if not currently replaying for errors
-    /* if (!isReplayingForErrors) {
-      setIsReplayingForErrors(lessonId, false);
-    } */
-    
     if (animationTimeoutRef.current) { // Clear any existing animation timeout reference on initiGame
       clearTimeout(animationTimeoutRef.current);
       animationTimeoutRef.current = null;
@@ -297,14 +292,9 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
           // Pass the score for the current set and the current set's index
           console.log('Before completeLesson - Current Set Score:', finalScore, 'Set Index:', currentSetIndex);
           completeLesson(lessonId, finalScore, currentSetIndex);
-          
-          // Clear errors and reset replay state when set is successfully completed
-          // Always clear errors for the current set when completed with perfect score
-          /* clearCurrentSetErrors(lessonId, currentSetIndex); */
           if (isReplayingForErrors) {
             setIsReplayingForErrors(lessonId, false);
           }
-          
           setCurrentSetCompleted(lessonId, true); // Mark lesson as completed after dialog is shown
           // Fetch the updated lesson state to display accumulated XP
           const updatedLessonState = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId);
@@ -387,6 +377,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
               text: "➡️ Next Set",
               onPress: () => {
                 setCurrentSetIndex?.(lessonId, currentSetIndex + 1);
+                if(isGoingBack) setIsGoingBack(lessonId, false);
                 // initializeGame will be called by useEffect
               }
             });
@@ -405,6 +396,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
               onPress: () => {
                 if (hasCurrentSetErrors) {
                   setIsReplayingForErrors(lessonId, true); // Mark as replaying for error fixing
+                  if(isGoingBack) setIsGoingBack(lessonId, false);
                   clearCurrentSetErrors(lessonId, currentSetIndex); // Clear errors for this set
                 }
                 initializeGame();
@@ -428,6 +420,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
                   clearCurrentSetErrors(lessonId, setIndex); // Clear errors for this specific set
                   setCurrentSetCompleted(lessonId, false); // Reset lesson completed state when fixing a specific set
                   setIsReplayingForErrors(lessonId, true); // Reset replay state when navigating to fix a specific set
+                  if(isGoingBack) setIsGoingBack(lessonId, false);
                   if (currentSetIndex === setIndex) {
                     // If we're already on this set, force re-initialization
                     initializeGame();
@@ -497,6 +490,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
                         onPress: () => {
                           hideModal();
                           setTimeout(() => {
+                            if(isGoingBack) setIsGoingBack(lessonId, false);
                             setCurrentSetIndex?.(lessonId, currentSetIndex + 1);
                           }, 100);
                         }
@@ -508,6 +502,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
                           hideModal();
                           setTimeout(() => {
                             clearCurrentSetErrors(lessonId, currentSetIndex);
+                            setIsGoingBack(lessonId, true);
                             router.replace("/(tabs)");
                           }, 100);
                         }
@@ -747,6 +742,7 @@ const { visible: modalVisible, content: modalContent, modalId, showModal, hideMo
           stepsWithErrors={stepsWithErrors}
           size="medium"
           isReplaying={isReplayingForErrors}
+          isGoingBack={isGoingBack}
         />
 
         <RNEView style={styles.gameContainer}>

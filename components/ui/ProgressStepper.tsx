@@ -10,6 +10,7 @@ interface ProgressStepperProps {
   stepsWithErrors: number[];
   size?: 'small' | 'medium' | 'large';
   isReplaying?: boolean;
+  isGoingBack?: boolean;
 }
 
 // Wrap the component with React.memo to prevent unnecessary re-renders
@@ -19,20 +20,25 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
   completedSteps,
   stepsWithErrors,
   size = 'medium',
-  isReplaying = false
+  isReplaying = false,
+  isGoingBack = false,
 }: ProgressStepperProps) {
   const { theme } = useTheme();
   console.log('re-rendered ProgressStepper')
   const getStepColor = useCallback((stepIndex: number) => {
     // If completed step
     if (completedSteps.includes(stepIndex)) {
+      // If completed with errors, show red (highest priority)
+      if (stepsWithErrors.includes(stepIndex)) {
+        return theme.colors.error;
+      }
+      // Special case: if going back and this is the current step, show primary instead of success
+      if (isGoingBack && stepIndex === currentStep) {
+        return theme.colors.primary;
+      }
       // If replaying and this is the current step, show primary
       if (isReplaying && stepIndex === currentStep && !stepsWithErrors.includes(stepIndex)) {
         return theme.colors.primary;
-      }
-      // If completed with errors, show red
-      if (stepsWithErrors.includes(stepIndex)) {
-        return theme.colors.error;
       }
       // If completed with no errors, show green
       return theme.colors.success;
@@ -50,7 +56,7 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
     
     // If not completed, show grey
     return theme.colors.grey4;
-  }, [completedSteps, stepsWithErrors, currentStep, isReplaying, theme.colors]);
+  }, [completedSteps, stepsWithErrors, currentStep, isReplaying, theme.colors, isGoingBack]);
   
   const getStepSize = useCallback(() => {
     switch (size) {
