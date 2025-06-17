@@ -142,29 +142,36 @@ export default function WordPairsScreen() {
   const translationAnimatedStyle6 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[6].value }] }));
   const translationAnimatedStyle7 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[7].value }] }));
 
-  // Arrays of animated styles for easier access
-  const englishAnimatedStyles = [
+  // Memoize arrays of animated styles for easier access
+  const englishAnimatedStyles = useMemo(() => [
     englishAnimatedStyle0, englishAnimatedStyle1, englishAnimatedStyle2, englishAnimatedStyle3,
     englishAnimatedStyle4, englishAnimatedStyle5, englishAnimatedStyle6, englishAnimatedStyle7,
-  ];
-  const translationAnimatedStyles = [
+  ], [englishAnimatedStyle0, englishAnimatedStyle1, englishAnimatedStyle2, englishAnimatedStyle3,
+      englishAnimatedStyle4, englishAnimatedStyle5, englishAnimatedStyle6, englishAnimatedStyle7]);
+  
+  const translationAnimatedStyles = useMemo(() => [
     translationAnimatedStyle0, translationAnimatedStyle1, translationAnimatedStyle2, translationAnimatedStyle3,
     translationAnimatedStyle4, translationAnimatedStyle5, translationAnimatedStyle6, translationAnimatedStyle7,
-  ];
+  ], [translationAnimatedStyle0, translationAnimatedStyle1, translationAnimatedStyle2, translationAnimatedStyle3,
+      translationAnimatedStyle4, translationAnimatedStyle5, translationAnimatedStyle6, translationAnimatedStyle7]);
 
-  // Helper function to get the correct animated style
-  const getEnglishAnimatedStyle = (index: number) => {
+  // Memoize helper functions to get the correct animated style
+  const getEnglishAnimatedStyle = useCallback((index: number) => {
     return englishAnimatedStyles[index] || englishAnimatedStyles[0]; // Default to first if out of bounds
-  };
+  }, [englishAnimatedStyles]);
 
-  const getTranslationAnimatedStyle = (index: number) => {
+  const getTranslationAnimatedStyle = useCallback((index: number) => {
     return translationAnimatedStyles[index] || translationAnimatedStyles[0]; // Default to first if out of bounds
-  };
+  }, [translationAnimatedStyles]);
+
+  // Memoize current word pairs to avoid redundant calculations
+  const currentWordPairs = useMemo(() => {
+    const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
+    return WORD_PAIR_SETS[currentSetKey];
+  }, [currentSetIndex]);
 
   const initializeGame = useCallback(() => {
     if (!lessonId) return;
-    const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
-    const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
     // Extract and shuffle words
     const english = currentWordPairs.map(pair => pair.english);
     const translations = currentWordPairs.map(pair => pair.translation);
@@ -189,7 +196,7 @@ export default function WordPairsScreen() {
     
     // Start the timer for this set
     startSetTimer(lessonId);
-  }, [lessonId, currentSetIndex, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer, pauseSetTimer, resumeSetTimer]);
+  }, [lessonId, currentSetIndex, currentWordPairs, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer, pauseSetTimer, resumeSetTimer]);
 
   // Initialize the game
   useEffect(() => {
@@ -242,7 +249,8 @@ export default function WordPairsScreen() {
     }, 50);
 
     // If the word is already matched, do nothing
-    if (matchedPairs.includes(index) && column === 'english') {
+    if ((matchedPairs.includes(index) && column === 'english') || 
+        (column === 'translation' && isTranslationMatched(index))) {
       return;
     }
 
@@ -268,8 +276,6 @@ export default function WordPairsScreen() {
     const translationWord = translationWords[translationIndex];
 
     // Find if this is a correct match
-    const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
-    const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
     const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation;
 
     if (translationWord === correctTranslation) {
@@ -281,8 +287,6 @@ export default function WordPairsScreen() {
       setScore(lessonId, score + 10);
 
       // Check if all pairs are matched
-      const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
-      const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
       if (matchedPairs.length + 1 === currentWordPairs.length && !lessonCompleted) {
         // Stop the timer for this set
         stopSetTimer(lessonId);
@@ -550,8 +554,8 @@ export default function WordPairsScreen() {
     setSelectedPair(lessonId, null);
   };
 
-  // Create theme-based styles
-  const themeStyles = {
+  // Memoize theme-based styles for performance
+  const themeStyles = useMemo(() => ({
     wordCell: {
       backgroundColor: theme.colors.grey5,
       shadowColor: theme.colors.black,
@@ -589,18 +593,16 @@ export default function WordPairsScreen() {
     resetButtonText: {
       color: theme.colors.white,
     }
-  };
+  }), [theme.colors]);
 
   // Helper function to check if a translation word is matched
   const isTranslationMatched = useCallback((translationIndex: number) => {
-    const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
-    const currentWordPairs = WORD_PAIR_SETS[currentSetKey];
     return matchedPairs.some(englishIndex => {
       const englishWord = englishWords[englishIndex];
       const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation;
       return correctTranslation === translationWords[translationIndex];
     });
-  }, [matchedPairs, englishWords, translationWords, currentSetIndex]);
+  }, [matchedPairs, englishWords, translationWords, currentWordPairs]);
 
   // Memoize style functions to ensure consistent hook calls
   const getWordCellStyle = useCallback((index: number, column: ColumnType) => {
@@ -654,8 +656,8 @@ export default function WordPairsScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
-  // Calculate bonus XP based on completion time
-  const calculateTimeBonusXP = (totalTimeInSeconds: number, totalSets: number): { bonusXP: number; timeCategory: string } => {
+  // Memoize bonus XP calculation for performance
+  const calculateTimeBonusXP = useCallback((totalTimeInSeconds: number, totalSets: number): { bonusXP: number; timeCategory: string } => {
     const averageTimePerSet = totalTimeInSeconds / totalSets;
     
     // Time thresholds (in seconds per set)
@@ -670,7 +672,7 @@ export default function WordPairsScreen() {
     } else {
       return { bonusXP: 0, timeCategory: 'Take Your Time' }; // Over 90 seconds per set
     }
-  };
+  }, []);
 
   return (
     <>

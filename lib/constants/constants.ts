@@ -140,7 +140,7 @@ export const WORD_PAIR_SETS = {
     { english: 'friend', translation: 'amico' },
     { english: 'family', translation: 'famiglia' },
   ],
-/*   set4: [
+  set4: [
     { english: 'eat', translation: 'mangiare' },
     { english: 'drink', translation: 'bere' },
     { english: 'sleep', translation: 'dormire' },
@@ -209,7 +209,7 @@ export const WORD_PAIR_SETS = {
     { english: 'evening', translation: 'sera' },
     { english: 'night', translation: 'notte' },
     { english: 'week', translation: 'settimana' },
-  ], */
+  ],
 } as const;
 
 export const WORD_PAIRS_SET_KEYS = Object.keys(WORD_PAIR_SETS) as (keyof typeof WORD_PAIR_SETS)[];

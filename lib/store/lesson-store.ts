@@ -314,9 +314,9 @@ export const useLessonStore = create<LessonState>()(persist(
             xpReward: 0, // Initial XP for word_pairs is 0, sum of setBestScores
             completed: false,
             locked: false,
-            totalSets: 3, // Example: 10 sets for word_pairs
+            totalSets: 10, // Example: 10 sets for word_pairs
             completedSets: 0, // Number of unique sets attempted
-            setBestScores: Array(3).fill(0), // Initialize best scores for 10 sets
+            setBestScores: Array(10).fill(0), // Initialize best scores for 10 sets
           },
         ],
         totalXp: 2000,
