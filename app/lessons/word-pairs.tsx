@@ -224,6 +224,16 @@ export default function WordPairsScreen() {
     return () => clearInterval(interval);
   }, [lessonId, currentSetStartTime, updateCurrentSetElapsedTime]);
 
+  // Cleanup effect - handle component unmount when timer is paused
+  useEffect(() => {
+    return () => {
+      // If the component unmounts while the timer is paused, resume it to prevent negative timer issues
+      if (lessonId && isPaused && currentSetStartTime) {
+        resumeSetTimer(lessonId);
+      }
+    };
+  }, [lessonId, isPaused, currentSetStartTime, resumeSetTimer]);
+
    // Memoize bonus XP calculation for performance
    const calculateTimeBonusXP = useCallback((totalTimeInSeconds: number, totalSets: number): { bonusXP: number; timeCategory: string } => {
     const averageTimePerSet = totalTimeInSeconds / totalSets;
