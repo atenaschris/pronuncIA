@@ -268,6 +268,12 @@ export default function WordPairsScreen() {
       resumeSetTimer(lessonId);
     }
 
+    // If the word is already matched, do nothing (including animations)
+    if ((matchedPairs.includes(index) && column === 'english') || 
+        (column === 'translation' && isTranslationMatched(index))) {
+      return;
+    }
+
     // Clear any existing animation timeout
     if (animationTimeoutRef.current) {
       clearTimeout(animationTimeoutRef.current);
@@ -282,12 +288,6 @@ export default function WordPairsScreen() {
     animationTimeoutRef.current = setTimeout(() => {
       scaleValue.value = withSpring(1);
     }, 50);
-
-    // If the word is already matched, do nothing
-    if ((matchedPairs.includes(index) && column === 'english') || 
-        (column === 'translation' && isTranslationMatched(index))) {
-      return;
-    }
 
     // If no word is selected yet
     if (!selectedPair) {
@@ -817,6 +817,7 @@ export default function WordPairsScreen() {
                   key={`translation-${index}`}
                   style={[getWordCellStyle(index, 'translation'), getTranslationAnimatedStyle(index)]}
                   onPress={() => handleWordPress(index, 'translation')}
+                  disabled={isTranslationMatched(index)}
                 >
                   <RNEText style={getWordTextStyle(index, 'translation')}>{word}</RNEText>
                 </AnimatedTouchable>
