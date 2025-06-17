@@ -1,6 +1,6 @@
 
 import { useTheme } from '@rneui/themed';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, View } from 'react-native';
 import { RNEText } from './RNEText';
 
@@ -196,6 +196,29 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
       setShowRightIndicator(contentWidth > screenWidth - 40);
     }
   }, [needsScrolling, screenWidth]);
+
+  // Auto-scroll to keep current step visible
+  useEffect(() => {
+    if (!needsScrolling || !scrollViewRef.current) return;
+
+    const stepWidth = stepSize.width + 8; // step + margins
+    const connectorWidth = 32; // connector + margins
+    const stepPosition = currentStep * (stepWidth + connectorWidth);
+    const containerWidth = screenWidth - 40; // minus container padding
+
+    // Calculate the ideal scroll position to center the current step
+    const idealScrollX = stepPosition - (containerWidth / 2) + (stepWidth / 2);
+    
+    // Ensure we don't scroll beyond the content bounds
+    const maxScrollX = totalContentWidth - containerWidth;
+    const targetScrollX = Math.max(0, Math.min(idealScrollX, maxScrollX));
+
+    // Smooth scroll to the target position
+    scrollViewRef.current.scrollTo({
+      x: targetScrollX,
+      animated: true,
+    });
+  }, [currentStep, needsScrolling, stepSize.width, screenWidth, totalContentWidth]);
   
   return (
     <View style={styles.container}>
