@@ -39,6 +39,7 @@ export interface WordPairsState {
   incorrectPair: { english: number; translation: number } | null;
   lessonCompleted: boolean;
   currentSetIndex: number;
+  isReplayingForErrors: boolean; // Tracks when replay button is clicked for error fixing
   errorDetails: {
     incorrectMatches: Array<{
       englishWord: EnglishWord;
@@ -58,6 +59,7 @@ export interface WordPairsState {
   pauseStartTime: number | null; // Timestamp when pause started
   totalPauseTime: number; // Total time spent paused in current set (in seconds)
   pauseCount: number; // Number of times user has paused in current set (max 2)
+  isGoingBack: boolean; // Whether user is going back From Go Back Modal
 }
 
 // Placeholder interfaces for other lesson types
@@ -112,11 +114,11 @@ interface LessonState {
   setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => void;
   setCurrentSetCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
-  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, correctTranslation: string, setIndex: number) => void;
+  setIsReplayingForErrors: (lessonId: string, isReplaying: boolean) => void;
+  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number) => void;
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
   getWordPairsState: (lessonId: string) => WordPairsState | null;
-  
   // Timer methods
   startSetTimer: (lessonId: string) => void;
   stopSetTimer: (lessonId: string) => void;
@@ -126,7 +128,7 @@ interface LessonState {
   resetTimers: (lessonId: string) => void;
   clearSetTimer: (lessonId: string, setIndex: number) => void;
   addTimeBonusXP: (lessonId: string, bonusXP: number) => void;
-  
+  setIsGoingBack: (lessonId: string, isGoingBack: boolean) => void;
   // Helper methods
   initializeLessonSessionState: (lessonId: string, lessonType: LessonType) => void;
 }
@@ -155,17 +157,19 @@ export const useLessonStore = create<LessonState>()(persist(
         const lessonToUpdate = { ...lesson }; // Create a mutable copy
 
         if (lessonToUpdate.type === 'word_pairs' && currentSetIndex !== undefined && lessonToUpdate.totalSets !== undefined) {
-          lessonToUpdate.setBestScores = lessonToUpdate.setBestScores || Array(lessonToUpdate.totalSets).fill(0);
+          const currentBestScores = lessonToUpdate.setBestScores || Array(lessonToUpdate.totalSets).fill(0);
           
-          const oldBestScoreForSet = lessonToUpdate.setBestScores[currentSetIndex] || 0;
+          const oldBestScoreForSet = currentBestScores[currentSetIndex] || 0;
           
           // Always update the score for the current attempt, whether it's better or worse
           // This ensures XP is always accurate based on the most recent performance
           const scoreDifference = scoreForAttemptOrLesson - oldBestScoreForSet;
           xpDeltaForTotal += scoreDifference; // Can be positive or negative
           
-          // Update the set's score with the current attempt score
-          lessonToUpdate.setBestScores[currentSetIndex] = scoreForAttemptOrLesson;
+          // Create a new array with the updated score to maintain immutability
+          const newBestScores = [...currentBestScores];
+          newBestScores[currentSetIndex] = scoreForAttemptOrLesson;
+          lessonToUpdate.setBestScores = newBestScores;
           
           // Recalculate lesson's total xpReward from all set scores
           // Preserve any accumulated time bonus when recalculating
@@ -310,9 +314,9 @@ export const useLessonStore = create<LessonState>()(persist(
             xpReward: 0, // Initial XP for word_pairs is 0, sum of setBestScores
             completed: false,
             locked: false,
-            totalSets: 3, // Example: 10 sets for word_pairs
+            totalSets: 10, // Example: 10 sets for word_pairs
             completedSets: 0, // Number of unique sets attempted
-            setBestScores: Array(3).fill(0), // Initialize best scores for 10 sets
+            setBestScores: Array(10).fill(0), // Initialize best scores for 10 sets
           },
         ],
         totalXp: 2000,
@@ -358,9 +362,11 @@ export const useLessonStore = create<LessonState>()(persist(
                 currentSetElapsedTime: 0,
                 totalSessionTime: 0,
                 isPaused: false,
+                isReplayingForErrors: false,
                 pauseStartTime: null,
                 totalPauseTime: 0,
                 pauseCount: 0,
+                isGoingBack: false,
               } as WordPairsState;
               break;
             default:
@@ -459,6 +465,8 @@ export const useLessonStore = create<LessonState>()(persist(
               pauseStartTime: null,
               totalPauseTime: 0,
               pauseCount: 0,
+              isReplayingForErrors: false,
+              isGoingBack: false,
             } as WordPairsState,
         };
       }
@@ -544,6 +552,31 @@ export const useLessonStore = create<LessonState>()(persist(
           sessionState: {
             ...lesson.sessionState,
             currentSetIndex: index,
+          } as WordPairsState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  setIsReplayingForErrors: (lessonId: string, isReplaying: boolean) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            isReplayingForErrors: isReplaying,
           } as WordPairsState,
         };
       }
@@ -659,7 +692,7 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
   
-  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, correctTranslation: string, setIndex: number) => set((state) => {
+  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number) => set((state) => {
     if (!state.dailyPlan) return state;
     
     const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -675,7 +708,6 @@ export const useLessonStore = create<LessonState>()(persist(
                 {
                   englishWord,
                   attemptedTranslation,
-                  correctTranslation,
                   timestamp: Date.now(),
                   setIndex,
                 }
@@ -982,6 +1014,29 @@ export const useLessonStore = create<LessonState>()(persist(
         lessons: updatedLessons,
       },
     });
+  },
+  setIsGoingBack: (lessonId, isGoingBack: boolean) => {
+    const {dailyPlan} = get();
+    if (!dailyPlan) return;
+
+    const updatedLessons = dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId) {
+        return {
+         ...lesson,
+          sessionState: {
+           ...lesson.sessionState,
+            isGoingBack: isGoingBack,
+          } as WordPairsState,
+        };
+      }
+      return lesson; 
+    })
+    set({
+      dailyPlan: {
+        ...dailyPlan,
+        lessons: updatedLessons,
+      },
+    })
   },
 }),
 {
