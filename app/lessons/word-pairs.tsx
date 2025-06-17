@@ -224,8 +224,43 @@ export default function WordPairsScreen() {
     return () => clearInterval(interval);
   }, [lessonId, currentSetStartTime, updateCurrentSetElapsedTime]);
 
+   // Memoize bonus XP calculation for performance
+   const calculateTimeBonusXP = useCallback((totalTimeInSeconds: number, totalSets: number): { bonusXP: number; timeCategory: string } => {
+    const averageTimePerSet = totalTimeInSeconds / totalSets;
+    
+    // Time thresholds (in seconds per set)
+    if (averageTimePerSet <= 30) {
+      return { bonusXP: 50, timeCategory: 'Lightning Fast' }; // Under 30 seconds per set
+    } else if (averageTimePerSet <= 45) {
+      return { bonusXP: 30, timeCategory: 'Very Fast' }; // 30-45 seconds per set
+    } else if (averageTimePerSet <= 60) {
+      return { bonusXP: 20, timeCategory: 'Fast' }; // 45-60 seconds per set
+    } else if (averageTimePerSet <= 90) {
+      return { bonusXP: 10, timeCategory: 'Good' }; // 60-90 seconds per set
+    } else {
+      return { bonusXP: 0, timeCategory: 'Take Your Time' }; // Over 90 seconds per set
+    }
+  }, []);
 
-  const handleWordPress = (index: number, column: ColumnType) => {
+  // Helper function to check if a translation word is matched
+  const isTranslationMatched = useCallback((translationIndex: number) => {
+    return matchedPairs.some(englishIndex => {
+      const englishWord = englishWords[englishIndex];
+      const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation;
+      return correctTranslation === translationWords[translationIndex];
+    });
+  }, [matchedPairs, englishWords, translationWords, currentWordPairs]);
+
+    // Helper function to format time display
+    const formatTime = useCallback((seconds: number) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }, []);
+
+
+  const handleWordPress = useCallback((index: number, column: 'english' | 'translation') => {
+    console.log('calculated')
     if (!lessonId) return;
 
     // If the timer is paused, resume it when user clicks any word
@@ -350,7 +385,7 @@ export default function WordPairsScreen() {
               alertMessage += `\n\n⚠️ You made ${errorDetails.totalErrors} error(s) across ${setCount} set(s). Here's a breakdown:`;
 
               Object.entries(errorsBySet).forEach(([setIdx, errors]) => {
-                alertMessage += `\n\n📍 Set ${parseInt(setIdx) + 1} (${errors.length} error${errors.length > 1 ? 's' : ''}):`;
+                alertMessage += `\n\n📍 Set ${parseInt(setIdx) + 1} (${errors.length} error${errors.length > 1 ? 's' : ''}):`;;
                 errors.forEach(error => {
                   alertMessage += `\n• "${error.englishWord}" ≠ "${error.attemptedTranslation}"`;
                 });
@@ -552,7 +587,53 @@ export default function WordPairsScreen() {
 
     // Reset selection
     setSelectedPair(lessonId, null);
-  };
+  }, [
+    lessonId,
+    isPaused,
+    resumeSetTimer,
+    englishScaleValues,
+    translationScaleValues,
+    matchedPairs,
+    isTranslationMatched,
+    selectedPair,
+    setSelectedPair,
+    setIncorrectPair,
+    englishWords,
+    translationWords,
+    currentWordPairs,
+    HapticSuccess,
+    correctSound,
+    setMatchedPairs,
+    score,
+    setScore,
+    lessonCompleted,
+    stopSetTimer,
+    completeLesson,
+    isReplayingForErrors,
+    setIsReplayingForErrors,
+    setCurrentSetCompleted,
+    currentSetIndex,
+    setTimers,
+    currentSetElapsedTime,
+    totalSessionTime,
+    formatTime,
+    calculateTimeBonusXP,
+    addTimeBonusXP,
+    errorDetails,
+    setCurrentSetIndex,
+    isGoingBack,
+    setIsGoingBack,
+    initializeGame,
+    addErrorDetail,
+    clearCurrentSetErrors,
+    hideModal,
+    showModal,
+    router,
+    resetWordPairsLesson,
+    winningSound,
+    HapticError,
+    incorrectSound
+  ]);
 
   // Memoize theme-based styles for performance
   const themeStyles = useMemo(() => ({
@@ -594,15 +675,6 @@ export default function WordPairsScreen() {
       color: theme.colors.white,
     }
   }), [theme.colors]);
-
-  // Helper function to check if a translation word is matched
-  const isTranslationMatched = useCallback((translationIndex: number) => {
-    return matchedPairs.some(englishIndex => {
-      const englishWord = englishWords[englishIndex];
-      const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation;
-      return correctTranslation === translationWords[translationIndex];
-    });
-  }, [matchedPairs, englishWords, translationWords, currentWordPairs]);
 
   // Memoize style functions to ensure consistent hook calls
   const getWordCellStyle = useCallback((index: number, column: ColumnType) => {
@@ -649,30 +721,6 @@ export default function WordPairsScreen() {
     return [styles.wordText, themeStyles.wordText];
   }, [isMatched, isSelected, isTranslationMatched, themeStyles, incorrectPair]);
 
-  // Helper function to format time display
-  const formatTime = useCallback((seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }, []);
-
-  // Memoize bonus XP calculation for performance
-  const calculateTimeBonusXP = useCallback((totalTimeInSeconds: number, totalSets: number): { bonusXP: number; timeCategory: string } => {
-    const averageTimePerSet = totalTimeInSeconds / totalSets;
-    
-    // Time thresholds (in seconds per set)
-    if (averageTimePerSet <= 30) {
-      return { bonusXP: 50, timeCategory: 'Lightning Fast' }; // Under 30 seconds per set
-    } else if (averageTimePerSet <= 45) {
-      return { bonusXP: 30, timeCategory: 'Very Fast' }; // 30-45 seconds per set
-    } else if (averageTimePerSet <= 60) {
-      return { bonusXP: 20, timeCategory: 'Fast' }; // 45-60 seconds per set
-    } else if (averageTimePerSet <= 90) {
-      return { bonusXP: 10, timeCategory: 'Good' }; // 60-90 seconds per set
-    } else {
-      return { bonusXP: 0, timeCategory: 'Take Your Time' }; // Over 90 seconds per set
-    }
-  }, []);
 
   return (
     <>
