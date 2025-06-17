@@ -25,7 +25,7 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
 }: ProgressStepperProps) {
   const { theme } = useTheme();
   console.log('re-rendered ProgressStepper')
-  const getStepColor = useCallback((stepIndex: number) => {
+  const getStepOrConnectorColor = useCallback((stepIndex: number) => {
     // If completed step
     if (completedSteps.includes(stepIndex)) {
       // If completed with errors, show red (highest priority)
@@ -99,7 +99,7 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
     <View style={styles.container}>
       <View style={styles.stepsContainer}>
         {Array.from({ length: totalSteps }, (_, index) => {
-          const stepColor = getStepColor(index);
+          const stepColor = getStepOrConnectorColor(index);
           const isLastStep = index === totalSteps - 1;
           
           return (
@@ -132,18 +132,7 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
                     styles.connector,
                     {
                       height: connectorHeight,
-                      backgroundColor: (() => {
-                        // If replaying and this is the current step, show primary
-                        if (isReplaying && index === currentStep) {
-                          return theme.colors.primary;
-                        }
-                        // If completed step, show success color
-                        if (completedSteps.includes(index)) {
-                          return theme.colors.success;
-                        }
-                        // Default grey for incomplete steps
-                        return theme.colors.grey4;
-                      })()
+                      backgroundColor: getStepOrConnectorColor(index)
                     }
                   ]}
                 />

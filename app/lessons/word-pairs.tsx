@@ -219,7 +219,6 @@ export default function WordPairsScreen() {
 
 
   const handleWordPress = (index: number, column: ColumnType) => {
-    console.log('re-calculate handleWordPress')
     if (!lessonId) return;
 
     // If the timer is paused, resume it when user clicks any word
