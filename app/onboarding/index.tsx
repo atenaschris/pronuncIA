@@ -1,10 +1,11 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { RNEView } from '@/components/ui/RNEView';
+import { RNPView } from '@/components/ui/RNPView';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
+import { Divider } from 'react-native-paper';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
@@ -32,22 +33,23 @@ export default function WelcomeScreen() {
 
   return (
     <RNESafeAreaView style={[styles.container]}>
-      <RNEView style={styles.logoContainer}>
+      <RNPView style={styles.logoContainer}>
         <Image
           source={require('@/assets/images/icon.png')}
           style={styles.logo}
           contentFit="contain"
         />
-      </RNEView>
+      </RNPView>
       <Animated.View style={[styles.contentContainer, animatedStyle]}>
         <OnboardingTitle>Welcome to PronuncIA</OnboardingTitle>
         <OnboardingSubtitle>Your AI-powered English pronunciation coach</OnboardingSubtitle>
-        <RNEView style={styles.spacer} />
+        <Divider style={styles.spacer} />
         <Animated.View>
           <NextButton
-            title="Get Started"
             onPress={() => router.push('/onboarding/language-level')}
-          />
+          >
+            Get Started
+          </NextButton>
         </Animated.View>
       </Animated.View>
     </RNESafeAreaView>

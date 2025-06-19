@@ -5,8 +5,8 @@ import * as React from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { RNEThemeProvider } from '@/components/ui/RNEThemeProvider';
 import { PortalProvider } from '@/components/ui/portal';
+import { RNPThemeProvider } from '@/components/ui/RNPThemeProvider';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 
 export default function RootLayout() {
@@ -14,13 +14,15 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
+  console.log(useOnboardingStore.getState())
+
   if (!loaded) {
     // Async font loading only occurs in development.
     return null;
   }
 
   return (
-    <RNEThemeProvider>
+    <RNPThemeProvider>
       <PortalProvider>
         <SafeAreaProvider>
           <Stack screenOptions={{ headerShown: false }}>
@@ -34,6 +36,6 @@ export default function RootLayout() {
           <StatusBar style="auto" />
         </SafeAreaProvider>
       </PortalProvider>
-    </RNEThemeProvider>
+    </RNPThemeProvider>
   );
 }

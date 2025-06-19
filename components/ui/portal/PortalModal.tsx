@@ -1,8 +1,8 @@
 import { PortalModalButton, PortalModalContent } from '@/lib/store/portal-modal-store';
 import { usePortalStore } from '@/lib/store/portal-store';
-import { useTheme } from '@rneui/themed';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Animated, Dimensions, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAppTheme } from '../theme';
 
 interface PortalModalProps {
   visible: boolean;
@@ -12,7 +12,7 @@ interface PortalModalProps {
 }
 
 export function PortalModal({ visible, content, onClose, id }: PortalModalProps) {
-  const { theme } = useTheme();
+  const theme = useAppTheme();
   const addPortal = usePortalStore((state) => state.addPortal);
   const removePortal = usePortalStore((state) => state.removePortal);
   const { width, height } = Dimensions.get('window');
@@ -37,7 +37,7 @@ export function PortalModal({ visible, content, onClose, id }: PortalModalProps)
       case 'cancel':
         return {
           ...baseStyle,
-          backgroundColor: theme.colors.grey3,
+          backgroundColor: theme.colors.surfaceVariant,
         };
       case 'destructive':
         return {
@@ -50,16 +50,16 @@ export function PortalModal({ visible, content, onClose, id }: PortalModalProps)
           backgroundColor: theme.colors.primary,
         };
     }
-  }, [theme.colors.grey3, theme.colors.primary]);
+  }, [theme.colors.surfaceVariant, theme.colors.primary]);
 
   const getButtonTextColor = useCallback((button: PortalModalButton) => {
     switch (button.style) {
       case 'cancel':
-        return theme.colors.black;
+        return theme.colors.onSurfaceVariant;
       default:
-        return theme.colors.white;
+        return theme.colors.onPrimary;
     }
-  }, [theme.colors.black, theme.colors.white]);
+  }, [theme.colors.onSurfaceVariant, theme.colors.onPrimary]);
 
   // Create portal content with stable reference
   const portalContent = useCallback(() => (
@@ -90,11 +90,11 @@ export function PortalModal({ visible, content, onClose, id }: PortalModalProps)
             contentContainerStyle={styles.scrollContent}
             bounces={false}
           >
-            <Text style={[styles.title, { color: theme.colors.black }]}>
+            <Text style={[styles.title, { color: theme.colors.onSurface }]}>
               {content.title}
             </Text>
             
-            <Text style={[styles.message, { color: theme.colors.black }]}>
+            <Text style={[styles.message, { color: theme.colors.onSurface }]}>
               {content.message}
             </Text>
             
@@ -116,7 +116,7 @@ export function PortalModal({ visible, content, onClose, id }: PortalModalProps)
         </View>
       </Animated.View>
     </Animated.View>
-  ), [fadeAnim, scaleAnim, width, height, theme.colors.primary, theme.colors.black, content, onClose, getButtonStyle, handleButtonPress, getButtonTextColor]);
+  ), [fadeAnim, scaleAnim, width, height, theme.colors.primary, theme.colors.onSurface, content, onClose, getButtonStyle, handleButtonPress, getButtonTextColor]);
 
   useEffect(() => {
     if (visible) {

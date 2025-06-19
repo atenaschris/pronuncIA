@@ -39,9 +39,10 @@ export default function LearningGoalsScreen() {
         </Animated.View>
       </ScrollView>
       <NextButton
-        title="Continue"
         onPress={() => router.push('/onboarding/time-commitment')}
-      />
+      >
+        Continue
+      </NextButton>
     </RNESafeAreaView>
   );
 }

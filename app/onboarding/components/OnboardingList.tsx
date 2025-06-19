@@ -1,6 +1,6 @@
-import { H4, H5 } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
-import { useTheme } from '@rneui/themed';
+import { RNPText } from '@/components/ui/RNPText';
+import { RNPView } from '@/components/ui/RNPView';
+import { useAppTheme } from '@/components/ui/theme';
 import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -18,13 +18,13 @@ interface OnboardingListProps<T extends OnboardingOption> {
 }
 
 export function OnboardingList<T extends OnboardingOption>({ options, selectedValue, onSelect, containerStyle }: OnboardingListProps<T>) {
-  const { theme } = useTheme();
+  const theme = useAppTheme();
 
   const themeStyles = {
     optionButton: {
-      borderColor: theme.colors.grey5,
+      borderColor: theme.colors.outline,
       backgroundColor: theme.colors.background,
-      shadowColor: theme.colors.black,
+      shadowColor: theme.colors.shadow,
       shadowOpacity: 0.05,
     },
     selectedOption: {
@@ -34,18 +34,18 @@ export function OnboardingList<T extends OnboardingOption>({ options, selectedVa
       elevation: 4,
     },
     optionLabel: {
-      color: theme.colors.grey0,
+      color: theme.colors.onBackground,
     },
     optionDescription: {
-      color: theme.colors.grey2,
+      color: theme.colors.onSurfaceVariant,
     },
     selectedText: {
-      color: theme.colors.white,
+      color: theme.colors.onPrimary,
     },
   };
 
   return (
-    <RNEView style={[styles.container, containerStyle]}>
+    <RNPView style={[styles.container, containerStyle]}>
       {options.map((option) => {
         const isSelected = option.id === selectedValue;
         return (
@@ -58,29 +58,31 @@ export function OnboardingList<T extends OnboardingOption>({ options, selectedVa
               onTouchEnd={() => onSelect(option.id)}
               key={option.id.toString()}
             >
-              <H4
+              <RNPText
+                variant="titleLarge"
                 style={[
                   styles.optionLabel,
-                  isSelected && themeStyles.selectedText,
+                  ...(isSelected ? [styles.selectedText] : [])
                 ]}
               >
                 {option.label}
-              </H4>
+              </RNPText>
               {option.description && (
-                <H5
+                <RNPText
+                  variant="titleMedium"
                   style={[
                     styles.optionDescription,
-                    isSelected && themeStyles.selectedText,
+                    ...(isSelected ? [styles.selectedText] : [])
                   ]}
                 >
                   {option.description}
-                </H5>
+                </RNPText>
               )}
 
             </Animated.View>
         );
       })}
-    </RNEView>
+    </RNPView>
   );
 }
 

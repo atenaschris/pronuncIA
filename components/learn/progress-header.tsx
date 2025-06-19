@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '@rneui/themed';
-import { StyleSheet } from 'react-native';
-import { RNEText } from '../ui/RNEText';
-import { RNEView } from '../ui/RNEView';
+import { StyleSheet, View } from 'react-native';
+import { RNPText } from '../ui/RNPText';
+import { RNPView } from '../ui/RNPView';
+import { useAppTheme } from '../ui/theme';
 
 interface ProgressHeaderProps {
   currentStreak: number;
@@ -10,24 +10,24 @@ interface ProgressHeaderProps {
 }
 
 export function ProgressHeader({ currentStreak, totalXp }: ProgressHeaderProps) {
-  const { theme } = useTheme()
+  const theme = useAppTheme();
   const dynamicStyles = {
     container: {
       shadowColor: theme.colors.primary
     }
   }
   return (
-    <RNEView style={[styles.container, dynamicStyles.container]}>
-      <RNEView style={styles.streakContainer}>
+    <RNPView style={[styles.container, dynamicStyles.container]}>
+      <View style={styles.streakContainer}>
         <MaterialCommunityIcons name="fire" size={40} color="#FF9800" />
-        <RNEText h4>{currentStreak} Day Streak</RNEText>
-      </RNEView>
+        <RNPText variant="titleMedium">{currentStreak} Day Streak</RNPText>
+      </View>
 
-      <RNEView style={styles.xpContainer}>
+      <View style={styles.xpContainer}>
         <MaterialCommunityIcons name="star" size={24} color="#4CAF50" />
-        <RNEText h4>{totalXp} XP</RNEText>
-      </RNEView>
-    </RNEView>
+        <RNPText variant="titleMedium">{totalXp} XP</RNPText>
+      </View>
+    </RNPView>
   );
 }
 

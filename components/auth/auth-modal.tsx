@@ -1,9 +1,10 @@
 import { useAuthStore } from '@/lib/store/auth-store';
-import { Button, Overlay } from '@rneui/themed';
 import { useRouter } from 'expo-router';
+import React from 'react';
 import { StyleSheet } from 'react-native';
-import { RNEText } from '../ui/RNEText';
-import { RNEView } from '../ui/RNEView';
+import { Button, Modal, Portal } from 'react-native-paper';
+import { RNPText } from '../ui/RNPText';
+import { RNPView } from '../ui/RNPView';
 
 interface AuthModalProps {
   visible: boolean;
@@ -25,36 +26,40 @@ export function AuthModal({ visible, onDismiss, feature }: AuthModalProps) {
   };
 
   return (
-    <Overlay
-      isVisible={visible}
-      onBackdropPress={onDismiss}
-      overlayStyle={styles.container}
-    >
-      <RNEText h4 style={styles.title}>
-        Sign in Required
-      </RNEText>
-      <RNEText style={styles.message}>
-        {feature ? 
-          `Please sign in to access ${feature}` :
-          'Please sign in to access this feature'}
-      </RNEText>
+    <Portal>
+      <Modal
+        visible={visible}
+        onDismiss={onDismiss}
+        contentContainerStyle={styles.container}
+      >
+        <RNPText variant="headlineMedium" style={styles.title}>
+          Sign in Required
+        </RNPText>
+        <RNPText style={styles.message}>
+          {feature ? 
+            `Please sign in to access ${feature}` :
+            'Please sign in to access this feature'}
+        </RNPText>
 
-      <RNEView style={styles.buttonContainer}>
-        <Button
-          title="Sign In"
-          onPress={handleLogin}
-          containerStyle={styles.button}
-          raised
-        />
-        
-        <Button
-          title="Continue as Guest"
-          onPress={handleContinueAsGuest}
-          containerStyle={styles.button}
-          type="outline"
-        />
-      </RNEView>
-    </Overlay>
+        <RNPView style={styles.buttonContainer}>
+          <Button
+            mode="contained"
+            onPress={handleLogin}
+            style={styles.button}
+          >
+            Sign In
+          </Button>
+          
+          <Button
+            mode="outlined"
+            onPress={handleContinueAsGuest}
+            style={styles.button}
+          >
+            Continue as Guest
+          </Button>
+        </RNPView>
+      </Modal>
+    </Portal>
   );
 }
 

@@ -108,6 +108,12 @@ export const TIME_OPTIONS = [
   { id: "60",  label: '1 hour' },
 ] as const;
 
+// Derived from TIME_OPTIONS to eliminate redundancy and ensure consistency
+export const DAILY_PRACTICE_TIME_LABELS = TIME_OPTIONS.reduce((acc, option) => {
+  acc[option.id] = option.label;
+  return acc;
+}, {} as Record<typeof TIME_OPTIONS[number]['id'], typeof TIME_OPTIONS[number]['label']>);
+
 // Sample word pairs for the game
 export const WORD_PAIR_SETS = {
   set1: [

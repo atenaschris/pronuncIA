@@ -2,15 +2,15 @@ import { NextButton } from '@/components/ui/NextButton';
 import { PortalModal } from '@/components/ui/portal';
 import { ProgressStepper } from '@/components/ui/ProgressStepper';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { H4, H5, RNEText } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
+import { RNPText } from '@/components/ui/RNPText';
+import { RNPView } from '@/components/ui/RNPView';
+import { useAppTheme } from '@/components/ui/theme';
 import { WORD_PAIR_SETS, WORD_PAIRS_SET_KEYS } from '@/lib/constants/constants';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
 import { usePortalModalStore } from '@/lib/store/portal-modal-store';
 import { ColumnType } from '@/lib/types/word-pairs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '@rneui/themed';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
@@ -24,7 +24,7 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function WordPairsScreen() {
   // All hooks must be called at the top level, before any conditional logic
-  const { theme } = useTheme();
+  const theme = useAppTheme();
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
   const {
     completeLesson,
@@ -101,7 +101,7 @@ export default function WordPairsScreen() {
     useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1),
     useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1),
   ];
-  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const animationTimeoutRef = useRef<number | null>(null);
   // Memoized ProgressStepper props for performance optimization
   const completedSteps = useMemo(() => {
     console.log('calculated completedSteps')
@@ -648,30 +648,30 @@ export default function WordPairsScreen() {
   // Memoize theme-based styles for performance
   const themeStyles = useMemo(() => ({
     wordCell: {
-      backgroundColor: theme.colors.grey5,
-      shadowColor: theme.colors.black,
+      backgroundColor: theme.colors.surfaceVariant,
+      shadowColor: theme.colors.shadow,
     },
     selectedCell: {
       backgroundColor: theme.colors.primary + '20', // Adding transparency
       borderColor: theme.colors.primary,
     },
     matchedCell: {
-      backgroundColor: theme.colors.success + '20', // Adding transparency
-      borderColor: theme.colors.success,
+      backgroundColor: theme.colors.primary + '20', // Using primary for success state
+      borderColor: theme.colors.primary,
     },
     incorrectCell: {
       backgroundColor: theme.colors.error + '20',
       borderColor: theme.colors.error,
     },
     wordText: {
-      color: theme.colors.black,
+      color: theme.colors.onSurface,
     },
     selectedText: {
       color: theme.colors.primary,
       fontWeight: '700' as const,
     },
     matchedText: {
-      color: theme.colors.success,
+      color: theme.colors.primary, // Using primary for success state
       fontWeight: '700' as const,
     },
     incorrectText: {
@@ -682,7 +682,7 @@ export default function WordPairsScreen() {
       backgroundColor: theme.colors.primary,
     },
     resetButtonText: {
-      color: theme.colors.white,
+      color: theme.colors.onPrimary,
     }
   }), [theme.colors]);
 
@@ -735,19 +735,19 @@ export default function WordPairsScreen() {
   return (
     <>
       <RNESafeAreaView style={styles.container}>
-        <RNEView style={styles.header}>
+        <RNPView style={styles.header}>
           <OnboardingTitle>Match the Pairs</OnboardingTitle>
           <OnboardingSubtitle>Tap the matching word pairs</OnboardingSubtitle>
-          <RNEView style={styles.scoreContainer}>
-            <RNEView style={styles.scoreWithIcon}>
+          <RNPView style={styles.scoreContainer}>
+            <RNPView style={styles.scoreWithIcon}>
               <MaterialCommunityIcons 
                 name="trophy" 
                 size={30} 
                 color={theme.colors.warning} 
                 style={styles.scoreIcon}
               />
-              <H4 style={styles.scoreText}>{score}</H4>
-            </RNEView>
+              <RNPText variant="titleLarge" style={styles.scoreText}>{score}</RNPText>
+            </RNPView>
             <TouchableOpacity 
               style={styles.pauseButton}
               onPress={() => {
@@ -776,23 +776,23 @@ export default function WordPairsScreen() {
               }}
               disabled={!currentSetStartTime}
             >
-              <H4 style={styles.pauseButtonText}>
+              <RNPText variant="titleLarge" style={styles.pauseButtonText}>
                 {isPaused ? '▶️ Resume' : '⏸️ Pause'}
-              </H4>
+              </RNPText>
             </TouchableOpacity>
-            <RNEView style={styles.timerWithIcon}>
+            <RNPView style={styles.timerWithIcon}>
               <MaterialCommunityIcons 
                 name={isPaused ? "pause-circle" : "timer-sand"} 
                 size={30} 
                 color={isPaused ? theme.colors.error : theme.colors.primary} 
                 style={styles.timerIcon}
               />
-              <H5 style={[styles.timerText, isPaused && styles.pausedTimerText]}>
+              <RNPText variant="titleMedium" style={[styles.timerText, ...(isPaused ? [styles.pausedTimerText] : [])]}>
                 {isPaused ? '' : formatTime(currentSetElapsedTime)}
-              </H5>
-            </RNEView>
-          </RNEView>
-        </RNEView>
+              </RNPText>
+            </RNPView>
+          </RNPView>
+        </RNPView>
 
         <ProgressStepper
           totalSteps={WORD_PAIRS_SET_KEYS.length}
@@ -804,8 +804,8 @@ export default function WordPairsScreen() {
           isGoingBack={isGoingBack}
         />
 
-        <RNEView style={styles.gameContainer}>
-          <RNEView style={styles.column}>
+        <RNPView style={styles.gameContainer}>
+          <RNPView style={styles.column}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {englishWords.map((word, index) => (
                 <AnimatedTouchable
@@ -814,13 +814,13 @@ export default function WordPairsScreen() {
                   onPress={() => handleWordPress(index, 'english')}
                   disabled={isMatched(index)}
                 >
-                  <RNEText style={getWordTextStyle(index, 'english')}>{word}</RNEText>
+                  <RNPText style={getWordTextStyle(index, 'english')}>{word}</RNPText>
                 </AnimatedTouchable>
               ))}
             </ScrollView>
-          </RNEView>
+          </RNPView>
 
-          <RNEView style={styles.column}>
+          <RNPView style={styles.column}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {translationWords.map((word, index) => (
                 <AnimatedTouchable
@@ -829,12 +829,12 @@ export default function WordPairsScreen() {
                   onPress={() => handleWordPress(index, 'translation')}
                   disabled={isTranslationMatched(index)}
                 >
-                  <RNEText style={getWordTextStyle(index, 'translation')}>{word}</RNEText>
+                  <RNPText style={getWordTextStyle(index, 'translation')}>{word}</RNPText>
                 </AnimatedTouchable>
               ))}
             </ScrollView>
-          </RNEView>
-        </RNEView>
+          </RNPView>
+        </RNPView>
         <NextButton
           onPress={() => {
             showModal({
@@ -863,7 +863,7 @@ export default function WordPairsScreen() {
             });
           }}
         >
-          <RNEText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNEText>
+          <RNPText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNPText>
         </NextButton>
       </RNESafeAreaView>
       <PortalModal

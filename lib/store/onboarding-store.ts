@@ -1,9 +1,9 @@
-import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
-import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { LANGUAGE_LEVELS, LEARNING_GOALS, LEARNING_STYLES, NATIVE_LANGUAGES, TIME_OPTIONS } from '@/lib/constants/constants';
 import { OnboardingState } from '../types/onboarding-types';
+import { createMMKVStorage, appStorage } from '../storage/storage-utils';
 
 
 export const useOnboardingStore = create<OnboardingState>()(persist(
@@ -35,16 +35,6 @@ export const useOnboardingStore = create<OnboardingState>()(persist(
   }),
   {
     name: 'onboarding-storage',
-    storage: createJSONStorage(() => ({
-      getItem: async (name: string) => {
-        return await SecureStore.getItemAsync(name);
-      },
-      setItem: async (name: string, value: string) => {
-        await SecureStore.setItemAsync(name, value);
-      },
-      removeItem: async (name: string) => {
-        await SecureStore.deleteItemAsync(name);
-      },
-    } as StateStorage)),
+    storage: createJSONStorage(() => createMMKVStorage(appStorage)),
   }
 ));

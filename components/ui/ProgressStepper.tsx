@@ -1,8 +1,8 @@
 
-import { useTheme } from '@rneui/themed';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, View } from 'react-native';
-import { RNEText } from './RNEText';
+import { RNPText } from './RNPText';
+import { useAppTheme } from './theme';
 
 interface ProgressStepperProps {
   totalSteps: number;
@@ -49,19 +49,19 @@ const StepItem = React.memo(function StepItem({
           { backgroundColor: stepColor }
         ]}
       >
-        <RNEText
+        <RNPText
           style={[
             styles.stepText,
             {
               fontSize: textSize,
               color: completedSteps.includes(index) || index === currentStep
-                ? theme.colors.white
-                : theme.colors.grey2
+                ? theme.colors.onPrimary
+                : theme.colors.outline
             }
           ]}
         >
           {index + 1}
-        </RNEText>
+        </RNPText>
       </View>
       
       {!isLastStep && (
@@ -89,7 +89,7 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
   isReplaying = false,
   isGoingBack = false,
 }: ProgressStepperProps) {
-  const { theme } = useTheme();
+  const theme = useAppTheme();
   const scrollViewRef = useRef<ScrollView>(null);
   const [showLeftIndicator, setShowLeftIndicator] = useState(false);
   const [showRightIndicator, setShowRightIndicator] = useState(false);
@@ -111,7 +111,7 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
         return theme.colors.primary;
       }
       // If completed with no errors, show green
-      return theme.colors.success;
+      return '#4CAF50'; // Using a standard success color
     }
     
     // If current step with errors, show error color
@@ -125,7 +125,7 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
     }
     
     // If not completed, show grey
-    return theme.colors.grey4;
+    return theme.colors.surfaceVariant;
   }, [completedSteps, stepsWithErrors, currentStep, isReplaying, theme.colors, isGoingBack]);
   
   const getStepSize = useCallback(() => {
@@ -225,14 +225,14 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
       {/* Left scroll indicator */}
       {needsScrolling && showLeftIndicator && (
         <View style={[styles.scrollIndicator, styles.leftIndicator]}>
-          <RNEText style={[styles.indicatorText]}>‹</RNEText>
+          <RNPText style={[styles.indicatorText]}>‹</RNPText>
         </View>
       )}
       
       {/* Right scroll indicator */}
       {needsScrolling && showRightIndicator && (
         <View style={[styles.scrollIndicator, styles.rightIndicator]}>
-          <RNEText style={[styles.indicatorText]}>›</RNEText>
+          <RNPText style={[styles.indicatorText]}>›</RNPText>
         </View>
       )}
       
@@ -348,3 +348,4 @@ const createStyles = (theme: any) => StyleSheet.create({
 
 // Export the memoized component
 export { ProgressStepper };
+

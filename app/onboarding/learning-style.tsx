@@ -39,9 +39,10 @@ export default function LearningStyleScreen() {
         </Animated.View>
       </ScrollView>
       <NextButton
-        title="Continue"
         onPress={() => router.push('/onboarding/summary')}
-      />
+      >
+        Continue
+      </NextButton>
     </RNESafeAreaView>
   );
 }

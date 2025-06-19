@@ -1,8 +1,8 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { H2, H4, H5 } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
-import { LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS } from '@/lib/constants/constants';
+import { RNPText } from '@/components/ui/RNPText';
+import { RNPView } from '@/components/ui/RNPView';
+import { LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS, DAILY_PRACTICE_TIME_LABELS } from '@/lib/constants/constants';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { router } from 'expo-router';
@@ -63,48 +63,47 @@ export default function SummaryScreen() {
     <RNESafeAreaView style={[styles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.content, animatedStyle]}>
-          <H2 style={styles.title}>
-            Your Learning Profile
-          </H2>
-          <H4 style={styles.subtitle}>
-            Here's a summary of your preferences
-          </H4>
-          <RNEView style={styles.summaryContainer}>
-            <RNEView style={styles.summaryItem}>
-              <H5 style={styles.label}>English Level</H5>
-              <H5 style={styles.value}>{languageLevel ? LANGUAGE_LEVEL_LABELS[languageLevel] : '-'}</H5>
-            </RNEView>
-            <RNEView style={styles.summaryItem}>
-              <H5 style={styles.label}>Native Language</H5>
-              <H5 style={styles.value}>{nativeLanguage ? NATIVE_LANGUAGE_LABELS[nativeLanguage] : '-'}</H5>
-            </RNEView>
-            <RNEView style={styles.summaryItem}>
-              <H5 style={styles.label}>Learning Goal</H5>
-              <H5 style={styles.value}>{learningGoal ? LEARNING_GOAL_LABELS[learningGoal] : '-'}</H5>
-            </RNEView>
-            <RNEView style={styles.summaryItem}>
-              <H5 style={styles.label}>Daily Practice</H5>
-              <H5 style={styles.value}>
-                {timeCommitment} {timeCommitment === "60" ? 'hour' : 'minutes'}
-              </H5>
-            </RNEView>
-            <RNEView style={styles.summaryItem}>
-              <H5 style={styles.label}>Learning Style</H5>
-              <H5 style={styles.value}>{learningStyle ? LEARNING_STYLE_LABELS[learningStyle] : '-'}</H5>
-            </RNEView>
-          </RNEView>
+          <RNPText variant="displayMedium" style={styles.title}>
+            Summary
+          </RNPText>
+          <RNPText variant="titleLarge" style={styles.subtitle}>
+            Review your information before continuing
+          </RNPText>
+          <RNPView style={styles.summaryContainer}>
+            <RNPView style={styles.summaryItem}>
+              <RNPText variant="titleMedium" style={styles.label}>English Level</RNPText>
+              <RNPText variant="titleMedium" style={styles.value}>{languageLevel ? LANGUAGE_LEVEL_LABELS[languageLevel] : '-'}</RNPText>
+            </RNPView>
+            <RNPView style={styles.summaryItem}>
+              <RNPText variant="titleMedium" style={styles.label}>Native Language</RNPText>
+              <RNPText variant="titleMedium" style={styles.value}>{nativeLanguage ? NATIVE_LANGUAGE_LABELS[nativeLanguage] : '-'}</RNPText>
+            </RNPView>
+            <RNPView style={styles.summaryItem}>
+              <RNPText variant="titleMedium" style={styles.label}>Learning Goal</RNPText>
+              <RNPText variant="titleMedium" style={styles.value}>{learningGoal ? LEARNING_GOAL_LABELS[learningGoal] : '-'}</RNPText>
+            </RNPView>
+            <RNPView style={styles.summaryItem}>
+              <RNPText variant="titleMedium" style={styles.label}>Daily Practice</RNPText>
+              <RNPText variant="titleMedium" style={styles.value}>
+                {timeCommitment ? DAILY_PRACTICE_TIME_LABELS[timeCommitment] : '-'}
+              </RNPText>
+            </RNPView>
+            <RNPView style={styles.summaryItem}>
+              <RNPText variant="titleMedium" style={styles.label}>Learning Style</RNPText>
+              <RNPText variant="titleMedium" style={styles.value}>{learningStyle ? LEARNING_STYLE_LABELS[learningStyle] : '-'}</RNPText>
+            </RNPView>
+          </RNPView>
           {error && (
-            <RNEView style={styles.errorContainer}>
-              <H5 style={styles.errorText}>{error}</H5>
-            </RNEView>
+            <RNPView style={styles.errorContainer}>
+              <RNPText variant="titleMedium" style={styles.errorText}>{error}</RNPText>
+            </RNPView>
           )}
         </Animated.View>
       </ScrollView>
       <NextButton
-        title="Start Learning"
         loading={isLoading}
         onPress={handleComplete}
-      />
+      >Start Learning</NextButton>
     </RNESafeAreaView>
   );
 }

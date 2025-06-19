@@ -1,10 +1,11 @@
 import { LESSON_ICONS } from '@/lib/constants/constants';
 import { Lesson, LessonType } from '@/lib/store/lesson-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, useTheme } from '@rneui/themed';
 import { StyleSheet, View } from 'react-native';
-import { RNEText } from '../ui/RNEText';
-import { RNEView } from '../ui/RNEView';
+import { Button } from 'react-native-paper';
+import { RNPText } from '../ui/RNPText';
+import { RNPView } from '../ui/RNPView';
+import { useAppTheme } from '../ui/theme';
 
 interface LessonBlockProps {
   lesson: Lesson;
@@ -12,7 +13,7 @@ interface LessonBlockProps {
 }
 
 export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
-  const { theme } = useTheme();
+  const  theme  = useAppTheme();
   const dynamicStyles = {
     container: {
       borderWidth: 1,
@@ -21,16 +22,16 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
     }
   }
   return (
-    <Button
-      containerStyle={[styles.container, dynamicStyles.container, lesson.completed && styles.completed]}
-      onPress={() => onPress(lesson.type)}
-      disabled={lesson.locked}
-      disabledStyle={styles.completed}
-      type="outline"
-    >
-      <RNEView>
+    <RNPView style={[styles.container, dynamicStyles.container, lesson.completed && styles.completed]}>
+      <Button
+        mode="outlined"
+        onPress={() => onPress(lesson.type)}
+        disabled={lesson.locked}
+        style={styles.button}
+        contentStyle={styles.buttonContent}
+      >
         <View style={styles.titleContainer}>
-          <RNEText h3 h3Style={{color: theme.colors.primary}}>{lesson.title}</RNEText>
+          <RNPText variant="headlineSmall" style={{color: theme.colors.primary}}>{lesson.title}</RNPText>
           <MaterialCommunityIcons
             name={LESSON_ICONS[lesson.type]}
             size={30}
@@ -39,17 +40,17 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
           />
         </View>
         <View style={styles.belowLessonBlockContainer}>
-          <RNEText h4 h4Style={{fontWeight:'300'}}>{lesson.description}</RNEText>
+          <RNPText variant="titleMedium" style={{fontWeight:'300'}}>{lesson.description}</RNPText>
           <View style={styles.xpAndLessonCompletedIconWrapper}>
-          <RNEText h4 style={{fontWeight: '500',color: theme.colors.success}}>+{lesson.xpReward} XP</RNEText>
+          <RNPText variant="titleMedium" style={{fontWeight: '500',color: theme.colors.success}}>+{lesson.xpReward} XP</RNPText>
           {lesson.completed && (
             <MaterialCommunityIcons name="check-circle" size={30} color={theme.colors.success} />
           )}
           </View>
           
         </View>
-      </RNEView>
-    </Button>
+      </Button>
+    </RNPView>
   );
 }
 
@@ -59,6 +60,13 @@ const styles = StyleSheet.create({
   },
   completed: {
     opacity: 0.8,
+  },
+  button: {
+    width: '100%',
+  },
+  buttonContent: {
+    padding: 16,
+    flexDirection: 'column',
   },
   content: {
     padding: 2,

@@ -1,7 +1,7 @@
-import { useTheme } from '@rneui/themed';
 import React from 'react';
 import { ViewProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAppTheme } from './theme';
 
 export type RNESafeAreaViewProps = ViewProps & {
   // Additional props can be added here if needed
@@ -12,7 +12,7 @@ export type RNESafeAreaViewProps = ViewProps & {
  * Use this component instead of RNESafeAreaView for consistent styling
  */
 export function RNESafeAreaView({ style, children, ...otherProps }: RNESafeAreaViewProps) {
-  const { theme } = useTheme();
+  const theme = useAppTheme();
   
   return (
     <SafeAreaView 

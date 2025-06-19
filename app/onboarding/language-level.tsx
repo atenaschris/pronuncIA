@@ -41,9 +41,10 @@ export default function LanguageLevelScreen() {
         </Animated.View>
       </ScrollView>
       <NextButton
-        title="Continue"
         onPress={() => router.push('/onboarding/native-language')}
-      />
+      >
+        Continue
+      </NextButton>
     </RNESafeAreaView>
   );
 }

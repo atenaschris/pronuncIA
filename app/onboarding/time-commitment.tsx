@@ -39,9 +39,8 @@ export default function TimeCommitmentScreen() {
         </Animated.View>
       </ScrollView>
       <NextButton
-        title="Continue"
         onPress={() => router.push('/onboarding/learning-style')}
-      />
+      >Continue</NextButton>
     </RNESafeAreaView>
   );
 }

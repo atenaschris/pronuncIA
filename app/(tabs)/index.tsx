@@ -1,13 +1,12 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 
 import { LessonBlock } from '@/components/learn/lesson-block';
 import { ProgressHeader } from '@/components/learn/progress-header';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { RNEText } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
+import { RNPText } from '@/components/ui/RNPText';
 import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
-import { router } from 'expo-router';
+import { RelativePathString, router } from 'expo-router';
 import { useEffect } from 'react';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
@@ -32,20 +31,20 @@ export default function LearnScreen() {
     const lessonId = lesson?.id || lessonType; // Fallback to lessonType if not found
     
     // Navigate to the lesson screen based on lessonType, using actual lessonId
-    router.push({ pathname: `/lessons/${routePath}`, params: { lessonId } });
+    router.push({ pathname: `/lessons/${routePath}` as RelativePathString, params: { lessonId } });
   };
 
   return (
     <RNESafeAreaView style={styles.container}>
-      <RNEView style={styles.header}>
+      <View style={styles.header}>
         <OnboardingTitle>Daily Plan</OnboardingTitle>
         <OnboardingSubtitle>Your personalized learning path</OnboardingSubtitle>
-      </RNEView>
+      </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <ProgressHeader currentStreak={currentStreak} totalXp={totalXp} />
         {isLoading ? (
-          <RNEText style={styles.loadingText}>Generating your daily plan...</RNEText>
+          <RNPText style={styles.loadingText}>Generating your daily plan...</RNPText>
         ) : dailyPlan?.lessons.map((lesson) => (
           <LessonBlock
             key={lesson.id}

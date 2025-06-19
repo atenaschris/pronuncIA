@@ -1,8 +1,8 @@
-import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
-import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { EnglishWord, TranslationWord } from '../types/word-pairs';
 import { useOnboardingStore } from './onboarding-store'; // Import onboarding store
+import { createMMKVStorage, userDataStorage } from '../storage/storage-utils';
 
 export type LessonType = 'vocabulary' | 'listening' | 'pronunciation' | 'roleplay' | 'shadowing' | 'voice_journaling' | 'word_pairs';
 
@@ -1041,15 +1041,5 @@ export const useLessonStore = create<LessonState>()(persist(
 }),
 {
   name: 'lesson-storage',
-  storage: createJSONStorage(() => ({
-    getItem: async (name: string) => {
-      return await SecureStore.getItemAsync(name);
-    },
-    setItem: async (name: string, value: string) => {
-      await SecureStore.setItemAsync(name, value);
-    },
-    removeItem: async (name: string) => {
-      await SecureStore.deleteItemAsync(name);
-    },
-  } as StateStorage)),
+  storage: createJSONStorage(() => createMMKVStorage(userDataStorage)),
 }));

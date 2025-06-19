@@ -1,5 +1,5 @@
-import { H2, H4 } from '@/components/ui/RNEText';
-import { useTheme } from '@rneui/themed';
+import { RNPText } from '@/components/ui/RNPText';
+import { useAppTheme } from '@/components/ui/theme';
 import { StyleSheet } from 'react-native';
 
 interface OnboardingTypographyProps {
@@ -7,22 +7,22 @@ interface OnboardingTypographyProps {
 }
 
 export function OnboardingTitle({ children }: OnboardingTypographyProps) {
-  const { theme } = useTheme();
+  const theme = useAppTheme();
 
   return (
-    <H2 style={[styles.title, { color: theme.colors.primary }]}>
+    <RNPText variant="displayMedium" style={[styles.title, { color: theme.colors.primary,textAlign:'center' }]}>
       {children}
-    </H2>
+    </RNPText>
   );
 }
 
 export function OnboardingSubtitle({ children }: OnboardingTypographyProps) {
-  const { theme } = useTheme();
+  const theme = useAppTheme();
 
   return (
-    <H4 style={[styles.subtitle, { color: theme.colors.grey2 }]}>
+    <RNPText variant="titleLarge" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant,textAlign:'center' }]}>
       {children}
-    </H4>
+    </RNPText>
   );
 }
 

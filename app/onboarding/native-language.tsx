@@ -40,9 +40,10 @@ export default function NativeLanguageScreen() {
         </Animated.View>
       </ScrollView>
       <NextButton
-        title="Continue"
         onPress={() => router.push('/onboarding/learning-goals')}
-      />
+      >
+        Continue
+      </NextButton>
     </RNESafeAreaView>
   );
 }

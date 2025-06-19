@@ -7,8 +7,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-
-import { RNEText } from '@/components/RNEText';
+import { RNPText } from './ui/RNPText';
 
 export function HelloWave() {
   const rotationAnimation = useSharedValue(0);
@@ -26,7 +25,7 @@ export function HelloWave() {
 
   return (
     <Animated.View style={animatedStyle}>
-      <RNEText style={styles.text}>👋</RNEText>
+      <RNPText style={styles.text}>👋</RNPText>
     </Animated.View>
   );
 }

@@ -1,14 +1,14 @@
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { RNEText } from '@/components/ui/RNEText';
+import { RNPText } from '@/components/ui/RNPText';
 import { StyleSheet } from 'react-native';
 
 export default function PlannerScreen() {
   return (
     <RNESafeAreaView style={[styles.container]}>
-      <RNEText h1 style={styles.title} >Planner</RNEText>
-      <RNEText h3 style={styles.subtitle}>
+      <RNPText variant="displayLarge" style={styles.title} >Planner</RNPText>
+      <RNPText variant="headlineSmall" style={styles.subtitle}>
         Schedule your learning sessions
-      </RNEText>
+      </RNPText>
     </RNESafeAreaView>
   );
 }
@@ -21,7 +21,6 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-
     fontWeight: 'bold',
     marginBottom: 8,
   },
