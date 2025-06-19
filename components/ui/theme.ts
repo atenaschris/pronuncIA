@@ -1,55 +1,8 @@
-import { MD3DarkTheme, MD3LightTheme, configureFonts, useTheme } from 'react-native-paper';
-
-// Custom font configuration
-const fontConfig = {
-  displayLarge: {
-    fontFamily: 'System',
-    fontSize: 32,
-    fontWeight: 'bold' as const,
-    letterSpacing: 0,
-    lineHeight: 40,
-  },
-  displayMedium: {
-    fontFamily: 'System',
-    fontSize: 28,
-    fontWeight: 'bold' as const,
-    letterSpacing: 0,
-    lineHeight: 36,
-  },
-  displaySmall: {
-    fontFamily: 'System',
-    fontSize: 24,
-    fontWeight: 'bold' as const,
-    letterSpacing: 0,
-    lineHeight: 32,
-  },
-  headlineLarge: {
-    fontFamily: 'System',
-    fontSize: 20,
-    fontWeight: 'bold' as const,
-    letterSpacing: 0,
-    lineHeight: 28,
-  },
-  headlineMedium: {
-    fontFamily: 'System',
-    fontSize: 16,
-    fontWeight: 'bold' as const,
-    letterSpacing: 0,
-    lineHeight: 24,
-  },
-  headlineSmall: {
-    fontFamily: 'System',
-    fontSize: 14,
-    fontWeight: 'bold' as const,
-    letterSpacing: 0,
-    lineHeight: 20,
-  },
-};
+import { MD3DarkTheme, MD3LightTheme, useTheme } from 'react-native-paper';
 
 // Light theme with custom colors
 export const lightTheme = {
   ...MD3LightTheme,
-  fonts: configureFonts({ config: fontConfig }),
   colors: {
     ...MD3LightTheme.colors,
     primary: '#0a7ea4',
@@ -86,7 +39,6 @@ export const lightTheme = {
 // Dark theme with custom colors
 export const darkTheme = {
   ...MD3DarkTheme,
-  fonts: configureFonts({ config: fontConfig }),
   colors: {
     ...MD3DarkTheme.colors,
     primary: '#2196f3',

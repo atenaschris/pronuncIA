@@ -3,7 +3,6 @@ import { PortalModal } from '@/components/ui/portal';
 import { ProgressStepper } from '@/components/ui/ProgressStepper';
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNPText } from '@/components/ui/RNPText';
-import { RNPView } from '@/components/ui/RNPView';
 import { useAppTheme } from '@/components/ui/theme';
 import { WORD_PAIR_SETS, WORD_PAIRS_SET_KEYS } from '@/lib/constants/constants';
 import { useAudio } from '@/lib/hooks/use-audio';
@@ -13,7 +12,7 @@ import { ColumnType } from '@/lib/types/word-pairs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { LessonType, useLessonStore, WordPairsState } from '../../lib/store/lesson-store';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
@@ -735,11 +734,11 @@ export default function WordPairsScreen() {
   return (
     <>
       <RNESafeAreaView style={styles.container}>
-        <RNPView style={styles.header}>
+        <View style={styles.header}>
           <OnboardingTitle>Match the Pairs</OnboardingTitle>
           <OnboardingSubtitle>Tap the matching word pairs</OnboardingSubtitle>
-          <RNPView style={styles.scoreContainer}>
-            <RNPView style={styles.scoreWithIcon}>
+          <View style={styles.scoreContainer}>
+            <View style={styles.scoreWithIcon}>
               <MaterialCommunityIcons 
                 name="trophy" 
                 size={30} 
@@ -747,7 +746,7 @@ export default function WordPairsScreen() {
                 style={styles.scoreIcon}
               />
               <RNPText variant="titleLarge" style={styles.scoreText}>{score}</RNPText>
-            </RNPView>
+            </View>
             <TouchableOpacity 
               style={styles.pauseButton}
               onPress={() => {
@@ -780,7 +779,7 @@ export default function WordPairsScreen() {
                 {isPaused ? '▶️ Resume' : '⏸️ Pause'}
               </RNPText>
             </TouchableOpacity>
-            <RNPView style={styles.timerWithIcon}>
+            <View style={styles.timerWithIcon}>
               <MaterialCommunityIcons 
                 name={isPaused ? "pause-circle" : "timer-sand"} 
                 size={30} 
@@ -790,10 +789,9 @@ export default function WordPairsScreen() {
               <RNPText variant="titleMedium" style={[styles.timerText, ...(isPaused ? [styles.pausedTimerText] : [])]}>
                 {isPaused ? '' : formatTime(currentSetElapsedTime)}
               </RNPText>
-            </RNPView>
-          </RNPView>
-        </RNPView>
-
+            </View>
+          </View>
+        </View>
         <ProgressStepper
           totalSteps={WORD_PAIRS_SET_KEYS.length}
           currentStep={currentSetIndex}
@@ -804,8 +802,8 @@ export default function WordPairsScreen() {
           isGoingBack={isGoingBack}
         />
 
-        <RNPView style={styles.gameContainer}>
-          <RNPView style={styles.column}>
+        <View style={styles.gameContainer}>
+          <View style={styles.column}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {englishWords.map((word, index) => (
                 <AnimatedTouchable
@@ -818,9 +816,9 @@ export default function WordPairsScreen() {
                 </AnimatedTouchable>
               ))}
             </ScrollView>
-          </RNPView>
+          </View>
 
-          <RNPView style={styles.column}>
+          <View style={styles.column}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {translationWords.map((word, index) => (
                 <AnimatedTouchable
@@ -833,8 +831,8 @@ export default function WordPairsScreen() {
                 </AnimatedTouchable>
               ))}
             </ScrollView>
-          </RNPView>
-        </RNPView>
+          </View>
+        </View>
         <NextButton
           onPress={() => {
             showModal({
