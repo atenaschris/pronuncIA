@@ -111,7 +111,7 @@ const ProgressStepper = React.memo(function ProgressStepperComponent({
         return theme.colors.primary;
       }
       // If completed with no errors, show green
-      return '#4CAF50'; // Using a standard success color
+      return theme.colors.success; // Using a standard success color
     }
     
     // If current step with errors, show error color
@@ -287,6 +287,8 @@ const createStyles = (theme: any) => StyleSheet.create({
   stepWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingTop:3,
+    paddingBottom:3
   },
   step: {
     justifyContent: 'center',
@@ -305,8 +307,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     textAlign: 'center',
   },
   connector: {
-    width: 24,
-    marginHorizontal: 4,
+    width: 24
   },
   scrollIndicator: {
     position: 'absolute',

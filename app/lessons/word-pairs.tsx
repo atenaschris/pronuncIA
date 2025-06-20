@@ -655,8 +655,8 @@ export default function WordPairsScreen() {
       borderColor: theme.colors.primary,
     },
     matchedCell: {
-      backgroundColor: theme.colors.primary + '20', // Using primary for success state
-      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.success + '20', // Using primary for success state
+      borderColor: theme.colors.success,
     },
     incorrectCell: {
       backgroundColor: theme.colors.error + '20',
@@ -670,7 +670,7 @@ export default function WordPairsScreen() {
       fontWeight: '700' as const,
     },
     matchedText: {
-      color: theme.colors.primary, // Using primary for success state
+      color: theme.colors.success, // Using primary for success state
       fontWeight: '700' as const,
     },
     incorrectText: {

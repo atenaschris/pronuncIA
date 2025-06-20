@@ -14,7 +14,10 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  console.log(useOnboardingStore.getState())
+  // Subscribe to the onboarding store state changes
+  const isComplete = useOnboardingStore((state) => state.isComplete);
+
+  console.log('Onboarding complete:', isComplete);
 
   if (!loaded) {
     // Async font loading only occurs in development.
@@ -26,11 +29,11 @@ export default function RootLayout() {
       <PortalProvider>
         <SafeAreaProvider>
           <Stack screenOptions={{ headerShown: false }}>
-            {!useOnboardingStore.getState().isComplete ? (
+            {!isComplete ? (
               <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-            ) :
+            ) : (
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            }
+            )}
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style="auto" />
