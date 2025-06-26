@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { Button } from 'react-native-paper';
-import { useAppTheme } from './theme';
 
 export interface NextButtonProps {
   children: React.ReactNode;
@@ -18,26 +17,18 @@ export interface NextButtonProps {
  * A custom Button component for navigation/progression actions
  * Implements consistent styling for next/forward actions across the app
  */
-export function NextButton({ 
-  children, 
-  style, 
-  labelStyle, 
+export function NextButton({
+  children,
+  style,
+  labelStyle,
   mode = 'contained',
-  ...props 
+  ...props
 }: NextButtonProps) {
-  const theme = useAppTheme();
-  
   return (
     <Button
       mode={mode}
       style={style}
-      labelStyle={[
-        {
-          color: theme.colors.onPrimary,
-          fontWeight: 'bold',
-        },
-        labelStyle,
-      ]}
+      labelStyle={labelStyle}
       {...props}
     >
       {children}

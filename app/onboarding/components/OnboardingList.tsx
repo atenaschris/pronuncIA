@@ -23,18 +23,16 @@ export function OnboardingList<T extends OnboardingOption>({ options, selectedVa
   const themeStyles = {
     optionButton: {
       borderColor: theme.colors.outline,
-      backgroundColor: theme.colors.background,
-      shadowColor: theme.colors.shadow,
-      shadowOpacity: 0.05,
+      backgroundColor: theme.colors.surface,
+      shadowColor: theme.colors.primary,
+      shadowOpacity: 0.12,
     },
     selectedOption: {
       backgroundColor: theme.colors.primary,
       borderColor: theme.colors.primary,
-      shadowOpacity: 0.15,
-      elevation: 4,
     },
     optionLabel: {
-      color: theme.colors.onBackground,
+      color: theme.colors.onSurface,
     },
     optionDescription: {
       color: theme.colors.onSurfaceVariant,
@@ -62,7 +60,9 @@ export function OnboardingList<T extends OnboardingOption>({ options, selectedVa
                 variant="titleLarge"
                 style={[
                   styles.optionLabel,
-                  ...(isSelected ? [styles.selectedText] : [])
+                  ...(isSelected ? [styles.selectedText, { color: theme.colors.white }] : []),
+
+                  
                 ]}
               >
                 {option.label}
@@ -72,7 +72,7 @@ export function OnboardingList<T extends OnboardingOption>({ options, selectedVa
                   variant="titleMedium"
                   style={[
                     styles.optionDescription,
-                    ...(isSelected ? [styles.selectedText] : [])
+                    ...(isSelected ? [styles.selectedText, { color: theme.colors.white }] : [])
                   ]}
                 >
                   {option.description}
@@ -89,14 +89,12 @@ export function OnboardingList<T extends OnboardingOption>({ options, selectedVa
 const styles = StyleSheet.create({
   container: {
     marginTop: 24,
+    borderRadius: 20,
   },
   optionButton: {
     padding: 20,
     borderRadius: 16,
     borderWidth: 1.5,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
   },
   optionLabel: {
     fontWeight: '600',

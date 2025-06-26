@@ -29,9 +29,9 @@ export function OnboardingSubtitle({ children }: OnboardingTypographyProps) {
 const styles = StyleSheet.create({
   title: {
     marginBottom: 12,
+    fontWeight: "bold"
   },
   subtitle: {
-    marginBottom: 32,
     lineHeight: 24,
   },
 });
