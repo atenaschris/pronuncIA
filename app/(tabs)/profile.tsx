@@ -1,22 +1,22 @@
 import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNPText } from '@/components/ui/RNPText';
-import { RNPView } from '@/components/ui/RNPView';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+
 
 export default function ProfileScreen() {
   return (
     <RNESafeAreaView style={styles.container}>
-      <RNPView style={styles.header}>
+      <View style={styles.header}>
         <RNPText variant="displayLarge" style={styles.title}>
           Profile
         </RNPText>
-      </RNPView>
+      </View>
 
-      <RNPView style={styles.content}>
+      <View style={styles.content}>
         <RNPText variant="headlineSmall" style={styles.text}>
           Your profile information and settings will appear here.
         </RNPText>
-      </RNPView>
+      </View>
     </RNESafeAreaView>
   );
 }

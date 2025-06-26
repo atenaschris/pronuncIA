@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { LANGUAGE_LEVELS, LEARNING_GOALS, LEARNING_STYLES, NATIVE_LANGUAGES, TIME_OPTIONS } from '@/lib/constants/constants';
+import { appStorage, createMMKVStorage } from '../storage/storage-utils';
 import { OnboardingState } from '../types/onboarding-types';
-import { createMMKVStorage, appStorage } from '../storage/storage-utils';
 
 
 export const useOnboardingStore = create<OnboardingState>()(persist(

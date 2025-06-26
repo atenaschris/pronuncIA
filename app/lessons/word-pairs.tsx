@@ -109,7 +109,7 @@ export default function WordPairsScreen() {
 
   const stepsWithErrors = useMemo(() => {
     console.log('calculated stepsWithErrors')
-    return errorDetails?.incorrectMatches ? 
+    return errorDetails?.incorrectMatches ?
       [...new Set(errorDetails.incorrectMatches.map(error => error.setIndex))] : [];
   }, [errorDetails?.incorrectMatches]);
 
@@ -146,13 +146,13 @@ export default function WordPairsScreen() {
     englishAnimatedStyle0, englishAnimatedStyle1, englishAnimatedStyle2, englishAnimatedStyle3,
     englishAnimatedStyle4, englishAnimatedStyle5, englishAnimatedStyle6, englishAnimatedStyle7,
   ], [englishAnimatedStyle0, englishAnimatedStyle1, englishAnimatedStyle2, englishAnimatedStyle3,
-      englishAnimatedStyle4, englishAnimatedStyle5, englishAnimatedStyle6, englishAnimatedStyle7]);
-  
+    englishAnimatedStyle4, englishAnimatedStyle5, englishAnimatedStyle6, englishAnimatedStyle7]);
+
   const translationAnimatedStyles = useMemo(() => [
     translationAnimatedStyle0, translationAnimatedStyle1, translationAnimatedStyle2, translationAnimatedStyle3,
     translationAnimatedStyle4, translationAnimatedStyle5, translationAnimatedStyle6, translationAnimatedStyle7,
   ], [translationAnimatedStyle0, translationAnimatedStyle1, translationAnimatedStyle2, translationAnimatedStyle3,
-      translationAnimatedStyle4, translationAnimatedStyle5, translationAnimatedStyle6, translationAnimatedStyle7]);
+    translationAnimatedStyle4, translationAnimatedStyle5, translationAnimatedStyle6, translationAnimatedStyle7]);
 
   // Memoize helper functions to get the correct animated style
   const getEnglishAnimatedStyle = useCallback((index: number) => {
@@ -189,10 +189,10 @@ export default function WordPairsScreen() {
       clearTimeout(animationTimeoutRef.current);
       animationTimeoutRef.current = null;
     }
-    
+
     // Clear the timer for the current set when replaying
     clearSetTimer(lessonId, currentSetIndex);
-    
+
     // Start the timer for this set
     startSetTimer(lessonId);
   }, [lessonId, currentSetIndex, currentWordPairs, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer, pauseSetTimer, resumeSetTimer]);
@@ -215,11 +215,11 @@ export default function WordPairsScreen() {
   // Timer update effect - updates the elapsed time every second
   useEffect(() => {
     if (!lessonId || !currentSetStartTime) return;
-    
+
     const interval = setInterval(() => {
       updateCurrentSetElapsedTime(lessonId);
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, [lessonId, currentSetStartTime, updateCurrentSetElapsedTime]);
 
@@ -233,10 +233,10 @@ export default function WordPairsScreen() {
     };
   }, [lessonId, isPaused, currentSetStartTime, resumeSetTimer]);
 
-   // Memoize bonus XP calculation for performance
-   const calculateTimeBonusXP = useCallback((totalTimeInSeconds: number, totalSets: number): { bonusXP: number; timeCategory: string } => {
+  // Memoize bonus XP calculation for performance
+  const calculateTimeBonusXP = useCallback((totalTimeInSeconds: number, totalSets: number): { bonusXP: number; timeCategory: string } => {
     const averageTimePerSet = totalTimeInSeconds / totalSets;
-    
+
     // Time thresholds (in seconds per set)
     if (averageTimePerSet <= 30) {
       return { bonusXP: 50, timeCategory: 'Lightning Fast' }; // Under 30 seconds per set
@@ -260,12 +260,12 @@ export default function WordPairsScreen() {
     });
   }, [matchedPairs, englishWords, translationWords, currentWordPairs]);
 
-    // Helper function to format time display
-    const formatTime = useCallback((seconds: number) => {
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }, []);
+  // Helper function to format time display
+  const formatTime = useCallback((seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }, []);
 
 
   const handleWordPress = useCallback((index: number, column: 'english' | 'translation') => {
@@ -278,8 +278,8 @@ export default function WordPairsScreen() {
     }
 
     // If the word is already matched, do nothing (including animations)
-    if ((matchedPairs.includes(index) && column === 'english') || 
-        (column === 'translation' && isTranslationMatched(index))) {
+    if ((matchedPairs.includes(index) && column === 'english') ||
+      (column === 'translation' && isTranslationMatched(index))) {
       return;
     }
 
@@ -334,249 +334,253 @@ export default function WordPairsScreen() {
       if (matchedPairs.length + 1 === currentWordPairs.length && !lessonCompleted) {
         // Stop the timer for this set
         stopSetTimer(lessonId);
-        
+
         const finalScore = score + 10; // Calculate final score before calling completeLesson
-          // Pass the score for the current set and the current set's index
-          console.log('Before completeLesson - Current Set Score:', finalScore, 'Set Index:', currentSetIndex);
-          completeLesson(lessonId, finalScore, currentSetIndex);
-          if (isReplayingForErrors) {
-            setIsReplayingForErrors(lessonId, false);
-          }
-          setCurrentSetCompleted(lessonId, true); // Mark lesson as completed after dialog is shown
-          // Fetch the updated lesson state to display accumulated XP
-          const updatedLessonState = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId);
-          console.log('After completeLesson - Accumulated Lesson XP:', updatedLessonState?.xpReward);
-          const updatedWPLesson = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId);
-          const accumulatedLessonXP = updatedWPLesson?.xpReward || 0;
-          const allSetsAttempted = (updatedWPLesson?.completedSets || 0) >= (updatedWPLesson?.totalSets || WORD_PAIRS_SET_KEYS.length);
+        // Pass the score for the current set and the current set's index
+        console.log('Before completeLesson - Current Set Score:', finalScore, 'Set Index:', currentSetIndex);
+        completeLesson(lessonId, finalScore, currentSetIndex);
+        if (isReplayingForErrors) {
+          setIsReplayingForErrors(lessonId, false);
+        }
+        setCurrentSetCompleted(lessonId, true); // Mark lesson as completed after dialog is shown
+        // Fetch the updated lesson state to display accumulated XP
+        const updatedLessonState = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId);
+        console.log('After completeLesson - Accumulated Lesson XP:', updatedLessonState?.xpReward);
+        const updatedWPLesson = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId);
+        const accumulatedLessonXP = updatedWPLesson?.xpReward || 0;
+        const allSetsAttempted = (updatedWPLesson?.completedSets || 0) >= (updatedWPLesson?.totalSets || WORD_PAIRS_SET_KEYS.length);
 
-          // Get the current set completion time
-          const currentSetTime = setTimers[currentSetIndex] || currentSetElapsedTime;
-          const totalTime = totalSessionTime + currentSetElapsedTime;
-          
-          let alertTitle = "Set Complete!";
-          let alertMessage = `You scored ${finalScore} for this set in ${formatTime(currentSetTime)}.`;
-          const alertButtons = [];
+        // Get the current set completion time
+        const currentSetTime = setTimers[currentSetIndex] || currentSetElapsedTime;
+        const totalTime = totalSessionTime + currentSetElapsedTime;
 
-          if (allSetsAttempted) {
-            // Calculate time bonus based on total session time (including error correction time)
-            const timeBonus = calculateTimeBonusXP(totalTime, WORD_PAIRS_SET_KEYS.length);
-            
-            // Apply/update time bonus (this handles recalculation automatically)
-            addTimeBonusXP(lessonId, timeBonus.bonusXP);
-            
-            // Get updated lesson state after bonus application
-            // Force a fresh state read to ensure we get the updated values
-            const updatedState = useLessonStore.getState();
-            const lessonAfterBonus = updatedState.dailyPlan?.lessons.find(l => l.id === lessonId);
-            const finalLessonXP = lessonAfterBonus?.xpReward || accumulatedLessonXP;
-            
-            alertTitle = "All Sets Mastered!";
-            // Calculate baseXP correctly: finalLessonXP already includes the updated scores
-            // and any accumulated time bonus. We need to show the actual base scores.
-            const currentStoredBonus = lessonAfterBonus?.currentTimeBonusXP || 0;
-            const baseXP = finalLessonXP - currentStoredBonus;
-            
-            // Show the actual stored bonus (what's currently applied to the lesson)
-            // This prevents showing the bonus as being "added again" during replays
-            const actualAppliedBonus = currentStoredBonus;
-            
-            alertMessage = `You've completed all sets! Your base XP for this lesson is ${baseXP}.\n⏱️ Total time: ${formatTime(totalTime)}\n🏆 Speed bonus: +${actualAppliedBonus} XP (${timeBonus.timeCategory})\n✨ Final XP: ${finalLessonXP}`;
-            if (errorDetails && errorDetails.totalErrors > 0) {
-              // Group errors by set index
-              const errorsBySet = errorDetails.incorrectMatches.reduce((acc, error) => {
-                if (!acc[error.setIndex]) acc[error.setIndex] = [];
-                acc[error.setIndex].push(error);
-                return acc;
-              }, {} as Record<number, typeof errorDetails.incorrectMatches>);
+        let alertTitle = "Set Complete!";
+        let alertMessage = `You scored ${finalScore} for this set in ${formatTime(currentSetTime)}.`;
+        const alertButtons = [];
 
-              const setCount = Object.keys(errorsBySet).length;
-              alertMessage += `\n\n⚠️ You made ${errorDetails.totalErrors} error(s) across ${setCount} set(s). Here's a breakdown:`;
+        if (allSetsAttempted) {
+          // Calculate time bonus based on total session time (including error correction time)
+          const timeBonus = calculateTimeBonusXP(totalTime, WORD_PAIRS_SET_KEYS.length);
 
-              Object.entries(errorsBySet).forEach(([setIdx, errors]) => {
-                alertMessage += `\n\n📍 Set ${parseInt(setIdx) + 1} (${errors.length} error${errors.length > 1 ? 's' : ''}):`;;
-                errors.forEach(error => {
-                  alertMessage += `\n• "${error.englishWord}" ≠ "${error.attemptedTranslation}"`;
-                });
-              });
+          // Apply/update time bonus (this handles recalculation automatically)
+          addTimeBonusXP(lessonId, timeBonus.bonusXP);
 
-              alertMessage += `\n\nYou can replay specific sets to fix these errors and earn additional XP!`;
-            } else {
-              // All errors have been fixed!
-              alertMessage += `\n\n🎉 Perfect! You've mastered all sets with no errors remaining!`;
-            }
-          } else {
-            // Not all sets are completed yet
-            alertMessage += ` Your current total XP for this lesson is ${accumulatedLessonXP}.\n⏱️ Current session time: ${formatTime(totalTime)}`;
-            if (errorDetails && errorDetails.incorrectMatches.length > 0) {
-              const currentSetErrors = errorDetails.incorrectMatches.filter(error =>
-                error.setIndex === currentSetIndex
-              );
-              if (currentSetErrors.length > 0) {
-                alertMessage += `\n\n❌ Errors in this set:`;
-                currentSetErrors.forEach(error => {
-                  alertMessage += `\n• "${error.englishWord}" ≠ "${error.attemptedTranslation}"`;
-                });
-                alertMessage += `\n\nTry this set again for a perfect score, or move to the next one.`;
-              }
-            }
-            alertButtons.push({
-              text: "➡️ Next Set",
-              onPress: () => {
-                setCurrentSetIndex?.(lessonId, currentSetIndex + 1);
-                if(isGoingBack) setIsGoingBack(lessonId, false);
-                // initializeGame will be called by useEffect
-              }
-            });
-          }
-          if (!allSetsAttempted || (allSetsAttempted && !errorDetails?.totalErrors)) {
-            // Check for errors in the current set specifically
-            const currentSetErrors = errorDetails?.incorrectMatches.filter(error =>
-              error.setIndex === currentSetIndex
-            ) || [];
-            const hasCurrentSetErrors = currentSetErrors.length > 0;
-            
-            // Enhanced button text for "Play This Set Again"
-            const replayButtonText = hasCurrentSetErrors ? "🔄 Replay Set (Fix Errors)" : "🔄 Play This Set Again";
-            alertButtons.push({
-              text: replayButtonText,
-              onPress: () => {
-                if (hasCurrentSetErrors) {
-                  setIsReplayingForErrors(lessonId, true); // Mark as replaying for error fixing
-                  if(isGoingBack) setIsGoingBack(lessonId, false);
-                  clearCurrentSetErrors(lessonId, currentSetIndex); // Clear errors for this set
-                }
-                initializeGame();
-              }
-            });
-          }
-          // Add buttons for sets with errors (only when all sets are completed)
-          if (allSetsAttempted && errorDetails && errorDetails.totalErrors > 0) {
+          // Get updated lesson state after bonus application
+          // Force a fresh state read to ensure we get the updated values
+          const updatedState = useLessonStore.getState();
+          const lessonAfterBonus = updatedState.dailyPlan?.lessons.find(l => l.id === lessonId);
+          const finalLessonXP = lessonAfterBonus?.xpReward || accumulatedLessonXP;
+
+          alertTitle = "All Sets Mastered!";
+          // Calculate baseXP correctly: finalLessonXP already includes the updated scores
+          // and any accumulated time bonus. We need to show the actual base scores.
+          const currentStoredBonus = lessonAfterBonus?.currentTimeBonusXP || 0;
+          const baseXP = finalLessonXP - currentStoredBonus;
+
+          // Show the actual stored bonus (what's currently applied to the lesson)
+          // This prevents showing the bonus as being "added again" during replays
+          const actualAppliedBonus = currentStoredBonus;
+
+          alertMessage = `You've completed all sets! Your base XP for this lesson is ${baseXP}.\n⏱️ Total time: ${formatTime(totalTime)}\n🏆 Speed bonus: +${actualAppliedBonus} XP (${timeBonus.timeCategory})\n✨ Final XP: ${finalLessonXP}`;
+          if (errorDetails && errorDetails.totalErrors > 0) {
+            // Group errors by set index
             const errorsBySet = errorDetails.incorrectMatches.reduce((acc, error) => {
               if (!acc[error.setIndex]) acc[error.setIndex] = [];
               acc[error.setIndex].push(error);
               return acc;
             }, {} as Record<number, typeof errorDetails.incorrectMatches>);
 
-            Object.keys(errorsBySet).forEach(setIdx => {
-              const setIndex = parseInt(setIdx);
-              const errorCount = errorsBySet[setIndex].length;
-              alertButtons.push({
-                text: `🎯 Fix Set ${setIndex + 1} (${errorCount} error${errorCount > 1 ? 's' : ''})`,
-                onPress: () => {
-                  clearCurrentSetErrors(lessonId, setIndex); // Clear errors for this specific set
-                  setCurrentSetCompleted(lessonId, false); // Reset lesson completed state when fixing a specific set
-                  setIsReplayingForErrors(lessonId, true); // Reset replay state when navigating to fix a specific set
-                  if(isGoingBack) setIsGoingBack(lessonId, false);
-                  if (currentSetIndex === setIndex) {
-                    // If we're already on this set, force re-initialization
-                    initializeGame();
-                  } else {
-                    setCurrentSetIndex?.(lessonId, setIndex);
-                    // initializeGame will be called by useEffect when currentSetIndex changes
-                  }
-                }
+            const setCount = Object.keys(errorsBySet).length;
+            alertMessage += `\n\n⚠️ You made ${errorDetails.totalErrors} error(s) across ${setCount} set(s). Here's a breakdown:`;
+
+            Object.entries(errorsBySet).forEach(([setIdx, errors]) => {
+              alertMessage += `\n\n📍 Set ${parseInt(setIdx) + 1} (${errors.length} error${errors.length > 1 ? 's' : ''}):`;;
+              errors.forEach(error => {
+                alertMessage += `\n• "${error.englishWord}" ≠ "${error.attemptedTranslation}"`;
               });
             });
-          }
 
-          // Only show "Start From Scratch" if all sets are completed
-          if (allSetsAttempted) {
-            alertButtons.push({
-              text: "🔄 Start From Scratch",
-              onPress: () => {
-                // Close current modal first, then show the reset confirmation modal
-                hideModal();
-                setTimeout(() => {
-                  showModal({
-                    title: "Start From Scratch?",
-                    message: "This will reset ALL progress for this lesson. Your global XP and streak will be adjusted accordingly. Are you sure?",
-                    buttons: [
-                      { 
-                        text: "Cancel and Go to the lessons page", 
-                        style: "cancel", 
-                        onPress: () => {
-                          hideModal();
-                          setTimeout(() => {
-                            router.replace("/(tabs)");
-                          }, 100);
-                        }
-                      },
-                      {
-                        text: "Reset Lesson",
-                        style: "destructive",
-                        onPress: () => {
-                          hideModal();
-                          setTimeout(() => {
-                            resetWordPairsLesson(lessonId);
-                          }, 100);
-                        }
-                      }
-                    ]
-                  });
-                }, 150); // Small delay to ensure first modal is fully closed
-              }
-            });
-          }
-
-          // Only show "Go Back" with save progress modal if there are still errors or not all sets completed
-          if (!allSetsAttempted || (errorDetails && errorDetails.totalErrors > 0)) {
-            alertButtons.push({
-              text: "🏠 Go Back",
-              onPress: () => {
-                // Close current modal first, then show the save progress modal
-                hideModal();
-                setTimeout(() => {
-                  showModal({
-                    title: "Save Progress?",
-                    message: "Your overall lesson progress is automatically saved, along with the current score for this set! 💾\n\nBy the way, you will have to play it again in order to move on, make sure you read carefully the words, otherwise you could score lower\n\nGo back to main menu?",
-                    buttons: [
-                      { 
-                        text: "Next Set", 
-                        style: "cancel", 
-                        onPress: () => {
-                          hideModal();
-                          setTimeout(() => {
-                            if(isGoingBack) setIsGoingBack(lessonId, false);
-                            setCurrentSetIndex?.(lessonId, currentSetIndex + 1);
-                          }, 100);
-                        }
-                      },
-                      {
-                        text: "Go Back", 
-                        onPress: () => {
-                          // Clear current set errors when leaving to prevent accumulation
-                          hideModal();
-                          setTimeout(() => {
-                            clearCurrentSetErrors(lessonId, currentSetIndex);
-                            setIsGoingBack(lessonId, true);
-                            router.replace("/(tabs)");
-                          }, 100);
-                        }
-                      }
-                    ]
-                  });
-                }, 150); // Small delay to ensure first modal is fully closed
-              }
-            });
+            alertMessage += `\n\nYou can replay specific sets to fix these errors and earn additional XP!`;
           } else {
-            // All sets completed with no errors - show simple go back option
+            // All errors have been fixed!
+            alertMessage += `\n\n🎉 Perfect! You've mastered all sets with no errors remaining!`;
+          }
+        } else {
+          // Not all sets are completed yet
+          alertMessage += ` Your current total XP for this lesson is ${accumulatedLessonXP}.\n⏱️ Current session time: ${formatTime(totalTime)}`;
+          if (errorDetails && errorDetails.incorrectMatches.length > 0) {
+            const currentSetErrors = errorDetails.incorrectMatches.filter(error =>
+              error.setIndex === currentSetIndex
+            );
+            if (currentSetErrors.length > 0) {
+              alertMessage += `\n\n❌ Errors in this set:`;
+              currentSetErrors.forEach(error => {
+                alertMessage += `\n• "${error.englishWord}" ≠ "${error.attemptedTranslation}"`;
+              });
+              alertMessage += `\n\nTry this set again for a perfect score, or move to the next one.`;
+            }
+          }
+          alertButtons.push({
+            text: "➡️ Next Set",
+            onPress: () => {
+              setCurrentSetIndex?.(lessonId, currentSetIndex + 1);
+              if (isGoingBack) setIsGoingBack(lessonId, false);
+              // initializeGame will be called by useEffect
+            }
+          });
+        }
+        if (!allSetsAttempted || (allSetsAttempted && !errorDetails?.totalErrors)) {
+          // Check for errors in the current set specifically
+          const currentSetErrors = errorDetails?.incorrectMatches.filter(error =>
+            error.setIndex === currentSetIndex
+          ) || [];
+          const hasCurrentSetErrors = currentSetErrors.length > 0;
+
+          // Enhanced button text for "Play This Set Again"
+          const replayButtonText = hasCurrentSetErrors ? "🔄 Replay Set (Fix Errors)" : "🔄 Play This Set Again";
+          alertButtons.push({
+            text: replayButtonText,
+            onPress: () => {
+              if (hasCurrentSetErrors) {
+                setIsReplayingForErrors(lessonId, true); // Mark as replaying for error fixing
+                if (isGoingBack) setIsGoingBack(lessonId, false);
+                clearCurrentSetErrors(lessonId, currentSetIndex); // Clear errors for this set
+              }
+              initializeGame();
+            }
+          });
+        }
+        // Add buttons for sets with errors (only when all sets are completed)
+        if (allSetsAttempted && errorDetails && errorDetails.totalErrors > 0) {
+          const errorsBySet = errorDetails.incorrectMatches.reduce((acc, error) => {
+            if (!acc[error.setIndex]) acc[error.setIndex] = [];
+            acc[error.setIndex].push(error);
+            return acc;
+          }, {} as Record<number, typeof errorDetails.incorrectMatches>);
+
+          Object.keys(errorsBySet).forEach(setIdx => {
+            const setIndex = parseInt(setIdx);
+            const errorCount = errorsBySet[setIndex].length;
             alertButtons.push({
-              text: "🏠 Return to Lessons",
+              text: `🎯 Fix Set ${setIndex + 1} (${errorCount} error${errorCount > 1 ? 's' : ''})`,
               onPress: () => {
-                hideModal();
-                setTimeout(() => {
-                  router.replace("/(tabs)");
-                }, 100);
+                clearCurrentSetErrors(lessonId, setIndex); // Clear errors for this specific set
+                setCurrentSetCompleted(lessonId, false); // Reset lesson completed state when fixing a specific set
+                setIsReplayingForErrors(lessonId, true); // Reset replay state when navigating to fix a specific set
+                if (isGoingBack) setIsGoingBack(lessonId, false);
+                if (currentSetIndex === setIndex) {
+                  // If we're already on this set, force re-initialization
+                  initializeGame();
+                } else {
+                  setCurrentSetIndex?.(lessonId, setIndex);
+                  // initializeGame will be called by useEffect when currentSetIndex changes
+                }
               }
             });
-          }
-          showModal({
-            title: alertTitle,
-            message: alertMessage,
-            buttons: alertButtons
           });
-          winningSound?.replayAsync();
+        }
+
+        // Only show "Start From Scratch" if all sets are completed
+        if (allSetsAttempted) {
+          alertButtons.push({
+            text: "🔄 Start From Scratch",
+            onPress: () => {
+              // Close current modal first, then show the reset confirmation modal
+              hideModal();
+              setTimeout(() => {
+                showModal({
+                  title: "Start From Scratch?",
+                  message: "This will reset ALL progress for this lesson. Your global XP and streak will be adjusted accordingly. Are you sure?",
+                  buttons: [
+                    {
+                      text: "Cancel and Go to the lessons page",
+                      style: "cancel" as const,
+                      onPress: () => {
+                        clearCurrentSetErrors(lessonId, currentSetIndex);
+                        setIsGoingBack(lessonId, true);
+                        hideModal();
+                        setTimeout(() => {
+                          router.replace("/(tabs)");
+                        }, 100);
+                      }
+                    },
+                    {
+                      text: "Reset Lesson",
+                      style: "destructive" as const,
+                      onPress: () => {
+                        hideModal();
+                        setTimeout(() => {
+                          resetWordPairsLesson(lessonId);
+                        }, 100);
+                      }
+                    }
+                  ]
+                });
+              }, 150); // Small delay to ensure first modal is fully closed
+            }
+          });
+        }
+
+        // Only show "Go Back" with save progress modal if there are still errors or not all sets completed
+        if (!allSetsAttempted) {
+          alertButtons.push({
+            text: "🏠 Go Back",
+            onPress: () => {
+              // Close current modal first, then show the save progress modal
+              hideModal();
+              setTimeout(() => {
+                const saveProgressButtons = [];
+                saveProgressButtons.push({
+                  text: "Next Set",
+                  style: "cancel" as const,
+                  onPress: () => {
+                    hideModal();
+                    setTimeout(() => {
+                      if (isGoingBack) setIsGoingBack(lessonId, false);
+                      setCurrentSetIndex?.(lessonId, currentSetIndex + 1);
+                    }, 100);
+                  }
+                });
+                saveProgressButtons.push({
+                  text: "Go Back",
+                  onPress: () => {
+                    hideModal();
+                    setTimeout(() => {
+                      clearCurrentSetErrors(lessonId, currentSetIndex);
+                      setIsGoingBack(lessonId, true);
+                      router.replace("/(tabs)");
+                    }, 100);
+                  }
+                });
+
+                showModal({
+                  title: "Save Progress?",
+                  message: "Your overall lesson progress is automatically saved, along with the current score for this set! 💾\n\nBy the way, you will have to play it again in order to move on, make sure you read carefully the words, otherwise you could score lower\n\nGo back to main menu?",
+                  buttons: saveProgressButtons
+                });
+              }, 150); // Small delay to ensure first modal is fully closed
+            }
+          });
+        } else {
+          // All sets completed - show simple go back option without additional modal
+          alertButtons.push({
+            text: "🏠 Return to Lessons",
+            onPress: () => {
+              hideModal();
+              setTimeout(() => {
+                clearCurrentSetErrors(lessonId, currentSetIndex);
+                setIsGoingBack(lessonId, true);
+                router.replace("/(tabs)");
+              }, 100);
+            }
+          });
+        }
+        showModal({
+          title: alertTitle,
+          message: alertMessage,
+          buttons: alertButtons
+        });
+        winningSound?.replayAsync();
       }
     } else {
       // Incorrect match
@@ -739,15 +743,15 @@ export default function WordPairsScreen() {
           <OnboardingSubtitle>Tap the matching word pairs</OnboardingSubtitle>
           <View style={styles.scoreContainer}>
             <View style={styles.scoreWithIcon}>
-              <MaterialCommunityIcons 
-                name="trophy" 
-                size={30} 
-                color={theme.colors.warning} 
+              <MaterialCommunityIcons
+                name="trophy"
+                size={30}
+                color={theme.colors.warning}
                 style={styles.scoreIcon}
               />
               <RNPText variant="titleLarge" style={styles.scoreText}>{score}</RNPText>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.pauseButton}
               onPress={() => {
                 if (!lessonId) return;
@@ -780,10 +784,10 @@ export default function WordPairsScreen() {
               </RNPText>
             </TouchableOpacity>
             <View style={styles.timerWithIcon}>
-              <MaterialCommunityIcons 
-                name={isPaused ? "pause-circle" : "timer-sand"} 
-                size={30} 
-                color={isPaused ? theme.colors.error : theme.colors.primary} 
+              <MaterialCommunityIcons
+                name={isPaused ? "pause-circle" : "timer-sand"}
+                size={30}
+                color={isPaused ? theme.colors.error : theme.colors.primary}
                 style={styles.timerIcon}
               />
               <RNPText variant="titleMedium" style={[styles.timerText, ...(isPaused ? [styles.pausedTimerText] : [])]}>
@@ -839,15 +843,15 @@ export default function WordPairsScreen() {
               title: "Reset Game?",
               message: "Are you sure you want to reset the entire word pairs game? 🔄\n\nThis will:\n• Reset all your progress in this lesson\n• Clear your current score\n• Start from the beginning\n\nThis action cannot be undone!",
               buttons: [
-                { 
-                  text: "Cancel", 
-                  style: "cancel", 
+                {
+                  text: "Cancel",
+                  style: "cancel" as const,
                   onPress: () => {
                     hideModal();
                   }
                 },
                 {
-                  text: "Reset Game", 
+                  text: "Reset Game",
                   onPress: () => {
                     hideModal();
                     setTimeout(() => {
@@ -870,8 +874,8 @@ export default function WordPairsScreen() {
         onClose={hideModal}
         id={modalId}
       />
-     </>
-   );
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
