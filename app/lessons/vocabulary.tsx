@@ -1,15 +1,15 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 export default function VocabularyScreen() {
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Vocabulary Screen</Text>
         <Text style={styles.subtitle}>Content for Vocabulary will go here.</Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

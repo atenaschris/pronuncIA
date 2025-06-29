@@ -1,15 +1,14 @@
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNPText } from '@/components/ui/RNPText';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 export default function TutorsScreen() {
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
+    <View style={[styles.container]}>
       <RNPText variant="displayLarge" style={styles.title}>Tutors</RNPText>
       <RNPText variant="headlineSmall"  style={styles.subtitle}>
         Connect with language experts
       </RNPText>
-    </RNESafeAreaView>
+    </View>
   );
 }
 

@@ -1,7 +1,6 @@
 import { RNPText } from '@/components/ui/RNPText';
-import { RNPView } from '@/components/ui/RNPView';
 import { useAppTheme } from '@/components/ui/theme';
-import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 interface OnboardingOption {
@@ -43,7 +42,7 @@ export function OnboardingList<T extends OnboardingOption>({ options, selectedVa
   };
 
   return (
-    <RNPView style={[styles.container, containerStyle]}>
+    <View style={[styles.container, containerStyle]}>
       {options.map((option) => {
         const isSelected = option.id === selectedValue;
         return (
@@ -82,7 +81,7 @@ export function OnboardingList<T extends OnboardingOption>({ options, selectedVa
             </Animated.View>
         );
       })}
-    </RNPView>
+    </View>
   );
 }
 

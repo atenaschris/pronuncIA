@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { LessonBlock } from '@/components/learn/lesson-block';
 import { ProgressHeader } from '@/components/learn/progress-header';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+
 import { RNPText } from '@/components/ui/RNPText';
 import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
 import { RelativePathString, router } from 'expo-router';
@@ -35,7 +35,7 @@ export default function LearnScreen() {
   };
 
   return (
-    <RNESafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <OnboardingTitle>Daily Plan</OnboardingTitle>
         <OnboardingSubtitle>Your personalized learning path</OnboardingSubtitle>
@@ -53,7 +53,7 @@ export default function LearnScreen() {
           />
         ))}
       </ScrollView>
-    </RNESafeAreaView>
+    </View>
   );
 }
 

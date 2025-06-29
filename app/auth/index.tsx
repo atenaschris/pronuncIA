@@ -1,4 +1,4 @@
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { View } from 'react-native';
 import { RNPText } from '@/components/ui/RNPText';
 import { RNPView } from '@/components/ui/RNPView';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -57,7 +57,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <RNESafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <RNPView style={styles.animationContainer}>
         <LottieView
           source={require('@/assets/animations/circle-grow-animation.json')}
@@ -141,7 +141,7 @@ export default function AuthScreen() {
           </Link>
         </RNPView>
       </RNPView>
-    </RNESafeAreaView>
+    </View>
   );
 }
 

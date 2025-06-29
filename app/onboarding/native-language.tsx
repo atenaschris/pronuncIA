@@ -1,9 +1,8 @@
 import { NextButton } from '@/components/ui/NextButton';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { NATIVE_LANGUAGES } from '../../lib/constants/constants';
 import { OnboardingList } from './components/OnboardingList';
@@ -25,7 +24,7 @@ export default function NativeLanguageScreen() {
   }));
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
+    <View style={[styles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.content, animatedStyle]}>
           <OnboardingTitle>What's your native language?</OnboardingTitle>
@@ -44,7 +43,7 @@ export default function NativeLanguageScreen() {
       >
         Continue
       </NextButton>
-    </RNESafeAreaView>
+    </View>
   );
 }
 

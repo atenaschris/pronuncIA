@@ -1,10 +1,9 @@
 import { NextButton } from '@/components/ui/NextButton';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNPView } from '@/components/ui/RNPView';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Divider } from 'react-native-paper';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
@@ -32,7 +31,7 @@ export default function WelcomeScreen() {
   }));
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
+    <View style={[styles.container]}>
       <RNPView style={styles.logoContainer}>
         <Image
           source={require('@/assets/images/icon.png')}
@@ -52,7 +51,7 @@ export default function WelcomeScreen() {
           </NextButton>
         </Animated.View>
       </Animated.View>
-    </RNESafeAreaView>
+    </View>
   );
 }
 

@@ -1,7 +1,7 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { PortalModal } from '@/components/ui/portal';
 import { ProgressStepper } from '@/components/ui/ProgressStepper';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+
 import { RNPText } from '@/components/ui/RNPText';
 import { useAppTheme } from '@/components/ui/theme';
 import { WORD_PAIR_SETS, WORD_PAIRS_SET_KEYS } from '@/lib/constants/constants';
@@ -737,7 +737,7 @@ export default function WordPairsScreen() {
 
   return (
     <>
-      <RNESafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <OnboardingTitle>Match the Pairs</OnboardingTitle>
           <OnboardingSubtitle>Tap the matching word pairs</OnboardingSubtitle>
@@ -867,7 +867,7 @@ export default function WordPairsScreen() {
         >
           <RNPText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNPText>
         </NextButton>
-      </RNESafeAreaView>
+      </View>
       <PortalModal
         visible={modalVisible}
         content={modalContent}

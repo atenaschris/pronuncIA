@@ -1,16 +1,15 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNPText } from '@/components/ui/RNPText';
 
 export default function CreditsScreen() {
   return (
-    <RNESafeAreaView style={[styles.container]}>
+    <View style={[styles.container]}>
       <RNPText variant="displayLarge" style={styles.title}>Credits</RNPText>
       <RNPText variant="headlineSmall" style={styles.subtitle}>
         Manage your learning credits
       </RNPText>
-    </RNESafeAreaView>
+    </View>
   );
 }
 

@@ -1,9 +1,8 @@
 import { NextButton } from '@/components/ui/NextButton';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LEARNING_STYLES } from '../../lib/constants/constants';
 import { OnboardingList } from './components/OnboardingList';
@@ -24,7 +23,7 @@ export default function LearningStyleScreen() {
   }));
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
+    <View style={[styles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.content, animatedStyle]}>
           <OnboardingTitle>How do you learn best?</OnboardingTitle>
@@ -43,7 +42,7 @@ export default function LearningStyleScreen() {
       >
         Continue
       </NextButton>
-    </RNESafeAreaView>
+    </View>
   );
 }
 

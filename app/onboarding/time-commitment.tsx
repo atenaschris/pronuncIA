@@ -1,10 +1,9 @@
 import { NextButton } from '@/components/ui/NextButton';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { TIME_OPTIONS } from '@/lib/constants/constants';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { OnboardingList } from './components/OnboardingList';
 import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
@@ -25,7 +24,7 @@ export default function TimeCommitmentScreen() {
   }));
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
+    <View style={[styles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.content, animatedStyle]}>
           <OnboardingTitle>Daily Practice Time</OnboardingTitle>
@@ -41,7 +40,7 @@ export default function TimeCommitmentScreen() {
       <NextButton
         onPress={() => router.push('/onboarding/learning-style')}
       >Continue</NextButton>
-    </RNESafeAreaView>
+    </View>
   );
 }
 

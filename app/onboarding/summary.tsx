@@ -1,13 +1,12 @@
 import { NextButton } from '@/components/ui/NextButton';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { RNPText } from '@/components/ui/RNPText';
 import { RNPView } from '@/components/ui/RNPView';
-import { LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS, DAILY_PRACTICE_TIME_LABELS } from '@/lib/constants/constants';
+import { DAILY_PRACTICE_TIME_LABELS, LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS } from '@/lib/constants/constants';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 export default function SummaryScreen() {
@@ -60,7 +59,7 @@ export default function SummaryScreen() {
   };
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
+    <View style={[styles.container]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.content, animatedStyle]}>
           <RNPText variant="displayMedium" style={styles.title}>
@@ -104,7 +103,7 @@ export default function SummaryScreen() {
         loading={isLoading}
         onPress={handleComplete}
       >Start Learning</NextButton>
-    </RNESafeAreaView>
+    </View>
   );
 }
 

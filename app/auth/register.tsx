@@ -1,4 +1,4 @@
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
+import { View } from 'react-native';
 import { RNPText } from '@/components/ui/RNPText';
 import { RNPView } from '@/components/ui/RNPView';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -41,7 +41,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <RNESafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <RNPView style={styles.content}>
         <RNPText variant="displayLarge" style={styles.title}>
           Create Account
@@ -83,7 +83,7 @@ export default function RegisterScreen() {
           </Link>
         </RNPView>
       </RNPView>
-    </RNESafeAreaView>
+    </View>
   );
 }
 

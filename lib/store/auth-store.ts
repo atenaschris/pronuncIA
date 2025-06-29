@@ -1,10 +1,9 @@
 import { supabase } from '@/lib/supabase/client';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 
 import { createAnonymousProfile, fetchAndSetProfile, handleError, resetAuthState } from '../helpers/auth-utils';
 import { AuthState, UserPreferences } from '../types/auth-types';
-import { createSecureStorage } from '../storage/storage-utils';
 
 
 
@@ -156,7 +155,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      storage: createJSONStorage(() => createSecureStorage()),
+   /*    storage: createJSONStorage(() => createSecureStorage()), */
     }
   )
 );
