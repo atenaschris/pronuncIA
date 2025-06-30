@@ -4,7 +4,6 @@ import { RNPView } from '@/components/ui/RNPView';
 import { DAILY_PRACTICE_TIME_LABELS, LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS } from '@/lib/constants/constants';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -50,7 +49,6 @@ export default function SummaryScreen() {
       
       // Proceed with soft login strategy
       setIsComplete(true);
-      router.replace('/(tabs)');
     } catch (error) {
       setError((error as Error).message);
     } finally {
