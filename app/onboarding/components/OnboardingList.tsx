@@ -24,7 +24,13 @@ export function OnboardingList<T extends OnboardingOption>({ options, selectedVa
       borderColor: theme.colors.outline,
       backgroundColor: theme.colors.surface,
       shadowColor: theme.colors.primary,
-      shadowOpacity: 0.12,
+      shadowOpacity: 0.15,
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowRadius: 8,
+      elevation: 6,
     },
     selectedOption: {
       backgroundColor: theme.colors.primary,
@@ -94,6 +100,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
     borderWidth: 1.5,
+    marginBottom: 12,
   },
   optionLabel: {
     fontWeight: '600',
