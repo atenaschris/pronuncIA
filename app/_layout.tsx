@@ -39,7 +39,7 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-    React.useEffect(() => {
+  React.useEffect(() => {
     if (error) throw error;
   }, [error]);
 
@@ -53,9 +53,17 @@ export default function RootLayout() {
     return null;
   }
 
+   const SafeAreaProviderStyles = {
+    container: {
+      backgroundColor: theme.colors.background,
+      paddingLeft: 10, 
+      paddingRight: 10
+    },
+  };
+
   return (
     <RNPThemeProvider>
-      <SafeAreaProvider style={{ backgroundColor: theme.colors.background }}>
+      <SafeAreaProvider style={SafeAreaProviderStyles.container}>
         <PortalProvider>
           <RootNavigator />
           <StatusBar style="auto" />

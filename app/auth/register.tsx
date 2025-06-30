@@ -1,4 +1,3 @@
-import { View } from 'react-native';
 import { RNPText } from '@/components/ui/RNPText';
 import { RNPView } from '@/components/ui/RNPView';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -6,6 +5,7 @@ import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
 const registerSchema = z.object({
@@ -41,7 +41,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <RNPView style={styles.content}>
         <RNPText variant="displayLarge" style={styles.title}>
           Create Account
@@ -83,14 +83,13 @@ export default function RegisterScreen() {
           </Link>
         </RNPView>
       </RNPView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#fff',
+    flex: 1
   },
   content: {
     flex: 1,

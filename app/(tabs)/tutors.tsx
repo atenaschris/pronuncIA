@@ -1,23 +1,21 @@
-import { RNPText } from '@/components/ui/RNPText';
 import { StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 export default function TutorsScreen() {
 
   return (
-    <View style={[styles.container]}>
-      <RNPText variant="displayLarge" style={styles.title}>Tutors</RNPText>
-      <RNPText variant="headlineSmall"  style={styles.subtitle}>
-        Connect with language experts
-      </RNPText>
-    </View>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>Tutors</OnboardingTitle>
+        <OnboardingSubtitle style={{ marginBottom: 20 }}>Connect with language experts</OnboardingSubtitle>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    flex: 1
   },
   title: {
     fontWeight: 'bold',

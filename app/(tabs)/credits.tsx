@@ -1,24 +1,22 @@
 import { StyleSheet, View } from 'react-native';
 
-import { RNPText } from '@/components/ui/RNPText';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 export default function CreditsScreen() {
   return (
-    <View style={[styles.container]}>
-      <RNPText variant="displayLarge" style={styles.title}>Credits</RNPText>
-      <RNPText variant="headlineSmall" style={styles.subtitle}>
-        Manage your learning credits
-      </RNPText>
-    </View>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>Credits</OnboardingTitle>
+        <OnboardingSubtitle style={{ marginBottom: 20 }}>Manage your learning credits</OnboardingSubtitle>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
   },
   title: {
     fontWeight: 'bold',

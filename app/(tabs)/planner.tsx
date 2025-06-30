@@ -1,23 +1,21 @@
-import { RNPText } from '@/components/ui/RNPText';
 import { StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 export default function PlannerScreen() {
   return (
-    <View style={[styles.container]}>
-      <RNPText variant="displayLarge" style={styles.title} >Planner</RNPText>
-      <RNPText variant="headlineSmall" style={styles.subtitle}>
-        Schedule your learning sessions
-      </RNPText>
-    </View>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>Planner</OnboardingTitle>
+        <OnboardingSubtitle style={{ marginBottom: 20 }}>Schedule your learning sessions</OnboardingSubtitle>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
   },
   title: {
     fontWeight: 'bold',

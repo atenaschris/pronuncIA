@@ -1,4 +1,5 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 import { LessonBlock } from '@/components/learn/lesson-block';
@@ -35,12 +36,11 @@ export default function LearnScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container}>
+      <View>
         <OnboardingTitle>Daily Plan</OnboardingTitle>
-        <OnboardingSubtitle>Your personalized learning path</OnboardingSubtitle>
+        <OnboardingSubtitle style={{ marginBottom: 20 }}>Your personalized learning path</OnboardingSubtitle>
       </View>
-
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <ProgressHeader currentStreak={currentStreak} totalXp={totalXp} />
         {isLoading ? (
@@ -53,7 +53,7 @@ export default function LearnScreen() {
           />
         ))}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -61,12 +61,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    padding: 20,
-  },
   scrollView: {
     flex: 1,
-    paddingInline: 10
   },
   lessonGrid: {
     padding: 10,

@@ -3,9 +3,10 @@ import { RNPView } from '@/components/ui/RNPView';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Divider } from 'react-native-paper';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
 export default function WelcomeScreen() {
@@ -31,7 +32,7 @@ export default function WelcomeScreen() {
   }));
 
   return (
-    <View style={[styles.container]}>
+    <SafeAreaView style={[styles.container]}>
       <RNPView style={styles.logoContainer}>
         <Image
           source={require('@/assets/images/icon.png')}
@@ -51,16 +52,15 @@ export default function WelcomeScreen() {
           </NextButton>
         </Animated.View>
       </Animated.View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    alignItems: 'center',
   },
   logoContainer: {
     marginBottom: 40,

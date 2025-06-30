@@ -1,4 +1,3 @@
-import { View } from 'react-native';
 import { RNPText } from '@/components/ui/RNPText';
 import { RNPView } from '@/components/ui/RNPView';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -8,6 +7,7 @@ import LottieView from 'lottie-react-native';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Button, Divider, TextInput } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
@@ -57,7 +57,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <RNPView style={styles.animationContainer}>
         <LottieView
           source={require('@/assets/animations/circle-grow-animation.json')}
@@ -141,7 +141,7 @@ export default function AuthScreen() {
           </Link>
         </RNPView>
       </RNPView>
-    </View>
+    </SafeAreaView>
   );
 }
 

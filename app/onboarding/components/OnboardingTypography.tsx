@@ -1,26 +1,27 @@
 import { RNPText } from '@/components/ui/RNPText';
 import { useAppTheme } from '@/components/ui/theme';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, TextProps } from 'react-native';
 
-interface OnboardingTypographyProps {
+interface OnboardingTypographyProps extends TextProps {
   children: React.ReactNode;
 }
 
-export function OnboardingTitle({ children }: OnboardingTypographyProps) {
+export function OnboardingTitle({ children, style, ...props }: OnboardingTypographyProps) {
+
   const theme = useAppTheme();
 
   return (
-    <RNPText variant="displayMedium" style={[styles.title, { color: theme.colors.primary,textAlign:'center' }]}>
+    <RNPText variant="displayMedium" style={[styles.title, { color: theme.colors.primary, textAlign: 'center' }, style]} {...props}>
       {children}
     </RNPText>
   );
 }
 
-export function OnboardingSubtitle({ children }: OnboardingTypographyProps) {
+export function OnboardingSubtitle({ children, style, ...props }: OnboardingTypographyProps) {
   const theme = useAppTheme();
 
   return (
-    <RNPText variant="titleLarge" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant,textAlign:'center' }]}>
+    <RNPText variant="titleLarge" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant, textAlign: 'center' }, style]} {...props}>
       {children}
     </RNPText>
   );

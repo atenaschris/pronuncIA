@@ -5,8 +5,10 @@ import { DAILY_PRACTICE_TIME_LABELS, LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
 export default function SummaryScreen() {
   const opacity = useSharedValue(0);
@@ -37,7 +39,7 @@ export default function SummaryScreen() {
     try {
       setError(null);
       setIsLoading(true);
-      
+
       // Create profile in anonymous mode initially
       await createOrUpsertProfile({
         language_level: languageLevel,
@@ -46,7 +48,7 @@ export default function SummaryScreen() {
         time_commitment: timeCommitment,
         learning_style: learningStyle,
       }, true); // Set asAnonymous to true
-      
+
       // Proceed with soft login strategy
       setIsComplete(true);
     } catch (error) {
@@ -57,51 +59,47 @@ export default function SummaryScreen() {
   };
 
   return (
-    <View style={[styles.container]}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <Animated.View style={[styles.content, animatedStyle]}>
-          <RNPText variant="displayMedium" style={styles.title}>
-            Summary
-          </RNPText>
-          <RNPText variant="titleLarge" style={styles.subtitle}>
-            Review your information before continuing
-          </RNPText>
-          <RNPView style={styles.summaryContainer}>
-            <RNPView style={styles.summaryItem}>
-              <RNPText variant="titleMedium" style={styles.label}>English Level</RNPText>
-              <RNPText variant="titleMedium" style={styles.value}>{languageLevel ? LANGUAGE_LEVEL_LABELS[languageLevel] : '-'}</RNPText>
-            </RNPView>
-            <RNPView style={styles.summaryItem}>
-              <RNPText variant="titleMedium" style={styles.label}>Native Language</RNPText>
-              <RNPText variant="titleMedium" style={styles.value}>{nativeLanguage ? NATIVE_LANGUAGE_LABELS[nativeLanguage] : '-'}</RNPText>
-            </RNPView>
-            <RNPView style={styles.summaryItem}>
-              <RNPText variant="titleMedium" style={styles.label}>Learning Goal</RNPText>
-              <RNPText variant="titleMedium" style={styles.value}>{learningGoal ? LEARNING_GOAL_LABELS[learningGoal] : '-'}</RNPText>
-            </RNPView>
-            <RNPView style={styles.summaryItem}>
-              <RNPText variant="titleMedium" style={styles.label}>Daily Practice</RNPText>
-              <RNPText variant="titleMedium" style={styles.value}>
-                {timeCommitment ? DAILY_PRACTICE_TIME_LABELS[timeCommitment] : '-'}
-              </RNPText>
-            </RNPView>
-            <RNPView style={styles.summaryItem}>
-              <RNPText variant="titleMedium" style={styles.label}>Learning Style</RNPText>
-              <RNPText variant="titleMedium" style={styles.value}>{learningStyle ? LEARNING_STYLE_LABELS[learningStyle] : '-'}</RNPText>
-            </RNPView>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>Summary</OnboardingTitle>
+        <OnboardingSubtitle>Review your information before continuing</OnboardingSubtitle>
+      </View>
+      <Animated.View style={[styles.content, animatedStyle]}>
+        <RNPView style={styles.summaryContainer}>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>English Level</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>{languageLevel ? LANGUAGE_LEVEL_LABELS[languageLevel] : '-'}</RNPText>
           </RNPView>
-          {error && (
-            <RNPView style={styles.errorContainer}>
-              <RNPText variant="titleMedium" style={styles.errorText}>{error}</RNPText>
-            </RNPView>
-          )}
-        </Animated.View>
-      </ScrollView>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>Native Language</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>{nativeLanguage ? NATIVE_LANGUAGE_LABELS[nativeLanguage] : '-'}</RNPText>
+          </RNPView>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>Learning Goal</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>{learningGoal ? LEARNING_GOAL_LABELS[learningGoal] : '-'}</RNPText>
+          </RNPView>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>Daily Practice</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>
+              {timeCommitment ? DAILY_PRACTICE_TIME_LABELS[timeCommitment] : '-'}
+            </RNPText>
+          </RNPView>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>Learning Style</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>{learningStyle ? LEARNING_STYLE_LABELS[learningStyle] : '-'}</RNPText>
+          </RNPView>
+        </RNPView>
+        {error && (
+          <RNPView style={styles.errorContainer}>
+            <RNPText variant="titleMedium" style={styles.errorText}>{error}</RNPText>
+          </RNPView>
+        )}
+      </Animated.View>
       <NextButton
         loading={isLoading}
         onPress={handleComplete}
       >Start Learning</NextButton>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -122,7 +120,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
   },
   content: {
     flex: 1,
