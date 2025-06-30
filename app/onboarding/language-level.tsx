@@ -1,10 +1,10 @@
 import { NextButton } from '@/components/ui/NextButton';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LANGUAGE_LEVELS } from '../../lib/constants/constants';
 import { OnboardingList } from './components/OnboardingList';
 import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
@@ -26,12 +26,13 @@ export default function LanguageLevelScreen() {
   }));
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>What's your English level?</OnboardingTitle>
+        <OnboardingSubtitle>Select your current level to personalize your learning experience</OnboardingSubtitle>
+      </View>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <Animated.View style={[styles.content, animatedStyle]}>
-          <OnboardingTitle>What's your English level?</OnboardingTitle>
-          <OnboardingSubtitle>Select your current level to personalize your learning experience</OnboardingSubtitle>
-
+        <Animated.View style={[animatedStyle]}>
           <OnboardingList
             options={LANGUAGE_LEVELS}
             selectedValue={languageLevel}
@@ -41,26 +42,21 @@ export default function LanguageLevelScreen() {
         </Animated.View>
       </ScrollView>
       <NextButton
-        title="Continue"
         onPress={() => router.push('/onboarding/native-language')}
-      />
-    </RNESafeAreaView>
+      >
+        Continue
+      </NextButton>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 20,
   },
   scrollView: {
     flex: 1,
   },
-  content: {
-    paddingTop: 40,
-    paddingBottom: 20,
-  },
-  
   levelsContainer: {
     gap: 16,
     marginBottom: 20,

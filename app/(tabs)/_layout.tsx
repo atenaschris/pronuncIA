@@ -1,4 +1,3 @@
-import { useTheme } from '@rneui/themed';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
@@ -7,9 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
+import { useAppTheme } from '@/components/ui/theme';
 
 export default function TabLayout() {
-  const { theme } = useTheme();
+  const theme = useAppTheme();
   const tintColor = theme.colors.primary;
 
   return (

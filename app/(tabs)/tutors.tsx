@@ -1,24 +1,21 @@
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { RNEText } from '@/components/ui/RNEText';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 export default function TutorsScreen() {
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
-      <RNEText h1 style={styles.title}>Tutors</RNEText>
-      <RNEText h3  style={styles.subtitle}>
-        Connect with language experts
-      </RNEText>
-    </RNESafeAreaView>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>Tutors</OnboardingTitle>
+        <OnboardingSubtitle style={{ marginBottom: 20 }}>Connect with language experts</OnboardingSubtitle>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    flex: 1
   },
   title: {
     fontWeight: 'bold',

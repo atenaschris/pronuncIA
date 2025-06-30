@@ -1,37 +1,38 @@
-import { H2, H4 } from '@/components/ui/RNEText';
-import { useTheme } from '@rneui/themed';
-import { StyleSheet } from 'react-native';
+import { RNPText } from '@/components/ui/RNPText';
+import { useAppTheme } from '@/components/ui/theme';
+import { StyleSheet, TextProps } from 'react-native';
 
-interface OnboardingTypographyProps {
+interface OnboardingTypographyProps extends TextProps {
   children: React.ReactNode;
 }
 
-export function OnboardingTitle({ children }: OnboardingTypographyProps) {
-  const { theme } = useTheme();
+export function OnboardingTitle({ children, style, ...props }: OnboardingTypographyProps) {
+
+  const theme = useAppTheme();
 
   return (
-    <H2 style={[styles.title, { color: theme.colors.primary }]}>
+    <RNPText variant="displayMedium" style={[styles.title, { color: theme.colors.primary, textAlign: 'center' }, style]} {...props}>
       {children}
-    </H2>
+    </RNPText>
   );
 }
 
-export function OnboardingSubtitle({ children }: OnboardingTypographyProps) {
-  const { theme } = useTheme();
+export function OnboardingSubtitle({ children, style, ...props }: OnboardingTypographyProps) {
+  const theme = useAppTheme();
 
   return (
-    <H4 style={[styles.subtitle, { color: theme.colors.grey2 }]}>
+    <RNPText variant="titleLarge" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant, textAlign: 'center' }, style]} {...props}>
       {children}
-    </H4>
+    </RNPText>
   );
 }
 
 const styles = StyleSheet.create({
   title: {
     marginBottom: 12,
+    fontWeight: "bold"
   },
   subtitle: {
-    marginBottom: 32,
     lineHeight: 24,
   },
 });

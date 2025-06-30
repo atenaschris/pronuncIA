@@ -10,7 +10,7 @@ export function PortalProvider({ children }: PortalProviderProps) {
   const portals = usePortalStore((state) => state.portals);
 
   return (
-    <>
+    <View style={styles.container}>
       {children}
       <View style={styles.portalContainer} pointerEvents="box-none">
         {Array.from(portals.values()).map((portal, index) => (
@@ -19,13 +19,16 @@ export function PortalProvider({ children }: PortalProviderProps) {
           </View>
         ))}
       </View>
-    </>
+    </View>
   );
 }
 
 
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   portalContainer: {
     position: 'absolute',
     top: 0,

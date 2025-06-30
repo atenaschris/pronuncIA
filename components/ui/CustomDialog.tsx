@@ -1,7 +1,8 @@
-import { RNEView } from '@/components/ui/RNEView';
-import { Dialog, useTheme } from '@rneui/themed';
+import { RNPView } from '@/components/ui/RNPView';
 import React from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
+import { Button, Modal, Portal } from 'react-native-paper';
+import { useAppTheme } from './theme';
 
 interface DialogButton {
   text: string;
@@ -22,7 +23,7 @@ interface CustomDialogProps {
 }
 
 export function CustomDialog({ isVisible, content, onClose }: CustomDialogProps) {
-  const { theme } = useTheme();
+  const theme = useAppTheme();
 
   const handleButtonPress = (button: DialogButton) => {
     onClose();
@@ -30,62 +31,71 @@ export function CustomDialog({ isVisible, content, onClose }: CustomDialogProps)
   };
 
   return (
-    <Dialog
-      isVisible={isVisible}
-      onBackdropPress={onClose}
-      overlayStyle={{
-        borderRadius: 12,
-        borderStyle: 'solid',
-        borderWidth: 1,
-        borderColor: theme.colors.primary,
-      }}
-    >
-      <Dialog.Title
-        title={content.title}
-        titleStyle={{
-          color: theme.colors.black,
-          fontSize: 18,
-          fontWeight: 'bold',
-          textAlign: 'center'
-        }}
-      />
-      <ScrollView
-        style={{ maxHeight: 400, paddingHorizontal: 10 }}
-        showsVerticalScrollIndicator={true}
-        contentContainerStyle={{ paddingBottom: 10 }}
+    <Portal>
+      <Modal
+        visible={isVisible}
+        onDismiss={onClose}
+        contentContainerStyle={[
+          styles.modalContainer,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.primary,
+          }
+        ]}
       >
-      </ScrollView>
-      <Dialog.Actions>
-        <RNEView style={{
-          justifyContent: 'space-around',
-          width: '100%',
-          paddingHorizontal: 10
-        }}>
+        <Text style={[
+          styles.title,
+          { color: theme.colors.onSurface }
+        ]}>
+          {content.title}
+        </Text>
+        
+        <Text style={[
+          styles.message,
+          { color: theme.colors.onSurface }
+        ]}>
+          {content.message}
+        </Text>
+        
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={true}
+          contentContainerStyle={styles.scrollContent}
+        >
+        </ScrollView>
+        
+        <RNPView style={styles.buttonContainer}>
           {content.buttons.map((button, index) => (
-            <Dialog.Button
+            <Button
               key={index}
-              title={button.text}
+              mode={button.style === 'cancel' ? 'outlined' : 'contained'}
               onPress={() => handleButtonPress(button)}
-              buttonStyle={{
-                backgroundColor: button.style === 'destructive'
-                  ? theme.colors.error
-                  : button.style === 'cancel'
-                    ? theme.colors.grey3
-                    : theme.colors.primary,
-                borderRadius: 8,
-                marginVertical: 5,
-                minWidth: 120,
-              }}
-              titleStyle={{
-                color: button.style === 'cancel' ? theme.colors.warning : theme.colors.white,
+              style={[
+                styles.button,
+                {
+                  backgroundColor: button.style === 'destructive'
+                    ? theme.colors.error
+                    : button.style === 'cancel'
+                      ? 'transparent'
+                      : theme.colors.primary,
+                }
+              ]}
+              labelStyle={{
+                color: button.style === 'cancel' 
+                  ? theme.colors.primary 
+                  : button.style === 'destructive'
+                    ? theme.colors.onError
+                    : theme.colors.onPrimary,
                 fontSize: 14,
                 fontWeight: '600'
               }}
-            />
+            >
+              {button.text}
+            </Button>
           ))}
-        </RNEView>
-      </Dialog.Actions>
-    </Dialog>
+        </RNPView>
+      </Modal>
+    </Portal>
   );
 }
 
@@ -115,3 +125,38 @@ export function useCustomDialog() {
     hideDialog
   };
 }
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    margin: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 20,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  message: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  scrollView: {
+    maxHeight: 400,
+  },
+  scrollContent: {
+    paddingBottom: 10,
+  },
+  buttonContainer: {
+    justifyContent: 'space-around',
+    width: '100%',
+  },
+  button: {
+    borderRadius: 8,
+    marginVertical: 5,
+    minWidth: 120,
+  },
+});

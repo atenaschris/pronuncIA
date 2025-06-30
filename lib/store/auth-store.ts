@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
-import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
-import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 
 import { createAnonymousProfile, fetchAndSetProfile, handleError, resetAuthState } from '../helpers/auth-utils';
 import { AuthState, UserPreferences } from '../types/auth-types';
@@ -156,17 +155,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      storage: createJSONStorage(() => ({
-        getItem: async (name: string) => {
-          return await SecureStore.getItemAsync(name);
-        },
-        setItem: async (name: string, value: string) => {
-          await SecureStore.setItemAsync(name, value);
-        },
-        removeItem: async (name: string) => {
-          await SecureStore.deleteItemAsync(name);
-        }
-      } as StateStorage)),
+   /*    storage: createJSONStorage(() => createSecureStorage()), */
     }
   )
 );

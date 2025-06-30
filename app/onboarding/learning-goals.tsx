@@ -1,10 +1,10 @@
 import { NextButton } from '@/components/ui/NextButton';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LEARNING_GOALS } from '../../lib/constants/constants';
 import { OnboardingList } from './components/OnboardingList';
 import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
@@ -24,12 +24,13 @@ export default function LearningGoalsScreen() {
   }));
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>What's your learning goal?</OnboardingTitle>
+        <OnboardingSubtitle>Choose your main focus for learning English pronunciation</OnboardingSubtitle>
+      </View>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <Animated.View style={[styles.content, animatedStyle]}>
-          <OnboardingTitle>What's your learning goal?</OnboardingTitle>
-          <OnboardingSubtitle>Choose your main focus for learning English pronunciation</OnboardingSubtitle>
-
+        <Animated.View style={[animatedStyle]}>
           <OnboardingList
             options={LEARNING_GOALS}
             selectedValue={learningGoal}
@@ -39,27 +40,21 @@ export default function LearningGoalsScreen() {
         </Animated.View>
       </ScrollView>
       <NextButton
-        title="Continue"
         onPress={() => router.push('/onboarding/time-commitment')}
-      />
-    </RNESafeAreaView>
+      >
+        Continue
+      </NextButton>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
   },
   scrollView: {
     flex: 1,
   },
-  content: {
-    paddingTop: 40,
-    paddingBottom: 20,
-  },
-
   goalsContainer: {
     gap: 16,
     marginBottom: 20,

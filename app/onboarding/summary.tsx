@@ -1,14 +1,14 @@
 import { NextButton } from '@/components/ui/NextButton';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { H2, H4, H5 } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
-import { LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS } from '@/lib/constants/constants';
+import { RNPText } from '@/components/ui/RNPText';
+import { RNPView } from '@/components/ui/RNPView';
+import { DAILY_PRACTICE_TIME_LABELS, LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS } from '@/lib/constants/constants';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
 export default function SummaryScreen() {
   const opacity = useSharedValue(0);
@@ -39,7 +39,7 @@ export default function SummaryScreen() {
     try {
       setError(null);
       setIsLoading(true);
-      
+
       // Create profile in anonymous mode initially
       await createOrUpsertProfile({
         language_level: languageLevel,
@@ -48,10 +48,9 @@ export default function SummaryScreen() {
         time_commitment: timeCommitment,
         learning_style: learningStyle,
       }, true); // Set asAnonymous to true
-      
+
       // Proceed with soft login strategy
       setIsComplete(true);
-      router.replace('/(tabs)');
     } catch (error) {
       setError((error as Error).message);
     } finally {
@@ -60,52 +59,47 @@ export default function SummaryScreen() {
   };
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <Animated.View style={[styles.content, animatedStyle]}>
-          <H2 style={styles.title}>
-            Your Learning Profile
-          </H2>
-          <H4 style={styles.subtitle}>
-            Here's a summary of your preferences
-          </H4>
-          <RNEView style={styles.summaryContainer}>
-            <RNEView style={styles.summaryItem}>
-              <H5 style={styles.label}>English Level</H5>
-              <H5 style={styles.value}>{languageLevel ? LANGUAGE_LEVEL_LABELS[languageLevel] : '-'}</H5>
-            </RNEView>
-            <RNEView style={styles.summaryItem}>
-              <H5 style={styles.label}>Native Language</H5>
-              <H5 style={styles.value}>{nativeLanguage ? NATIVE_LANGUAGE_LABELS[nativeLanguage] : '-'}</H5>
-            </RNEView>
-            <RNEView style={styles.summaryItem}>
-              <H5 style={styles.label}>Learning Goal</H5>
-              <H5 style={styles.value}>{learningGoal ? LEARNING_GOAL_LABELS[learningGoal] : '-'}</H5>
-            </RNEView>
-            <RNEView style={styles.summaryItem}>
-              <H5 style={styles.label}>Daily Practice</H5>
-              <H5 style={styles.value}>
-                {timeCommitment} {timeCommitment === "60" ? 'hour' : 'minutes'}
-              </H5>
-            </RNEView>
-            <RNEView style={styles.summaryItem}>
-              <H5 style={styles.label}>Learning Style</H5>
-              <H5 style={styles.value}>{learningStyle ? LEARNING_STYLE_LABELS[learningStyle] : '-'}</H5>
-            </RNEView>
-          </RNEView>
-          {error && (
-            <RNEView style={styles.errorContainer}>
-              <H5 style={styles.errorText}>{error}</H5>
-            </RNEView>
-          )}
-        </Animated.View>
-      </ScrollView>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>Summary</OnboardingTitle>
+        <OnboardingSubtitle>Review your information before continuing</OnboardingSubtitle>
+      </View>
+      <Animated.View style={[styles.content, animatedStyle]}>
+        <RNPView style={styles.summaryContainer}>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>English Level</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>{languageLevel ? LANGUAGE_LEVEL_LABELS[languageLevel] : '-'}</RNPText>
+          </RNPView>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>Native Language</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>{nativeLanguage ? NATIVE_LANGUAGE_LABELS[nativeLanguage] : '-'}</RNPText>
+          </RNPView>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>Learning Goal</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>{learningGoal ? LEARNING_GOAL_LABELS[learningGoal] : '-'}</RNPText>
+          </RNPView>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>Daily Practice</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>
+              {timeCommitment ? DAILY_PRACTICE_TIME_LABELS[timeCommitment] : '-'}
+            </RNPText>
+          </RNPView>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>Learning Style</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>{learningStyle ? LEARNING_STYLE_LABELS[learningStyle] : '-'}</RNPText>
+          </RNPView>
+        </RNPView>
+        {error && (
+          <RNPView style={styles.errorContainer}>
+            <RNPText variant="titleMedium" style={styles.errorText}>{error}</RNPText>
+          </RNPView>
+        )}
+      </Animated.View>
       <NextButton
-        title="Start Learning"
         loading={isLoading}
         onPress={handleComplete}
-      />
-    </RNESafeAreaView>
+      >Start Learning</NextButton>
+    </SafeAreaView>
   );
 }
 
@@ -126,7 +120,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
   },
   content: {
     flex: 1,

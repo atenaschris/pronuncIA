@@ -1,11 +1,11 @@
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { RNEText } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
+import { RNPText } from '@/components/ui/RNPText';
+import { RNPView } from '@/components/ui/RNPView';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { Button, Input } from '@rneui/themed';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
+import { Button, TextInput } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
 const registerSchema = z.object({
@@ -41,53 +41,55 @@ export default function RegisterScreen() {
   };
 
   return (
-    <RNESafeAreaView style={styles.container}>
-      <RNEView style={styles.content}>
-        <RNEText h1 style={styles.title}>
+    <SafeAreaView style={styles.container}>
+      <RNPView style={styles.content}>
+        <RNPText variant="displayLarge" style={styles.title}>
           Create Account
-        </RNEText>
-        <RNEText h3 style={styles.subtitle}>
+        </RNPText>
+        <RNPText variant="headlineSmall" style={styles.subtitle}>
           Start your personalized learning journey
-        </RNEText>
+        </RNPText>
 
-        <Input
-          placeholder="Email"
+        <TextInput
+          label="Email"
+          placeholder="Enter your email"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
-          containerStyle={styles.input}
-          leftIcon={{ type: 'material', name: 'email' }}
+          style={styles.input}
+          mode="outlined"
+          left={<TextInput.Icon icon="email" />}
         />
 
         {error && (
-          <RNEText h4 style={styles.error}>{error}</RNEText>
+          <RNPText variant="titleMedium" style={styles.error}>{error}</RNPText>
         )}
 
         <Button
-          title="Sign Up with Email"
+          mode="contained"
           onPress={handleRegister}
           loading={isLoading}
-          containerStyle={styles.button}
-          raised
-        />
+          style={styles.button}
+        >
+          Sign Up with Email
+        </Button>
 
-        <RNEView style={styles.footer}>
-          <RNEText h3>Already have an account? </RNEText>
+        <RNPView style={styles.footer}>
+          <RNPText variant="headlineSmall">Already have an account? </RNPText>
           <Link href="/auth" asChild>
-            <Button type="clear" title="Sign In" />
+            <Button mode="text">Sign In</Button>
           </Link>
-        </RNEView>
-      </RNEView>
-    </RNESafeAreaView>
+        </RNPView>
+      </RNPView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#fff',
+    flex: 1
   },
   content: {
     flex: 1,

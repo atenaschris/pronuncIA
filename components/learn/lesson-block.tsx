@@ -1,10 +1,10 @@
 import { LESSON_ICONS } from '@/lib/constants/constants';
 import { Lesson, LessonType } from '@/lib/store/lesson-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, useTheme } from '@rneui/themed';
-import { StyleSheet, View } from 'react-native';
-import { RNEText } from '../ui/RNEText';
-import { RNEView } from '../ui/RNEView';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { RNPText } from '../ui/RNPText';
+import { RNPView } from '../ui/RNPView';
+import { useAppTheme } from '../ui/theme';
 
 interface LessonBlockProps {
   lesson: Lesson;
@@ -12,44 +12,47 @@ interface LessonBlockProps {
 }
 
 export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
-  const { theme } = useTheme();
+  const  theme  = useAppTheme();
   const dynamicStyles = {
     container: {
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: theme.colors.primary,
       borderRadius: 30,
     }
   }
   return (
-    <Button
-      containerStyle={[styles.container, dynamicStyles.container, lesson.completed && styles.completed]}
-      onPress={() => onPress(lesson.type)}
-      disabled={lesson.locked}
-      disabledStyle={styles.completed}
-      type="outline"
-    >
-      <RNEView>
-        <View style={styles.titleContainer}>
-          <RNEText h3 h3Style={{color: theme.colors.primary}}>{lesson.title}</RNEText>
-          <MaterialCommunityIcons
-            name={LESSON_ICONS[lesson.type]}
-            size={30}
-            color={lesson.completed ? theme.colors.success : theme.colors.grey4 }
-            style={{ marginLeft: 10 }}
-          />
-        </View>
-        <View style={styles.belowLessonBlockContainer}>
-          <RNEText h4 h4Style={{fontWeight:'300'}}>{lesson.description}</RNEText>
-          <View style={styles.xpAndLessonCompletedIconWrapper}>
-          <RNEText h4 style={{fontWeight: '500',color: theme.colors.success}}>+{lesson.xpReward} XP</RNEText>
-          {lesson.completed && (
-            <MaterialCommunityIcons name="check-circle" size={30} color={theme.colors.success} />
-          )}
+    <RNPView style={[styles.container, dynamicStyles.container, lesson.completed && styles.completed]}>
+      <Pressable
+        onPress={() => onPress(lesson.type)}
+        disabled={lesson.locked}
+        style={({ pressed }) => [
+          styles.pressable,
+          lesson.locked && styles.disabled,
+          pressed && styles.pressed
+        ]}
+      >
+        <View style={styles.content}>
+          <View style={styles.titleContainer}>
+            <RNPText variant="headlineSmall" style={{color: theme.colors.primary}}>{lesson.title}</RNPText>
+            <MaterialCommunityIcons
+              name={LESSON_ICONS[lesson.type]}
+              size={30}
+              color={lesson.completed ? theme.colors.success : theme.colors.grey4 }
+              style={{ marginLeft: 10 }}
+            />
           </View>
-          
+          <View style={styles.belowLessonBlockContainer}>
+            <RNPText variant="titleMedium" style={{fontWeight:'300'}}>{lesson.description}</RNPText>
+            <View style={styles.xpAndLessonCompletedIconWrapper}>
+            <RNPText variant="titleMedium" style={{fontWeight: '500',color: theme.colors.success}}>+{lesson.xpReward} XP</RNPText>
+            {lesson.completed && (
+              <MaterialCommunityIcons name="check-circle" size={30} color={theme.colors.success} />
+            )}
+            </View>
+          </View>
         </View>
-      </RNEView>
-    </Button>
+      </Pressable>
+    </RNPView>
   );
 }
 
@@ -60,20 +63,34 @@ const styles = StyleSheet.create({
   completed: {
     opacity: 0.8,
   },
+  pressable: {
+    width: '100%',
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
   content: {
-    padding: 2,
+    padding: 16,
+    flexDirection: 'column',
+    gap: 5,
   },
   titleContainer: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,  
   },
   belowLessonBlockContainer: {
-    width: '70%',
+    width: '100%',
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
   },

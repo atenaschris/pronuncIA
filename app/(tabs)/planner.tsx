@@ -1,27 +1,23 @@
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { RNEText } from '@/components/ui/RNEText';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 export default function PlannerScreen() {
   return (
-    <RNESafeAreaView style={[styles.container]}>
-      <RNEText h1 style={styles.title} >Planner</RNEText>
-      <RNEText h3 style={styles.subtitle}>
-        Schedule your learning sessions
-      </RNEText>
-    </RNESafeAreaView>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>Planner</OnboardingTitle>
+        <OnboardingSubtitle style={{ marginBottom: 20 }}>Schedule your learning sessions</OnboardingSubtitle>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
   },
   title: {
-
     fontWeight: 'bold',
     marginBottom: 8,
   },

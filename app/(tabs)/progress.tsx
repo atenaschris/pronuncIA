@@ -1,26 +1,24 @@
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { RNEText } from '@/components/ui/RNEText';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 
 export default function ProgressScreen() {
- 
+
   return (
-    <RNESafeAreaView style={[styles.container]}>
-      <RNEText h1 style={styles.title}>Progress</RNEText>
-      <RNEText h3 style={styles.subtitle}>
-        Track your learning journey
-      </RNEText>
-    </RNESafeAreaView>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>Progress</OnboardingTitle>
+        <OnboardingSubtitle style={{ marginBottom: 20 }}>Track your learning journey
+        </OnboardingSubtitle>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
   },
   title: {
     fontWeight: 'bold',

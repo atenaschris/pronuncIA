@@ -1,11 +1,30 @@
-import { createTheme, TextProps } from '@rneui/themed';
+import { MD3DarkTheme, MD3LightTheme, useTheme } from 'react-native-paper';
 
-// Create the theme with both light and dark mode configurations
-export const theme = createTheme({
-  lightColors: {
+// Light theme with custom colors
+export const lightTheme = {
+  ...MD3LightTheme,
+  colors: {
+    ...MD3LightTheme.colors,
     primary: '#0a7ea4',
     secondary: '#4ecdc4',
     background: '#ffffff',
+    surface: '#ffffff',
+    surfaceVariant: '#f5f5f5',
+    onPrimary: '#ffffff',
+    onSecondary: '#000000',
+    onBackground: '#000000',
+    onSurface: '#000000',
+    error: '#ff190c',
+    onError: '#ffffff',
+    outline: '#bbb',
+    outlineVariant: '#e1e8ee',
+    inverseSurface: '#393e42',
+    inverseOnSurface: '#ffffff',
+    inversePrimary: '#2196f3',
+    // Custom colors for compatibility
+    success: '#52c41a',
+    warning: '#faad14',
+    disabled: 'hsl(208, 8%, 90%)',
     white: '#ffffff',
     black: '#000000',
     grey0: '#393e42',
@@ -14,17 +33,34 @@ export const theme = createTheme({
     grey3: '#86939e',
     grey4: '#bdc6cf',
     grey5: '#e1e8ee',
-    greyOutline: '#bbb',
-    searchBg: '#f5f5f5',
-    success: '#52c41a',
-    error: '#ff190c',
-    warning: '#faad14',
-    disabled: 'hsl(208, 8%, 90%)',
-  },
-  darkColors: {
+  } as const,
+} as const;
+
+// Dark theme with custom colors
+export const darkTheme = {
+  ...MD3DarkTheme,
+  colors: {
+    ...MD3DarkTheme.colors,
     primary: '#2196f3',
     secondary: '#00bcd4',
     background: '#121212',
+    surface: '#121212',
+    surfaceVariant: '#1e1e1e',
+    onPrimary: '#ffffff',
+    onSecondary: '#000000',
+    onBackground: '#ffffff',
+    onSurface: '#ffffff',
+    error: '#f44336',
+    onError: '#ffffff',
+    outline: '#757575',
+    outlineVariant: '#9e9e9e',
+    inverseSurface: '#fafafa',
+    inverseOnSurface: '#000000',
+    inversePrimary: '#0a7ea4',
+    // Custom colors for compatibility
+    success: '#4caf50',
+    warning: '#ff9800',
+    disabled: 'hsl(208, 8%, 30%)',
     white: '#ffffff',
     black: '#000000',
     grey0: '#fafafa',
@@ -33,48 +69,11 @@ export const theme = createTheme({
     grey3: '#e0e0e0',
     grey4: '#bdbdbd',
     grey5: '#9e9e9e',
-    greyOutline: '#757575',
-    searchBg: '#1e1e1e',
-    success: '#4caf50',
-    error: '#f44336',
-    warning: '#ff9800',
-    disabled: 'hsl(208, 8%, 30%)',
-  },
-  components: {
-    Button: {
-      buttonStyle: {
-        borderRadius: 30,
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-      },
-      titleStyle: {
-        fontWeight: 'bold',
-      },
-    },
-    Card: {
-      containerStyle: {
-        borderRadius: 12,
-        padding: 16,
-      },
-    },
-    Input: {
-      inputContainerStyle: {
-        borderBottomWidth: 1,
-      },
-    },
-    Text: (props: TextProps) => ({
-      style: {
-        fontSize: props.h1 ? 32
-          : props.h2 ? 28
-          : props.h3 ? 24
-          : props.h4 ? 20
-          : props.h5 ? 16
-          : props.h6 ? 14
-          : undefined,
-        ...(props.h5Style as object || {}),
-        ...(props.h6Style as object || {}),
-      textAlign: 'center',
-      }
-    })
-  },
-});
+  } as const,
+}as const;
+
+export type LightAppTheme = typeof lightTheme;
+export type DarkAppTheme = typeof darkTheme;
+
+export const useAppTheme = () => useTheme<LightAppTheme | DarkAppTheme>();
+

@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+
 export default function ShadowingScreen() {
   return (
     <SafeAreaView style={styles.container}>
@@ -16,7 +17,6 @@ export default function ShadowingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
   },
   content: {
     flex: 1,

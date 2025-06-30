@@ -1,6 +1,6 @@
-import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
-import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { createMMKVStorage, userDataStorage } from '../storage/storage-utils';
 import { EnglishWord, TranslationWord } from '../types/word-pairs';
 import { useOnboardingStore } from './onboarding-store'; // Import onboarding store
 
@@ -314,9 +314,9 @@ export const useLessonStore = create<LessonState>()(persist(
             xpReward: 0, // Initial XP for word_pairs is 0, sum of setBestScores
             completed: false,
             locked: false,
-            totalSets: 10, // Example: 10 sets for word_pairs
+            totalSets: 3, // Example: 10 sets for word_pairs
             completedSets: 0, // Number of unique sets attempted
-            setBestScores: Array(10).fill(0), // Initialize best scores for 10 sets
+            setBestScores: Array(3).fill(0), // Initialize best scores for 10 sets
           },
         ],
         totalXp: 2000,
@@ -1041,15 +1041,5 @@ export const useLessonStore = create<LessonState>()(persist(
 }),
 {
   name: 'lesson-storage',
-  storage: createJSONStorage(() => ({
-    getItem: async (name: string) => {
-      return await SecureStore.getItemAsync(name);
-    },
-    setItem: async (name: string, value: string) => {
-      await SecureStore.setItemAsync(name, value);
-    },
-    removeItem: async (name: string) => {
-      await SecureStore.deleteItemAsync(name);
-    },
-  } as StateStorage)),
+  storage: createJSONStorage(() => createMMKVStorage(userDataStorage)),
 }));

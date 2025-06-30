@@ -1,18 +1,18 @@
-import { RNEText } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
+import { RNPText } from '@/components/ui/RNPText';
 import { Link, Stack } from 'expo-router';
 import { StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotFoundScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Oops!' }} />
-      <RNEView style={styles.container}>
-        <RNEText h1>This screen does not exist.</RNEText>
-        <Link href="/" style={styles.link}>
-          <RNEText h4>Go to home screen!</RNEText>
+      <SafeAreaView style={styles.container}>
+        <RNPText variant="displayLarge">This screen does not exist.</RNPText>
+      <Link href="/" style={styles.link}>
+        <RNPText variant="titleLarge">Go to home screen!</RNPText>
         </Link>
-      </RNEView>
+      </SafeAreaView>
     </>
   );
 }

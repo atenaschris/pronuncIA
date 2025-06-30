@@ -1,10 +1,10 @@
 import { NextButton } from '@/components/ui/NextButton';
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LEARNING_STYLES } from '../../lib/constants/constants';
 import { OnboardingList } from './components/OnboardingList';
 import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
@@ -24,12 +24,13 @@ export default function LearningStyleScreen() {
   }));
 
   return (
-    <RNESafeAreaView style={[styles.container]}>
+    <SafeAreaView style={[styles.container]}>
+      <View>
+        <OnboardingTitle>How do you learn best?</OnboardingTitle>
+        <OnboardingSubtitle>Select your preferred learning style for personalized exercises</OnboardingSubtitle>
+      </View>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <Animated.View style={[styles.content, animatedStyle]}>
-          <OnboardingTitle>How do you learn best?</OnboardingTitle>
-          <OnboardingSubtitle>Select your preferred learning style for personalized exercises</OnboardingSubtitle>
-
+        <Animated.View style={[animatedStyle]}>
           <OnboardingList
             options={LEARNING_STYLES}
             selectedValue={learningStyle}
@@ -39,27 +40,22 @@ export default function LearningStyleScreen() {
         </Animated.View>
       </ScrollView>
       <NextButton
-        title="Continue"
         onPress={() => router.push('/onboarding/summary')}
-      />
-    </RNESafeAreaView>
+      >
+        Continue
+      </NextButton>
+    </SafeAreaView>
+
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
   },
   scrollView: {
     flex: 1,
   },
-  content: {
-    paddingTop: 40,
-    paddingBottom: 20,
-  },
-
   stylesContainer: {
     gap: 16,
     marginBottom: 20,

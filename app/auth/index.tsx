@@ -1,14 +1,13 @@
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { RNEText } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
+import { RNPText } from '@/components/ui/RNPText';
+import { RNPView } from '@/components/ui/RNPView';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { Button } from '@rneui/themed';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Link } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
-import { TextInput } from 'react-native-paper';
+import { Button, Divider, TextInput } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
@@ -58,23 +57,23 @@ export default function AuthScreen() {
   };
 
   return (
-    <RNESafeAreaView style={styles.container}>
-      <RNEView style={styles.animationContainer}>
+    <SafeAreaView style={styles.container}>
+      <RNPView style={styles.animationContainer}>
         <LottieView
           source={require('@/assets/animations/circle-grow-animation.json')}
           autoPlay
           loop
           style={styles.animation}
         />
-      </RNEView>
+      </RNPView>
 
-      <RNEView style={styles.content}>
-        <RNEText h1 style={styles.title}>
+      <RNPView style={styles.content}>
+        <RNPText variant="displayLarge" style={styles.title}>
           Welcome Back
-        </RNEText>
-        <RNEText h3 style={styles.subtitle}>
+        </RNPText>
+        <RNPText variant="headlineSmall" style={styles.subtitle}>
           Sign in to access your personalized learning experience
-        </RNEText>
+        </RNPText>
 
         <TextInput
           label="Email"
@@ -84,60 +83,65 @@ export default function AuthScreen() {
           autoComplete="email"
           keyboardType="email-address"
           style={styles.input}
+          mode="outlined"
         />
 
         {error && (
-          <RNEText h4 style={styles.error}>{error}</RNEText>
+          <RNPText variant="titleMedium" style={styles.error}>{error}</RNPText>
         )}
 
         <Button
-          title="Continue with Email"
+          mode="contained"
           onPress={handleEmailSignIn}
           loading={isLoading}
-          containerStyle={styles.button}
-          raised
-        />
+          style={styles.button}
+        >
+          Continue with Email
+        </Button>
 
         <Button
-          title="Use Biometrics"
+          mode="outlined"
           onPress={handleBiometricAuth}
-          icon={{ name: 'fingerprint', type: 'material' }}
-          containerStyle={styles.button}
-          type="outline"
-        />
+          icon="fingerprint"
+          style={styles.button}
+        >
+          Use Biometrics
+        </Button>
 
-        <RNEView style={styles.divider}>
-          <RNEView style={styles.line} />
-          <RNEText style={styles.orText}>or</RNEText>
-          <RNEView style={styles.line} />
-        </RNEView>
+        <RNPView style={styles.divider}>
+          <Divider style={styles.line} />
+          <RNPText style={styles.orText}>or</RNPText>
+          <Divider style={styles.line} />
+        </RNPView>
 
         <Button
-          title="Continue with Google"
-          icon={{ name: 'google', type: 'font-awesome' }}
-          containerStyle={styles.button}
-          type="outline"
+          mode="outlined"
+          icon="google"
+          style={styles.button}
           // TODO: Implement Google Sign In
           onPress={() => {}}
-        />
+        >
+          Continue with Google
+        </Button>
 
         <Button
-          title="Continue with Apple"
-          icon={{ name: 'apple', type: 'font-awesome' }}
-          containerStyle={styles.button}
-          type="outline"
+          mode="outlined"
+          icon="apple"
+          style={styles.button}
           // TODO: Implement Apple Sign In
           onPress={() => {}}
-        />
+        >
+          Continue with Apple
+        </Button>
 
-        <RNEView style={styles.footer}>
-          <RNEText h3>Don't have an account? </RNEText>
+        <RNPView style={styles.footer}>
+          <RNPText variant="headlineSmall">Don't have an account? </RNPText>
           <Link href="/auth/register" asChild>
-            <Button type="clear" title="Sign Up" />
+            <Button mode="text">Sign Up</Button>
           </Link>
-        </RNEView>
-      </RNEView>
-    </RNESafeAreaView>
+        </RNPView>
+      </RNPView>
+    </SafeAreaView>
   );
 }
 

@@ -1,30 +1,22 @@
-import { RNESafeAreaView } from '@/components/ui/RNESafeAreaView';
-import { RNEText } from '@/components/ui/RNEText';
-import { RNEView } from '@/components/ui/RNEView';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
+
 
 export default function ProfileScreen() {
   return (
-    <RNESafeAreaView style={styles.container}>
-      <RNEView style={styles.header}>
-        <RNEText h1 style={styles.title}>
-          Profile
-        </RNEText>
-      </RNEView>
-
-      <RNEView style={styles.content}>
-        <RNEText h3 style={styles.text}>
-          Your profile information and settings will appear here.
-        </RNEText>
-      </RNEView>
-    </RNESafeAreaView>
+    <SafeAreaView style={styles.container}>
+       <View>
+        <OnboardingTitle>Profile</OnboardingTitle>
+        <OnboardingSubtitle style={{ marginBottom: 20 }}>Your profile information and settings will appear here.</OnboardingSubtitle>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 20,
   },
   header: {
     paddingVertical: 20,
