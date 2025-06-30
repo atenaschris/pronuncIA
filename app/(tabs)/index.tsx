@@ -64,42 +64,6 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  lessonGrid: {
-    padding: 10,
-    gap: 15,
-  },
-  lessonCard: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  lessonContent: {
-    padding: 20,
-    borderRadius: 12,
-    backgroundColor: '#f0f0f0',
-  },
-  lessonTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  lessonSubtitle: {
-    fontSize: 16,
-    opacity: 0.7,
-    marginBottom: 12,
-  },
-  xpBadge: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-  },
-  xpText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
   loadingText: {
     fontSize: 16,
     textAlign: 'center',

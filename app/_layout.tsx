@@ -56,8 +56,8 @@ export default function RootLayout() {
    const SafeAreaProviderStyles = {
     container: {
       backgroundColor: theme.colors.background,
-      paddingLeft: 10, 
-      paddingRight: 10
+      paddingLeft: 5, 
+      paddingRight: 5
     },
   };
 

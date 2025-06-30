@@ -60,40 +60,5 @@ const styles = StyleSheet.create({
   levelsContainer: {
     gap: 16,
     marginBottom: 20,
-  },
-  levelButton: {
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#e0e0e0',
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  selectedLevel: {
-    backgroundColor: '#0a7ea4',
-    borderColor: '#0a7ea4',
-    shadowOpacity: 0.15,
-    elevation: 4,
-  },
-  levelLabel: {
-    marginBottom: 8,
-    color: '#1a1a1a',
-  },
-  levelDescription: {
-    opacity: 0.8,
-    lineHeight: 22,
-    color: '#4a4a4a',
-  },
-  selectedText: {
-    color: '#fff',
-    opacity: 1,
-  },
-  nextButton: {
-    marginHorizontal: 20,
-    marginVertical: 20,
-  },
+  }
 });
