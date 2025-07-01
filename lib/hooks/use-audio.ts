@@ -38,5 +38,30 @@ import { useEffect, useState } from "react";
     };
   }, []);
 
-  return { correctSound, incorrectSound, winningSound };
+  const playCorrect = async () => {
+    if (correctSound) {
+      await correctSound.replayAsync();
+    }
+  };
+
+  const playIncorrect = async () => {
+    if (incorrectSound) {
+      await incorrectSound.replayAsync();
+    }
+  };
+
+  const playWin = async () => {
+    if (winningSound) {
+      await winningSound.replayAsync();
+    }
+  };
+
+  return { 
+    correctSound, 
+    incorrectSound, 
+    winningSound,
+    playCorrect,
+    playIncorrect,
+    playWin
+  };
   }

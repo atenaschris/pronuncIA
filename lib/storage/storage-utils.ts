@@ -3,7 +3,8 @@ import { MMKV } from 'react-native-mmkv';
 import { StateStorage } from 'zustand/middleware';
 
 // Create MMKV instances for different data types
-export const appStorage = new MMKV({
+export const appStorage = new 
+MMKV({
   id: 'app-storage',
   encryptionKey: undefined, // No encryption for non-sensitive data
 });

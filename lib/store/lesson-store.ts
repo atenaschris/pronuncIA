@@ -62,9 +62,35 @@ export interface WordPairsState {
   isGoingBack: boolean; // Whether user is going back From Go Back Modal
 }
 
-// Placeholder interfaces for other lesson types
+// Vocabulary lesson interfaces
+export interface VocabularyWord {
+  id: string;
+  word: string;
+  phonetic: string;
+  audioUrl?: string;
+  definition: string;
+  example: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  soundType: 'consonant' | 'vowel' | 'mixed';
+  targetSound: string; // The specific sound to focus on (e.g., 'th', 'r', 'æ')
+}
+
 export interface VocabularyState {
-  // Vocabulary-specific session state
+  words: VocabularyWord[];
+  currentWordIndex: number;
+  score: number;
+  attempts: number;
+  maxAttempts: number;
+  lessonCompleted: boolean;
+  userRecordings: string[]; // URLs or base64 of user recordings
+  aiScores: number[]; // AI pronunciation scores for each word (0-100)
+  feedback: string | null; // AI feedback text
+  showFeedback: boolean;
+  pronunciationAccuracy: number; // Overall accuracy percentage
+  wordsCompleted: number;
+  totalWords: number;
+  sessionStartTime: number | null;
+  sessionDuration: number;
 }
 
 export interface ListeningState {
@@ -131,6 +157,23 @@ interface LessonState {
   setIsGoingBack: (lessonId: string, isGoingBack: boolean) => void;
   // Helper methods
   initializeLessonSessionState: (lessonId: string, lessonType: LessonType) => void;
+  
+  // Vocabulary-specific actions
+  getVocabularyState: (lessonId: string) => VocabularyState | null;
+  setVocabularyWords: (lessonId: string, words: VocabularyWord[]) => void;
+  setCurrentWordIndex: (lessonId: string, index: number) => void;
+  setVocabularyScore: (lessonId: string, score: number) => void;
+  incrementVocabularyAttempts: (lessonId: string) => void;
+  setVocabularyCompleted: (lessonId: string, completed: boolean) => void;
+  addUserRecording: (lessonId: string, recording: string) => void;
+  addAIScore: (lessonId: string, score: number) => void;
+  setFeedback: (lessonId: string, feedback: string | null) => void;
+  setShowFeedback: (lessonId: string, show: boolean) => void;
+  updatePronunciationAccuracy: (lessonId: string) => void;
+  incrementWordsCompleted: (lessonId: string) => void;
+  startVocabularySession: (lessonId: string) => void;
+  updateSessionDuration: (lessonId: string) => void;
+  resetVocabularyLesson: (lessonId: string) => void;
 }
 
 export const useLessonStore = create<LessonState>()(persist(
@@ -368,6 +411,25 @@ export const useLessonStore = create<LessonState>()(persist(
                 pauseCount: 0,
                 isGoingBack: false,
               } as WordPairsState;
+              break;
+            case 'vocabulary':
+              sessionState = {
+                words: [],
+                currentWordIndex: 0,
+                score: 0,
+                attempts: 0,
+                maxAttempts: 3,
+                lessonCompleted: false,
+                userRecordings: [],
+                aiScores: [],
+                feedback: null,
+                showFeedback: false,
+                pronunciationAccuracy: 0,
+                wordsCompleted: 0,
+                totalWords: 0,
+                sessionStartTime: null,
+                sessionDuration: 0,
+              } as VocabularyState;
               break;
             default:
               sessionState = {};
@@ -1038,6 +1100,395 @@ export const useLessonStore = create<LessonState>()(persist(
       },
     })
   },
+
+  // Vocabulary-specific actions implementation
+  getVocabularyState: (lessonId: string) => {
+    const { dailyPlan } = get();
+    if (!dailyPlan) return null;
+    
+    const lesson = dailyPlan.lessons.find(l => l.id === lessonId);
+    return lesson?.sessionState as VocabularyState || null;
+  },
+
+  setVocabularyWords: (lessonId: string, words: VocabularyWord[]) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            words,
+            totalWords: words.length,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  setCurrentWordIndex: (lessonId: string, index: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            currentWordIndex: index,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  setVocabularyScore: (lessonId: string, score: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            score,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  incrementVocabularyAttempts: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            attempts: currentState.attempts + 1,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  setVocabularyCompleted: (lessonId: string, completed: boolean) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            lessonCompleted: completed,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  addUserRecording: (lessonId: string, recording: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            userRecordings: [...currentState.userRecordings, recording],
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  addAIScore: (lessonId: string, score: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            aiScores: [...currentState.aiScores, score],
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  setFeedback: (lessonId: string, feedback: string | null) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            feedback,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  setShowFeedback: (lessonId: string, show: boolean) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            showFeedback: show,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  updatePronunciationAccuracy: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        const accuracy = currentState.aiScores.length > 0 
+          ? currentState.aiScores.reduce((sum, score) => sum + score, 0) / currentState.aiScores.length
+          : 0;
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            pronunciationAccuracy: accuracy,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  incrementWordsCompleted: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            wordsCompleted: currentState.wordsCompleted + 1,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  startVocabularySession: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            sessionStartTime: Date.now(),
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  updateSessionDuration: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        const duration = currentState.sessionStartTime 
+          ? Math.floor((Date.now() - currentState.sessionStartTime) / 1000)
+          : 0;
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            sessionDuration: duration,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  resetVocabularyLesson: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId) {
+        return {
+          ...lesson,
+          completed: false,
+          xpReward: 0,
+          sessionState: {
+            words: [],
+            currentWordIndex: 0,
+            score: 0,
+            attempts: 0,
+            maxAttempts: 3,
+            lessonCompleted: false,
+            userRecordings: [],
+            aiScores: [],
+            feedback: null,
+            showFeedback: false,
+            pronunciationAccuracy: 0,
+            wordsCompleted: 0,
+            totalWords: 0,
+            sessionStartTime: null,
+            sessionDuration: 0,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
 }),
 {
   name: 'lesson-storage',
