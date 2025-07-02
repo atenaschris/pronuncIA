@@ -89,8 +89,19 @@ export interface VocabularyState {
   pronunciationAccuracy: number; // Overall accuracy percentage
   wordsCompleted: number;
   totalWords: number;
-  sessionStartTime: number | null;
-  sessionDuration: number;
+
+  // Word-level timing (similar to set timing in word-pairs)
+  wordTimers: number[]; // Array of completion times for each word (in seconds)
+  currentWordStartTime: number | null; // Timestamp when current word started
+  currentWordElapsedTime: number; // Current elapsed time for the active word (in seconds)
+  totalSessionTime: number; // Total time spent across all words in this session (in seconds)
+  isPaused: boolean; // Whether the current word timer is paused
+  pauseStartTime: number | null; // Timestamp when pause started
+  totalPauseTime: number; // Total time spent paused in current word (in seconds)
+  pauseCount: number; // Number of times user has paused in current word
+  // XP calculation fields
+  wordXpScores: number[]; // XP earned for each word based on AI scores and timing
+  currentTimeBonusXP: number; // Current accumulated time bonus XP
 }
 
 export interface ListeningState {
@@ -171,9 +182,20 @@ interface LessonState {
   setShowFeedback: (lessonId: string, show: boolean) => void;
   updatePronunciationAccuracy: (lessonId: string) => void;
   incrementWordsCompleted: (lessonId: string) => void;
-  startVocabularySession: (lessonId: string) => void;
-  updateSessionDuration: (lessonId: string) => void;
+
+
+  // Vocabulary timer methods
+  startWordTimer: (lessonId: string) => void;
+  stopWordTimer: (lessonId: string) => void;
+  updateCurrentWordElapsedTime: (lessonId: string) => void;
+  pauseWordTimer: (lessonId: string) => void;
+  resumeWordTimer: (lessonId: string) => void;
+  resetVocabularyTimers: (lessonId: string) => void;
   resetVocabularyLesson: (lessonId: string) => void;
+  clearWordTimer: (lessonId: string, wordIndex: number) => void;
+  addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => void;
+  addWordXP: (lessonId: string, wordXP: number) => void;
+  calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number) => number;
 }
 
 export const useLessonStore = create<LessonState>()(persist(
@@ -427,8 +449,19 @@ export const useLessonStore = create<LessonState>()(persist(
                 pronunciationAccuracy: 0,
                 wordsCompleted: 0,
                 totalWords: 0,
-                sessionStartTime: null,
-                sessionDuration: 0,
+
+                // Word-level timing
+                wordTimers: [],
+                currentWordStartTime: null,
+                currentWordElapsedTime: 0,
+                totalSessionTime: 0,
+                isPaused: false,
+                pauseStartTime: null,
+                totalPauseTime: 0,
+                pauseCount: 0,
+                // XP calculation fields
+                wordXpScores: [],
+                currentTimeBonusXP: 0,
               } as VocabularyState;
               break;
             default:
@@ -1395,16 +1428,27 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
 
-  startVocabularySession: (lessonId: string) => set((state) => {
+
+
+
+
+  // Vocabulary timer methods
+  startWordTimer: (lessonId: string) => set((state) => {
     if (!state.dailyPlan) return state;
     
     const updatedLessons = state.dailyPlan.lessons.map(lesson => {
       if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
         return {
           ...lesson,
           sessionState: {
-            ...lesson.sessionState,
-            sessionStartTime: Date.now(),
+            ...currentState,
+            currentWordStartTime: Date.now(),
+            currentWordElapsedTime: 0,
+            isPaused: false,
+            pauseStartTime: null,
+            totalPauseTime: 0,
+            pauseCount: 0,
           } as VocabularyState,
         };
       }
@@ -1420,21 +1464,159 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
 
-  updateSessionDuration: (lessonId: string) => set((state) => {
+  stopWordTimer: (lessonId: string) => set((state) => {
     if (!state.dailyPlan) return state;
     
     const updatedLessons = state.dailyPlan.lessons.map(lesson => {
       if (lesson.id === lessonId && lesson.sessionState) {
         const currentState = lesson.sessionState as VocabularyState;
-        const duration = currentState.sessionStartTime 
-          ? Math.floor((Date.now() - currentState.sessionStartTime) / 1000)
-          : 0;
-        
+        if (currentState.currentWordStartTime) {
+          // If paused, add current pause duration to total pause time
+          let totalPauseTime = currentState.totalPauseTime || 0;
+          if (currentState.isPaused && currentState.pauseStartTime) {
+            totalPauseTime += Math.floor((Date.now() - currentState.pauseStartTime) / 1000);
+          }
+          
+          const completionTime = Math.floor((Date.now() - currentState.currentWordStartTime - totalPauseTime * 1000) / 1000);
+          const newWordTimers = [...currentState.wordTimers];
+          newWordTimers[currentState.currentWordIndex] = completionTime;
+          
+          return {
+            ...lesson,
+            sessionState: {
+              ...currentState,
+              wordTimers: newWordTimers,
+              currentWordStartTime: null,
+              currentWordElapsedTime: completionTime,
+              totalSessionTime: currentState.totalSessionTime + completionTime,
+              isPaused: false,
+              pauseStartTime: null,
+              totalPauseTime: 0,
+              pauseCount: 0,
+            } as VocabularyState,
+          };
+        }
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  updateCurrentWordElapsedTime: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        if (currentState.currentWordStartTime && !currentState.isPaused) {
+          const elapsedTime = Math.floor((Date.now() - currentState.currentWordStartTime - (currentState.totalPauseTime || 0) * 1000) / 1000);
+          return {
+            ...lesson,
+            sessionState: {
+              ...currentState,
+              currentWordElapsedTime: elapsedTime,
+            } as VocabularyState,
+          };
+        }
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  pauseWordTimer: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        if (currentState.currentWordStartTime && !currentState.isPaused) {
+          return {
+            ...lesson,
+            sessionState: {
+              ...currentState,
+              isPaused: true,
+              pauseStartTime: Date.now(),
+              pauseCount: currentState.pauseCount + 1,
+            } as VocabularyState,
+          };
+        }
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  resumeWordTimer: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        if (currentState.isPaused && currentState.pauseStartTime) {
+          const pauseDuration = Math.floor((Date.now() - currentState.pauseStartTime) / 1000);
+          return {
+            ...lesson,
+            sessionState: {
+              ...currentState,
+              isPaused: false,
+              pauseStartTime: null,
+              totalPauseTime: (currentState.totalPauseTime || 0) + pauseDuration,
+            } as VocabularyState,
+          };
+        }
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  resetVocabularyTimers: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
         return {
           ...lesson,
           sessionState: {
             ...currentState,
-            sessionDuration: duration,
+            wordTimers: [],
+            currentWordStartTime: null,
+            currentWordElapsedTime: 0,
+            totalSessionTime: 0,
+            isPaused: false,
+            pauseStartTime: null,
+            totalPauseTime: 0,
+            pauseCount: 0,
           } as VocabularyState,
         };
       }
@@ -1453,12 +1635,19 @@ export const useLessonStore = create<LessonState>()(persist(
   resetVocabularyLesson: (lessonId: string) => set((state) => {
     if (!state.dailyPlan) return state;
     
+    // Find the lesson to get its current xpReward and completion status
+    const lessonToReset = state.dailyPlan.lessons.find(lesson => lesson.id === lessonId);
+    if (!lessonToReset) return state;
+    
+    const wasCompleted = lessonToReset.completed;
+    const currentLessonXp = lessonToReset.xpReward || 0;
+    
     const updatedLessons = state.dailyPlan.lessons.map(lesson => {
       if (lesson.id === lessonId) {
         return {
           ...lesson,
-          completed: false,
           xpReward: 0,
+          completed: false,
           sessionState: {
             words: [],
             currentWordIndex: 0,
@@ -1473,8 +1662,55 @@ export const useLessonStore = create<LessonState>()(persist(
             pronunciationAccuracy: 0,
             wordsCompleted: 0,
             totalWords: 0,
-            sessionStartTime: null,
-            sessionDuration: 0,
+            wordTimers: [],
+            currentWordStartTime: null,
+            currentWordElapsedTime: 0,
+            totalSessionTime: 0,
+            isPaused: false,
+            pauseStartTime: null,
+            totalPauseTime: 0,
+            pauseCount: 0,
+            wordXpScores: [],
+            currentTimeBonusXP: 0,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    // Calculate new global state values
+    const newTotalXp = Math.max(0, state.totalXp - currentLessonXp);
+    const newCurrentStreak = wasCompleted ? Math.max(0, state.currentStreak - 1) : state.currentStreak;
+    const newCompletedLessonsCount = wasCompleted ? Math.max(0, state.dailyPlan.completedLessons - 1) : state.dailyPlan.completedLessons;
+    const newDailyPlanTotalXp = Math.max(0, state.dailyPlan.totalXp - currentLessonXp);
+    
+    return {
+      ...state,
+      totalXp: newTotalXp,
+      currentStreak: newCurrentStreak,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+        totalXp: newDailyPlanTotalXp,
+        completedLessons: newCompletedLessonsCount,
+      },
+    };
+  }),
+
+  clearWordTimer: (lessonId: string, wordIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        const newWordTimers = [...currentState.wordTimers];
+        delete newWordTimers[wordIndex]; // Remove the timer for this specific word
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            wordTimers: newWordTimers,
           } as VocabularyState,
         };
       }
@@ -1489,6 +1725,122 @@ export const useLessonStore = create<LessonState>()(persist(
       },
     };
   }),
+
+  addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => {
+    const { dailyPlan, totalXp } = get();
+    if (!dailyPlan) return;
+
+    let bonusDifference = 0;
+    const updatedLessons = dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        // Calculate the difference between new and current time bonus
+        const currentBonus = currentState.currentTimeBonusXP || 0;
+        bonusDifference = bonusXP - currentBonus;
+        
+        return {
+          ...lesson,
+          xpReward: lesson.xpReward + bonusDifference,
+          sessionState: {
+            ...currentState,
+            currentTimeBonusXP: bonusXP,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+
+    // Update totalXp to reflect the time bonus change
+    set({
+      totalXp: totalXp + bonusDifference,
+      dailyPlan: {
+        ...dailyPlan,
+        lessons: updatedLessons,
+      },
+    });
+  },
+
+  addWordXP: (lessonId: string, wordXP: number) => {
+    const { dailyPlan, totalXp } = get();
+    if (!dailyPlan) return;
+
+    const updatedLessons = dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId) {
+        return {
+          ...lesson,
+          xpReward: lesson.xpReward + wordXP,
+        };
+      }
+      return lesson;
+    });
+
+    set({
+      totalXp: totalXp + wordXP,
+      dailyPlan: {
+        ...dailyPlan,
+        lessons: updatedLessons,
+      },
+    });
+  },
+
+  calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number) => {
+    const { dailyPlan } = get();
+    if (!dailyPlan) return 0;
+    
+    const lesson = dailyPlan.lessons.find(l => l.id === lessonId);
+    if (!lesson?.sessionState) return 0;
+    
+    const vocabularyState = lesson.sessionState as VocabularyState;
+    const wordTimer = vocabularyState.wordTimers[wordIndex];
+    
+    // Base XP from AI score (0-100 maps to 0-50 XP)
+    const baseXP = Math.floor(aiScore / 2);
+    
+    // Time bonus: faster completion = more bonus XP
+    let timeBonus = 0;
+    if (wordTimer) {
+      // Bonus decreases as time increases (max 20 bonus XP for very fast completion)
+      const maxTimeForBonus = 30; // seconds
+      const maxBonus = 20;
+      if (wordTimer <= maxTimeForBonus) {
+        timeBonus = Math.floor(maxBonus * (1 - wordTimer / maxTimeForBonus));
+      }
+    }
+    
+    const totalXP = baseXP + timeBonus;
+    
+    // Update the word XP scores array
+    set((state) => {
+      if (!state.dailyPlan) return state;
+      
+      const updatedLessons = state.dailyPlan.lessons.map(lessonItem => {
+        if (lessonItem.id === lessonId && lessonItem.sessionState) {
+          const currentState = lessonItem.sessionState as VocabularyState;
+          const newWordXpScores = [...currentState.wordXpScores];
+          newWordXpScores[wordIndex] = totalXP;
+          
+          return {
+            ...lessonItem,
+            sessionState: {
+              ...currentState,
+              wordXpScores: newWordXpScores,
+            } as VocabularyState,
+          };
+        }
+        return lessonItem;
+      });
+      
+      return {
+        ...state,
+        dailyPlan: {
+          ...state.dailyPlan,
+          lessons: updatedLessons,
+        },
+      };
+    });
+    
+    return totalXP;
+  }
 }),
 {
   name: 'lesson-storage',
