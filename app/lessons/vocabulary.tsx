@@ -56,12 +56,10 @@ export default function VocabularyScreen() {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
+  // Initialize lesson only once on mount
   useEffect(() => {
     initializeLesson();
-    return () => {
-      cleanup();
-    };
-  }, [cleanup]);
+  }, [lessonId]); // Only depend on lessonId to reinitialize when lesson changes
 
   // Update session duration periodically
   useEffect(() => {
@@ -74,12 +72,12 @@ export default function VocabularyScreen() {
     return () => clearInterval(interval);
   }, [vocabularyState?.lessonCompleted, lessonId, updateSessionDuration]);
 
-  // Cleanup on unmount
+  // Cleanup recording on unmount only
   useEffect(() => {
     return () => {
       cleanup();
     };
-  }, [cleanup]);
+  }, []); // No dependencies - only cleanup on unmount
 
   const initializeLesson = async () => {
     resetVocabularyLesson(lessonId!);
@@ -87,8 +85,6 @@ export default function VocabularyScreen() {
     const words = VOCABULARY_WORD_SETS.consonants_th;
     setVocabularyWords(lessonId!,words);
     startVocabularySession(lessonId!);
-
-    
     // Animate progress bar
     Animated.timing(progressAnim, {
       toValue: 0,
