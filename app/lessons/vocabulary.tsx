@@ -44,10 +44,18 @@ export default function VocabularyScreen() {
     recordingDuration,
     setIsProcessing,
     setRecordingUri,
-    startRecording,
+    startRecording: originalStartRecording,
     stopRecording,
     cleanup,
   } = useRecording();
+
+  // Enhanced startRecording that resets feedback state
+  const startRecording = useCallback(() => {
+    // Reset feedback state to allow new feedback after recording
+    setShowFeedback(lessonId!, false);
+    setFeedback(lessonId!, '');
+    originalStartRecording();
+  }, [originalStartRecording, setShowFeedback, setFeedback, lessonId]);
   
   const [error, setError] = useState<string | null>(null);
   
@@ -213,6 +221,7 @@ export default function VocabularyScreen() {
   }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, setFeedback, setShowFeedback, incrementVocabularyAttempts, vocabularyState?.score, setVocabularyScore, incrementWordsCompleted, playCorrect, playIncorrect]);
 
   const simulateAIFeedback = async (uri: string) => {
+    debugger;
     setIsProcessing(true);
     
     // Simulate AI processing delay
