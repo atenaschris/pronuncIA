@@ -220,6 +220,272 @@ export const WORD_PAIR_SETS = {
 
 export const WORD_PAIRS_SET_KEYS = Object.keys(WORD_PAIR_SETS) as (keyof typeof WORD_PAIR_SETS)[];
 
+// Vocabulary words for pronunciation practice
+export const VOCABULARY_WORD_SETS = {
+  consonants_th: [
+    {
+      id: 'th1',
+      word: 'think',
+      phonetic: '/θɪŋk/',
+      definition: 'to use your mind to consider something',
+      example: 'I think this is a good idea.',
+      difficulty: 'easy' as const,
+      soundType: 'consonant' as const,
+      targetSound: 'θ'
+    },
+    {
+      id: 'th2',
+      word: 'three',
+      phonetic: '/θriː/',
+      definition: 'the number 3',
+      example: 'I have three apples.',
+      difficulty: 'easy' as const,
+      soundType: 'consonant' as const,
+      targetSound: 'θ'
+    },
+    {
+      id: 'th3',
+      word: 'thank',
+      phonetic: '/θæŋk/',
+      definition: 'to express gratitude',
+      example: 'Thank you for your help.',
+      difficulty: 'easy' as const,
+      soundType: 'consonant' as const,
+      targetSound: 'θ'
+    },
+    {
+      id: 'th4',
+      word: 'this',
+      phonetic: '/ðɪs/',
+      definition: 'used to indicate something near',
+      example: 'This book is interesting.',
+      difficulty: 'easy' as const,
+      soundType: 'consonant' as const,
+      targetSound: 'ð'
+    },
+    {
+      id: 'th5',
+      word: 'that',
+      phonetic: '/ðæt/',
+      definition: 'used to indicate something distant',
+      example: 'That car is red.',
+      difficulty: 'easy' as const,
+      soundType: 'consonant' as const,
+      targetSound: 'ð'
+    }
+  ],
+  consonants_r: [
+    {
+      id: 'r1',
+      word: 'red',
+      phonetic: '/red/',
+      definition: 'the color of blood',
+      example: 'The rose is red.',
+      difficulty: 'easy' as const,
+      soundType: 'consonant' as const,
+      targetSound: 'r'
+    },
+    {
+      id: 'r2',
+      word: 'run',
+      phonetic: '/rʌn/',
+      definition: 'to move quickly on foot',
+      example: 'I run every morning.',
+      difficulty: 'easy' as const,
+      soundType: 'consonant' as const,
+      targetSound: 'r'
+    },
+    {
+      id: 'r3',
+      word: 'right',
+      phonetic: '/raɪt/',
+      definition: 'correct or the opposite of left',
+      example: 'Turn right at the corner.',
+      difficulty: 'medium' as const,
+      soundType: 'consonant' as const,
+      targetSound: 'r'
+    },
+    {
+      id: 'r4',
+      word: 'really',
+      phonetic: '/ˈriːəli/',
+      definition: 'truly or very much',
+      example: 'I really like this song.',
+      difficulty: 'medium' as const,
+      soundType: 'consonant' as const,
+      targetSound: 'r'
+    },
+    {
+      id: 'r5',
+      word: 'around',
+      phonetic: '/əˈraʊnd/',
+      definition: 'in a circle or nearby',
+      example: 'Walk around the park.',
+      difficulty: 'medium' as const,
+      soundType: 'consonant' as const,
+      targetSound: 'r'
+    }
+  ],
+  vowels_short: [
+    {
+      id: 'v1',
+      word: 'cat',
+      phonetic: '/kæt/',
+      definition: 'a small domestic animal',
+      example: 'The cat is sleeping.',
+      difficulty: 'easy' as const,
+      soundType: 'vowel' as const,
+      targetSound: 'æ'
+    },
+    {
+      id: 'v2',
+      word: 'bed',
+      phonetic: '/bed/',
+      definition: 'furniture for sleeping',
+      example: 'I sleep in my bed.',
+      difficulty: 'easy' as const,
+      soundType: 'vowel' as const,
+      targetSound: 'e'
+    },
+    {
+      id: 'v3',
+      word: 'sit',
+      phonetic: '/sɪt/',
+      definition: 'to be in a seated position',
+      example: 'Please sit down.',
+      difficulty: 'easy' as const,
+      soundType: 'vowel' as const,
+      targetSound: 'ɪ'
+    },
+    {
+      id: 'v4',
+      word: 'hot',
+      phonetic: '/hɒt/',
+      definition: 'having high temperature',
+      example: 'The coffee is hot.',
+      difficulty: 'easy' as const,
+      soundType: 'vowel' as const,
+      targetSound: 'ɒ'
+    },
+    {
+      id: 'v5',
+      word: 'cup',
+      phonetic: '/kʌp/',
+      definition: 'a small container for drinking',
+      example: 'I drink tea from a cup.',
+      difficulty: 'easy' as const,
+      soundType: 'vowel' as const,
+      targetSound: 'ʌ'
+    }
+  ],
+  vowels_long: [
+    {
+      id: 'vl1',
+      word: 'see',
+      phonetic: '/siː/',
+      definition: 'to look at with your eyes',
+      example: 'I can see the mountain.',
+      difficulty: 'easy' as const,
+      soundType: 'vowel' as const,
+      targetSound: 'iː'
+    },
+    {
+      id: 'vl2',
+      word: 'car',
+      phonetic: '/kɑːr/',
+      definition: 'a vehicle with four wheels',
+      example: 'My car is blue.',
+      difficulty: 'easy' as const,
+      soundType: 'vowel' as const,
+      targetSound: 'ɑː'
+    },
+    {
+      id: 'vl3',
+      word: 'door',
+      phonetic: '/dɔːr/',
+      definition: 'an entrance to a room',
+      example: 'Please close the door.',
+      difficulty: 'easy' as const,
+      soundType: 'vowel' as const,
+      targetSound: 'ɔː'
+    },
+    {
+      id: 'vl4',
+      word: 'food',
+      phonetic: '/fuːd/',
+      definition: 'something you eat',
+      example: 'This food is delicious.',
+      difficulty: 'easy' as const,
+      soundType: 'vowel' as const,
+      targetSound: 'uː'
+    },
+    {
+      id: 'vl5',
+      word: 'bird',
+      phonetic: '/bɜːrd/',
+      definition: 'an animal that can fly',
+      example: 'The bird is singing.',
+      difficulty: 'medium' as const,
+      soundType: 'vowel' as const,
+      targetSound: 'ɜː'
+    }
+  ],
+  mixed_sounds: [
+    {
+      id: 'm1',
+      word: 'about',
+      phonetic: '/əˈbaʊt/',
+      definition: 'concerning or approximately',
+      example: 'Tell me about your day.',
+      difficulty: 'medium' as const,
+      soundType: 'mixed' as const,
+      targetSound: 'ə'
+    },
+    {
+      id: 'm2',
+      word: 'house',
+      phonetic: '/haʊs/',
+      definition: 'a building where people live',
+      example: 'I live in a big house.',
+      difficulty: 'medium' as const,
+      soundType: 'mixed' as const,
+      targetSound: 'aʊ'
+    },
+    {
+      id: 'm3',
+      word: 'time',
+      phonetic: '/taɪm/',
+      definition: 'the indefinite continued progress of existence',
+      example: 'What time is it?',
+      difficulty: 'medium' as const,
+      soundType: 'mixed' as const,
+      targetSound: 'aɪ'
+    },
+    {
+      id: 'm4',
+      word: 'boy',
+      phonetic: '/bɔɪ/',
+      definition: 'a male child',
+      example: 'The boy is playing.',
+      difficulty: 'medium' as const,
+      soundType: 'mixed' as const,
+      targetSound: 'ɔɪ'
+    },
+    {
+      id: 'm5',
+      word: 'here',
+      phonetic: '/hɪər/',
+      definition: 'in this place',
+      example: 'Come here, please.',
+      difficulty: 'medium' as const,
+      soundType: 'mixed' as const,
+      targetSound: 'ɪə'
+    }
+  ]
+};
+
+export const VOCABULARY_SET_KEYS = Object.keys(VOCABULARY_WORD_SETS) as (keyof typeof VOCABULARY_WORD_SETS)[];
+
 
 export const LESSON_ICONS = {
   vocabulary: 'book-open-variant',
