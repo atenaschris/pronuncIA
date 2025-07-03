@@ -56,10 +56,10 @@ import { useCallback, useEffect, useState } from "react";
     }
   };
 
-  const playWordAudio = useCallback(async (word: string) => {
+  const playWordAudio = useCallback((word: string) => {
     try {
       // Use expo-speech for word pronunciation
-      await Speech.speak(word, {
+      Speech.speak(word, {
         language: 'en-US',
         pitch: 1.0,
         rate: 0.8,

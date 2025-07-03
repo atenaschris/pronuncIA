@@ -410,6 +410,11 @@ export default function VocabularyScreen() {
       return;
     }
 
+    // If the game is paused, unpause it when user interacts with the card
+    if (vocabularyState?.isPaused) {
+      resumeWordTimer(lessonId!);
+    }
+
     // Haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -430,11 +435,11 @@ export default function VocabularyScreen() {
     // Play word audio using expo-speech
     try {
       console.log('Word card pressed, playing pronunciation for:', currentWord.word);
-      await playWordAudio(currentWord.word);
+      playWordAudio(currentWord.word);
     } catch (error) {
       console.error('Failed to play word audio:', error);
     }
-  }, [currentWord, cardScaleAnim, playWordAudio]);
+  }, [currentWord, cardScaleAnim, playWordAudio, vocabularyState?.isPaused, resumeWordTimer, lessonId]);
 
   // Error boundary
   if (error) {
@@ -676,7 +681,23 @@ export default function VocabularyScreen() {
                   if (vocabularyState.isPaused) {
                     resumeWordTimer(lessonId!);
                   } else {
-                    pauseWordTimer(lessonId!);
+                    // Check if user has reached pause limit
+                    if ((vocabularyState.pauseCount ?? 0) >= 2) {
+                      showModal({
+                        title: "Pause Limit Reached",
+                        message: "You've already used your 2 pause attempts for this word! ⏸️\n\nTo prevent abuse and maintain fair gameplay, you can only pause twice per word.\n\nKeep playing to complete this word!",
+                        buttons: [
+                          {
+                            text: "Got it!",
+                            onPress: () => {
+                              hideModal();
+                            }
+                          }
+                        ]
+                      });
+                    } else {
+                      pauseWordTimer(lessonId!);
+                    }
                   }
                 }}
                 style={styles.pauseButton}
