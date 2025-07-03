@@ -8,7 +8,7 @@ import { usePortalModalStore } from '@/lib/store/portal-modal-store';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, StyleSheet, View } from 'react-native';
+import { Alert, Animated, Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Card, IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,7 +19,7 @@ const { width } = Dimensions.get('window');
 export default function VocabularyScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
   const theme = useAppTheme();
-  const { playCorrect, playIncorrect, playWin } = useAudio();
+  const { playCorrect, playIncorrect, playWin, playWordAudio } = useAudio();
   const {
     getVocabularyState,
     setVocabularyWords,
@@ -74,6 +74,7 @@ export default function VocabularyScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const cardScaleAnim = useRef(new Animated.Value(1)).current;
 
   // Initialize lesson only once on mount
   useEffect(() => {
@@ -403,7 +404,37 @@ export default function VocabularyScreen() {
     });
   }, [showModal, hideModal, resetVocabularyLesson, lessonId, initializeLesson, vocabularyState?.currentWordStartTime, vocabularyState?.isPaused, pauseWordTimer, resumeWordTimer]);
 
+  const handleWordCardPress = useCallback(async () => {
+    if (!currentWord?.word) {
+      console.warn('No word available for pronunciation');
+      return;
+    }
 
+    // Haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Visual feedback animation
+    Animated.sequence([
+      Animated.timing(cardScaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardScaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Play word audio using expo-speech
+    try {
+      console.log('Word card pressed, playing pronunciation for:', currentWord.word);
+      await playWordAudio(currentWord.word);
+    } catch (error) {
+      console.error('Failed to play word audio:', error);
+    }
+  }, [currentWord, cardScaleAnim, playWordAudio]);
 
   // Error boundary
   if (error) {
@@ -513,20 +544,37 @@ export default function VocabularyScreen() {
         </View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
-          <Card style={[styles.wordCard, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.wordText, { color: theme.colors.onSurface }]}>
-              {currentWord.word}
-            </Text>
-            <Text style={[styles.phoneticText, { color: theme.colors.primary }]}>
-              {currentWord.phonetic}
-            </Text>
-            <Text style={[styles.definitionText, { color: theme.colors.onSurface }]}>
-              {currentWord.definition}
-            </Text>
-            <Text style={[styles.exampleText, { color: theme.colors.onSurfaceVariant }]}>
-              "{currentWord.example}"
-            </Text>
-          </Card>
+          <TouchableOpacity
+            onPress={handleWordCardPress}
+            activeOpacity={0.8}
+            accessibilityLabel={`Tap to hear pronunciation of ${currentWord.word}`}
+            accessibilityHint="Tap the word card to play the pronunciation audio"
+            accessibilityRole="button"
+          >
+            <Animated.View style={{ transform: [{ scale: cardScaleAnim }] }}>
+              <Card style={[styles.wordCard, { backgroundColor: theme.colors.surface }]}>
+                <View style={styles.wordCardContent}>
+                  <View style={styles.wordHeader}>
+                    <Text style={[styles.wordText, { color: theme.colors.onSurface }]}>
+                      {currentWord.word}
+                    </Text>
+                    <Text style={[styles.audioHint, { color: theme.colors.primary }]}>
+                      🔊 Tap to hear
+                    </Text>
+                  </View>
+                  <Text style={[styles.phoneticText, { color: theme.colors.primary }]}>
+                    {currentWord.phonetic}
+                  </Text>
+                  <Text style={[styles.definitionText, { color: theme.colors.onSurface }]}>
+                    {currentWord.definition}
+                  </Text>
+                  <Text style={[styles.exampleText, { color: theme.colors.onSurfaceVariant }]}>
+                    "{currentWord.example}"
+                  </Text>
+                </View>
+              </Card>
+            </Animated.View>
+          </TouchableOpacity>
 
           <View style={styles.targetSoundContainer}>
             <Text style={[styles.targetSoundLabel, { color: theme.colors.onSurfaceVariant }]}>
@@ -703,11 +751,25 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     elevation: 4,
   },
+  wordCardContent: {
+    alignItems: 'center',
+  },
+  wordHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    gap: 12,
+  },
   wordText: {
     fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
+  },
+  audioHint: {
+    fontSize: 12,
+    fontWeight: '500',
+    opacity: 0.8,
   },
   phoneticText: {
     fontSize: 18,

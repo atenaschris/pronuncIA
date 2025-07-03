@@ -1,11 +1,11 @@
 import { Audio } from "expo-av";
-import { useEffect, useState } from "react";
+import * as Speech from 'expo-speech';
+import { useCallback, useEffect, useState } from "react";
 
   export const useAudio = () => {
     const [correctSound, setCorrectSound] = useState<Audio.Sound | null>(null);
     const [incorrectSound, setIncorrectSound] = useState<Audio.Sound | null>(null);
     const [winningSound, setWinningSound] = useState<Audio.Sound | null>(null);
-
       // Load audio files
   useEffect(() => {
     const loadAudio = async () => {
@@ -56,12 +56,26 @@ import { useEffect, useState } from "react";
     }
   };
 
+  const playWordAudio = useCallback(async (word: string) => {
+    try {
+      // Use expo-speech for word pronunciation
+      await Speech.speak(word, {
+        language: 'en-US',
+        pitch: 1.0,
+        rate: 0.8,
+      });
+    } catch (error) {
+      console.warn('Failed to play word audio:', error);
+    }
+  }, []);
+
   return { 
     correctSound, 
     incorrectSound, 
     winningSound,
     playCorrect,
     playIncorrect,
-    playWin
+    playWin,
+    playWordAudio
   };
   }
