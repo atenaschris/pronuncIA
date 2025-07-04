@@ -63,13 +63,17 @@ export default function VocabularyScreen() {
     setShowFeedback(lessonId!, false);
     setFeedback(lessonId!, '');
     
-    // Only resume timer if it was stopped but lesson is not paused
-    if (!vocabularyState?.currentWordStartTime && !vocabularyState?.isPaused) {
+    // Resume timer when recording starts, regardless of paused state
+    if (vocabularyState?.isPaused) {
+      // If paused, resume the timer
+      resumeWordTimer(lessonId!);
+    } else if (!vocabularyState?.currentWordStartTime) {
+      // If timer was stopped, resume from elapsed time
       resumeWordTimerFromElapsed(lessonId!);
     }
     
     originalStartRecording();
-  }, [originalStartRecording, setShowFeedback, setFeedback, lessonId, vocabularyState?.currentWordStartTime, vocabularyState?.isPaused, resumeWordTimerFromElapsed]);
+  }, [originalStartRecording, setShowFeedback, setFeedback, lessonId, vocabularyState?.currentWordStartTime, vocabularyState?.isPaused, resumeWordTimer, resumeWordTimerFromElapsed]);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -105,7 +109,7 @@ export default function VocabularyScreen() {
     };
   }, []); // No dependencies - only cleanup on unmount
 
-  const initializeLesson = async () => {
+  const initializeLesson = () => {
     initializeLessonSessionState(lessonId!, 'vocabulary');
     // Start with consonants_th set for demo
     const words = VOCABULARY_WORD_SETS.consonants_th;
@@ -114,7 +118,7 @@ export default function VocabularyScreen() {
     // Start timer for the first word
     setTimeout(() => {
       startWordTimer(lessonId!);
-    }, 500);
+    }, 200);
 
     // Animate progress bar
     Animated.timing(progressAnim, {
@@ -493,15 +497,15 @@ export default function VocabularyScreen() {
           </Surface>
 
           <Surface style={[styles.xpCard, { backgroundColor: theme.colors.primary }]} elevation={2}>
-            <Text style={[styles.xpTitle, { color: theme.colors.onPrimaryContainer }]}>XP Earned</Text>
-            <Text style={[styles.xpTotal, { color: theme.colors.onPrimaryContainer }]}>
+            <Text style={[styles.xpTitle, { color: theme.colors.onPrimary }]}>XP Earned</Text>
+            <Text style={[styles.xpTotal, { color: theme.colors.onPrimary }]}>
               {totalXP + timeBonusXP} XP
             </Text>
-            <Text style={[styles.xpBreakdown, { color: theme.colors.onPrimaryContainer }]}>
+            <Text style={[styles.xpBreakdown, { color: theme.colors.onPrimary }]}>
               Base XP: {totalXP}
             </Text>
             {timeBonusXP > 0 && (
-              <Text style={[styles.xpBreakdown, { color: theme.colors.onPrimaryContainer }]}>
+              <Text style={[styles.xpBreakdown, { color: theme.colors.onPrimary }]}>
                 Time Bonus: +{timeBonusXP}
               </Text>
             )}
