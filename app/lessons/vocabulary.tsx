@@ -732,7 +732,7 @@ export default function VocabularyScreen() {
               </Button>
             )}
 
-            {recordingUri && !vocabularyState?.showFeedback && (
+            {recordingUri && !vocabularyState?.showFeedback && !isRecording && (
               <Button
                 mode="contained"
                 onPress={() => simulateAIFeedback(recordingUri)}
