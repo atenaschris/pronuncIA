@@ -8,13 +8,9 @@ import { usePortalModalStore } from '@/lib/store/portal-modal-store';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Card, IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const { width } = Dimensions.get('window');
-
-
 
 export default function VocabularyScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
@@ -43,7 +39,8 @@ export default function VocabularyScreen() {
     resetVocabularyLesson,
     calculateWordXP,
     addVocabularyTimeBonusXP,
-    addWordXP
+    addWordXP,
+    resumeWordTimerFromElapsed
   } = useLessonStore();
 
   const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModalStore();
@@ -65,8 +62,14 @@ export default function VocabularyScreen() {
     // Reset feedback state to allow new feedback after recording
     setShowFeedback(lessonId!, false);
     setFeedback(lessonId!, '');
+    
+    // Only resume timer if it was stopped but lesson is not paused
+    if (!vocabularyState?.currentWordStartTime && !vocabularyState?.isPaused) {
+      resumeWordTimerFromElapsed(lessonId!);
+    }
+    
     originalStartRecording();
-  }, [originalStartRecording, setShowFeedback, setFeedback, lessonId]);
+  }, [originalStartRecording, setShowFeedback, setFeedback, lessonId, vocabularyState?.currentWordStartTime, vocabularyState?.isPaused, resumeWordTimerFromElapsed]);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -410,6 +413,11 @@ export default function VocabularyScreen() {
       return;
     }
 
+    // Disable card interaction while recording
+    if (isRecording) {
+      return;
+    }
+
     // If the game is paused, unpause it when user interacts with the card
     if (vocabularyState?.isPaused) {
       resumeWordTimer(lessonId!);
@@ -439,7 +447,7 @@ export default function VocabularyScreen() {
     } catch (error) {
       console.error('Failed to play word audio:', error);
     }
-  }, [currentWord, cardScaleAnim, playWordAudio, vocabularyState?.isPaused, resumeWordTimer, lessonId]);
+  }, [currentWord, cardScaleAnim, playWordAudio, vocabularyState?.isPaused, resumeWordTimer, lessonId, isRecording]);
 
   // Error boundary
   if (error) {
@@ -551,20 +559,36 @@ export default function VocabularyScreen() {
         <Animated.View style={{ opacity: fadeAnim }}>
           <TouchableOpacity
             onPress={handleWordCardPress}
-            activeOpacity={0.8}
+            activeOpacity={isRecording ? 1 : 0.8}
+            disabled={isRecording}
             accessibilityLabel={`Tap to hear pronunciation of ${currentWord.word}`}
-            accessibilityHint="Tap the word card to play the pronunciation audio"
+            accessibilityHint={isRecording ? "Card disabled while recording" : "Tap the word card to play the pronunciation audio"}
             accessibilityRole="button"
           >
             <Animated.View style={{ transform: [{ scale: cardScaleAnim }] }}>
-              <Card style={[styles.wordCard, { backgroundColor: theme.colors.surface }]}>
-                <View style={styles.wordCardContent}>
+              <Card style={[
+                styles.wordCard, 
+                { 
+                  backgroundColor: theme.colors.surface,
+                  opacity: isRecording ? 0.5 : 1
+                }
+              ]}>
+                <View style={[
+                    styles.wordCardContent,
+                    isRecording && { opacity: 0.6 }
+                  ]}>
                   <View style={styles.wordHeader}>
                     <Text style={[styles.wordText, { color: theme.colors.onSurface }]}>
                       {currentWord.word}
                     </Text>
-                    <Text style={[styles.audioHint, { color: theme.colors.primary }]}>
-                      🔊 Tap to hear
+                    <Text style={[
+                      styles.audioHint, 
+                      { 
+                        color: isRecording ? theme.colors.onSurfaceVariant : theme.colors.primary,
+                        opacity: isRecording ? 0.5 : 1
+                      }
+                    ]}>
+                      {isRecording ? '🚫 Recording...' : '🔊 Tap to hear'}
                     </Text>
                   </View>
                   <Text style={[styles.phoneticText, { color: theme.colors.primary }]}>
@@ -652,7 +676,7 @@ export default function VocabularyScreen() {
               mode="outlined"
               onPress={handleRestartLesson}
               style={styles.restartButton}
-              disabled={isProcessing}
+              disabled={isProcessing || isRecording}
               accessibilityLabel="Restart lesson"
               accessibilityHint="Tap to restart the entire vocabulary lesson from the beginning"
               icon="restart"
@@ -666,7 +690,7 @@ export default function VocabularyScreen() {
               mode="outlined"
               onPress={skipWord}
               style={styles.skipButton}
-              disabled={isProcessing}
+              disabled={isProcessing || isRecording}
               accessibilityLabel="Skip current word"
               accessibilityHint="Tap to skip this word and move to the next one"
             >
@@ -701,7 +725,7 @@ export default function VocabularyScreen() {
                   }
                 }}
                 style={styles.pauseButton}
-                disabled={isProcessing}
+                disabled={isProcessing || isRecording}
                 accessibilityLabel={vocabularyState.isPaused ? 'Resume timer' : 'Pause timer'}
               >
                 {vocabularyState.isPaused ? 'Resume' : 'Pause'}

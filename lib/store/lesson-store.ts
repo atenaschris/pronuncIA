@@ -196,6 +196,7 @@ interface LessonState {
   addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => void;
   addWordXP: (lessonId: string, wordXP: number) => void;
   calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number) => number;
+  resumeWordTimerFromElapsed: (lessonId: string) => void;
 }
 
 export const useLessonStore = create<LessonState>()(persist(
@@ -1782,6 +1783,65 @@ export const useLessonStore = create<LessonState>()(persist(
       },
     });
   },
+
+  updateVocabularyState: (lessonId: string, updatedState: Partial<VocabularyState>) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            ...updatedState,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  resumeWordTimerFromElapsed: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        
+        // Calculate the adjusted start time based on current elapsed time
+        const currentElapsed = currentState.currentWordElapsedTime || 0;
+        const totalPauseTime = currentState.totalPauseTime || 0;
+        const adjustedStartTime = Date.now() - (currentElapsed * 1000) - (totalPauseTime * 1000);
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            currentWordStartTime: adjustedStartTime,
+            isPaused: false,
+            pauseStartTime: null,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
 
   calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number) => {
     const { dailyPlan } = get();
