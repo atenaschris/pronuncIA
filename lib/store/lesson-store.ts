@@ -142,7 +142,7 @@ interface LessonState {
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => void;
   generateDailyPlan: () => Promise<void>;
   
-  // Lesson-specific actions
+  // WordPairs-specific actions
   setEnglishWords: (lessonId: string, words: EnglishWord[]) => void;
   setTranslationWords: (lessonId: string, words: TranslationWord[]) => void;
   setSelectedPair: (lessonId: string, pair: {index: number, column: 'english' | 'translation'} | null) => void;
@@ -182,7 +182,6 @@ interface LessonState {
   setShowFeedback: (lessonId: string, show: boolean) => void;
   updatePronunciationAccuracy: (lessonId: string) => void;
   incrementWordsCompleted: (lessonId: string) => void;
-
 
   // Vocabulary timer methods
   startWordTimer: (lessonId: string) => void;

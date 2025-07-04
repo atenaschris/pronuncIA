@@ -356,9 +356,7 @@ export default function VocabularyScreen() {
       addVocabularyTimeBonusXP(lessonId!, timeBonusXP);
     }
 
-    setTimeout(() => {
-      router.back();
-    }, 3000);
+    // Removed automatic timeout - user will navigate via button
   }, [vocabularyState?.currentWordStartTime, vocabularyState?.wordXpScores, vocabularyState?.wordTimers, completeLessonCallback, setVocabularyScore, lessonId, avgAccuracy, stopWordTimer, addVocabularyTimeBonusXP]);
 
   const skipWord = useCallback(() => {
@@ -494,7 +492,7 @@ export default function VocabularyScreen() {
             </Text>
           </Surface>
 
-          <Surface style={[styles.xpCard, { backgroundColor: theme.colors.primaryContainer }]} elevation={2}>
+          <Surface style={[styles.xpCard, { backgroundColor: theme.colors.primary }]} elevation={2}>
             <Text style={[styles.xpTitle, { color: theme.colors.onPrimaryContainer }]}>XP Earned</Text>
             <Text style={[styles.xpTotal, { color: theme.colors.onPrimaryContainer }]}>
               {totalXP + timeBonusXP} XP
@@ -508,6 +506,17 @@ export default function VocabularyScreen() {
               </Text>
             )}
           </Surface>
+
+          <Button
+            mode="contained"
+            onPress={() => router.back()}
+            style={[styles.continueButton, { backgroundColor: theme.colors.primary }]}
+            labelStyle={{ color: theme.colors.onPrimary }}
+            accessibilityLabel="Return to lessons"
+            accessibilityHint="Tap to go back to the lesson selection screen"
+          >
+            Back to Lessons
+          </Button>
         </Animated.View>
       </View>
     );
@@ -979,5 +988,11 @@ const styles = StyleSheet.create({
   xpBreakdown: {
     fontSize: 14,
     marginBottom: 4,
+  },
+  continueButton: {
+    marginTop: 24,
+    paddingVertical: 8,
+    borderRadius: 12,
+    width: '100%',
   },
 });
