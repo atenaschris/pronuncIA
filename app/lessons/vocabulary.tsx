@@ -311,7 +311,7 @@ export default function VocabularyScreen() {
 
         setTimeout(() => {
           nextWord();
-        }, 2000);
+        }, 1000);
       }
     }
 
@@ -337,14 +337,9 @@ export default function VocabularyScreen() {
     if (vocabularyState?.currentWordStartTime) {
       stopWordTimer(lessonId!);
     }
-
     completeLessonCallback();
-
     // Calculate final score with proper null checking
     setVocabularyScore(lessonId!, Math.round(avgAccuracy));
-
-    // Calculate total XP earned from all words
-    const totalWordXP = vocabularyState?.wordXpScores?.reduce((sum, xp) => sum + xp, 0) ?? 0;
 
     // Calculate time bonus XP based on overall performance
     const avgWordTime = vocabularyState?.wordTimers && vocabularyState.wordTimers.length > 0
@@ -359,8 +354,6 @@ export default function VocabularyScreen() {
     if (timeBonusXP > 0) {
       addVocabularyTimeBonusXP(lessonId!, timeBonusXP);
     }
-
-    // Removed automatic timeout - user will navigate via button
   }, [vocabularyState?.currentWordStartTime, vocabularyState?.wordXpScores, vocabularyState?.wordTimers, completeLessonCallback, setVocabularyScore, lessonId, avgAccuracy, stopWordTimer, addVocabularyTimeBonusXP]);
 
   const skipWord = useCallback(() => {

@@ -1447,8 +1447,8 @@ export const useLessonStore = create<LessonState>()(persist(
             currentWordElapsedTime: 0,
             isPaused: false,
             pauseStartTime: null,
-            totalPauseTime: 0,
-            pauseCount: 0,
+            totalPauseTime: 0, // Reset for new word
+            pauseCount: 0, // Reset for new word
           } as VocabularyState,
         };
       }
@@ -1481,6 +1481,9 @@ export const useLessonStore = create<LessonState>()(persist(
           const newWordTimers = [...currentState.wordTimers];
           newWordTimers[currentState.currentWordIndex] = completionTime;
           
+          // Calculate total session time by summing all word timers
+          const totalSessionTime = newWordTimers.reduce((sum, time) => sum + (time || 0), 0);
+          
           return {
             ...lesson,
             sessionState: {
@@ -1488,11 +1491,11 @@ export const useLessonStore = create<LessonState>()(persist(
               wordTimers: newWordTimers,
               currentWordStartTime: null,
               currentWordElapsedTime: completionTime,
-              totalSessionTime: currentState.totalSessionTime + completionTime,
+              totalSessionTime: totalSessionTime,
               isPaused: false,
               pauseStartTime: null,
-              totalPauseTime: 0,
-              pauseCount: 0,
+              totalPauseTime: 0, // Reset after word completion
+              pauseCount: 0, // Reset after word completion
             } as VocabularyState,
           };
         }
