@@ -175,6 +175,7 @@ interface LessonState {
   setCurrentWordIndex: (lessonId: string, index: number) => void;
   setVocabularyScore: (lessonId: string, score: number) => void;
   incrementVocabularyAttempts: (lessonId: string) => void;
+  resetVocabularyAttempts: (lessonId: string) => void;
   setVocabularyCompleted: (lessonId: string, completed: boolean) => void;
   addUserRecording: (lessonId: string, recording: string) => void;
   addAIScore: (lessonId: string, score: number) => void;
@@ -192,10 +193,11 @@ interface LessonState {
   resetVocabularyTimers: (lessonId: string) => void;
   resetVocabularyLesson: (lessonId: string) => void;
   clearWordTimer: (lessonId: string, wordIndex: number) => void;
-  addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => void;
+
   addWordXP: (lessonId: string, wordXP: number) => void;
-  calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number) => number;
+  calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => number;
   resumeWordTimerFromElapsed: (lessonId: string) => void;
+  addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => void;
 }
 
 export const useLessonStore = create<LessonState>()(persist(
@@ -1245,6 +1247,32 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
 
+  resetVocabularyAttempts: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            attempts: 0,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
   setVocabularyCompleted: (lessonId: string, completed: boolean) => set((state) => {
     if (!state.dailyPlan) return state;
     
@@ -1449,6 +1477,7 @@ export const useLessonStore = create<LessonState>()(persist(
             pauseStartTime: null,
             totalPauseTime: 0, // Reset for new word
             pauseCount: 0, // Reset for new word
+            attempts: 0, // Reset attempts for new word
           } as VocabularyState,
         };
       }
@@ -1729,39 +1758,7 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
 
-  addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => {
-    const { dailyPlan, totalXp } = get();
-    if (!dailyPlan) return;
 
-    let bonusDifference = 0;
-    const updatedLessons = dailyPlan.lessons.map(lesson => {
-      if (lesson.id === lessonId && lesson.sessionState) {
-        const currentState = lesson.sessionState as VocabularyState;
-        // Calculate the difference between new and current time bonus
-        const currentBonus = currentState.currentTimeBonusXP || 0;
-        bonusDifference = bonusXP - currentBonus;
-        
-        return {
-          ...lesson,
-          xpReward: lesson.xpReward + bonusDifference,
-          sessionState: {
-            ...currentState,
-            currentTimeBonusXP: bonusXP,
-          } as VocabularyState,
-        };
-      }
-      return lesson;
-    });
-
-    // Update totalXp to reflect the time bonus change
-    set({
-      totalXp: totalXp + bonusDifference,
-      dailyPlan: {
-        ...dailyPlan,
-        lessons: updatedLessons,
-      },
-    });
-  },
 
   addWordXP: (lessonId: string, wordXP: number) => {
     const { dailyPlan, totalXp } = get();
@@ -1845,7 +1842,37 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
 
-  calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number) => {
+  addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => {
+    const { dailyPlan, totalXp } = get();
+    if (!dailyPlan) return;
+
+    let bonusDifference = 0;
+    const updatedLessons = dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId) {
+        // Calculate the difference between new and current time bonus
+        const currentBonus = lesson.currentTimeBonusXP || 0;
+        bonusDifference = bonusXP - currentBonus;
+        
+        return {
+          ...lesson,
+          xpReward: lesson.xpReward + bonusDifference,
+          currentTimeBonusXP: bonusXP,
+        };
+      }
+      return lesson;
+    });
+
+    // Update totalXp to reflect the time bonus change
+    set({
+      totalXp: totalXp + bonusDifference,
+      dailyPlan: {
+        ...dailyPlan,
+        lessons: updatedLessons,
+      },
+    });
+  },
+
+  calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => {
     const { dailyPlan } = get();
     if (!dailyPlan) return 0;
     
@@ -1858,18 +1885,31 @@ export const useLessonStore = create<LessonState>()(persist(
     // Base XP from AI score (0-100 maps to 0-50 XP)
     const baseXP = Math.floor(aiScore / 2);
     
-    // Time bonus: faster completion = more bonus XP
+    // Improved graduated time bonus
     let timeBonus = 0;
     if (wordTimer) {
-      // Bonus decreases as time increases (max 20 bonus XP for very fast completion)
-      const maxTimeForBonus = 30; // seconds
-      const maxBonus = 20;
-      if (wordTimer <= maxTimeForBonus) {
-        timeBonus = Math.floor(maxBonus * (1 - wordTimer / maxTimeForBonus));
+      if (wordTimer <= 10) {
+        timeBonus = 20;
+      } else if (wordTimer <= 20) {
+        timeBonus = Math.floor(20 - (wordTimer - 10));
+      } else if (wordTimer <= 40) {
+        timeBonus = Math.floor(10 - ((wordTimer - 20) / 2));
+      } else {
+        timeBonus = 0;
       }
     }
     
-    const totalXP = baseXP + timeBonus;
+    // Attempt-based multiplier (rewards first attempts more)
+    const attemptMultipliers = [1.0, 0.8, 0.6]; // 100%, 80%, 60% for attempts 1-3
+    const attemptIndex = Math.min((currentAttempt || 1) - 1, 2);
+    const attemptMultiplier = attemptMultipliers[attemptIndex];
+    
+    // Difficulty-based scaling
+    const difficultyMultipliers = { easy: 0.8, medium: 1.0, hard: 1.3 };
+    const difficultyMultiplier = difficultyMultipliers[wordDifficulty || 'medium'];
+    
+    // Calculate final XP with all multipliers
+    const totalXP = Math.floor((baseXP + timeBonus) * attemptMultiplier * difficultyMultiplier);
     
     // Update the word XP scores array
     set((state) => {
