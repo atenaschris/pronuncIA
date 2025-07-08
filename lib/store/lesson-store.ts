@@ -88,6 +88,8 @@ export interface VocabularyState {
   pronunciationAccuracy: number; // Overall accuracy percentage
   wordsCompleted: number;
   totalWords: number;
+  incompleteWords: number[]; // Indices of words that exceeded max attempts and were skipped
+  isRetryingWord: boolean; // Flag to track if we're currently retrying an incomplete word
 
   // Word-level timing (similar to set timing in word-pairs)
   wordTimers: number[]; // Array of completion times for each word (in seconds)
@@ -180,7 +182,9 @@ interface LessonState {
   setShowFeedback: (lessonId: string, show: boolean) => void;
   updatePronunciationAccuracy: (lessonId: string) => void;
   incrementWordsCompleted: (lessonId: string) => void;
-
+  addIncompleteWord: (lessonId: string, wordIndex: number) => void;
+  retryIncompleteWord: (lessonId: string, wordIndex: number) => void;
+  removeIncompleteWord: (lessonId: string, wordIndex: number) => void;
   // Vocabulary timer methods
   startWordTimer: (lessonId: string) => void;
   stopWordTimer: (lessonId: string) => void;
@@ -446,6 +450,8 @@ export const useLessonStore = create<LessonState>()(persist(
                 pronunciationAccuracy: 0,
                 wordsCompleted: 0,
                 totalWords: 0,
+                incompleteWords: [],
+                isRetryingWord: false,
 
                 // Word-level timing
                 wordTimers: [],
@@ -1253,6 +1259,7 @@ export const useLessonStore = create<LessonState>()(persist(
           sessionState: {
             ...lesson.sessionState,
             lessonCompleted: completed,
+            isRetryingWord: false, // Reset retry flag when lesson is completed
           } as VocabularyState,
         };
       }
@@ -1663,6 +1670,8 @@ export const useLessonStore = create<LessonState>()(persist(
             pronunciationAccuracy: 0,
             wordsCompleted: 0,
             totalWords: 0,
+            incompleteWords: [],
+            isRetryingWord: false,
             wordTimers: [],
             currentWordStartTime: null,
             currentWordElapsedTime: 0,
@@ -1881,7 +1890,107 @@ export const useLessonStore = create<LessonState>()(persist(
     });
     
     return totalXP;
-  }
+  },
+
+  addIncompleteWord: (lessonId: string, wordIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        const incompleteWords = [...currentState.incompleteWords];
+        
+        // Add word index if not already in the list
+        if (!incompleteWords.includes(wordIndex)) {
+          incompleteWords.push(wordIndex);
+        }
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            incompleteWords,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  retryIncompleteWord: (lessonId: string, wordIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            currentWordIndex: wordIndex,
+            attempts: 0,
+            feedback: null,
+            showFeedback: false,
+            lessonCompleted: false,
+            isRetryingWord: true,
+            // Reset timer state for the word
+            currentWordStartTime: null,
+            currentWordElapsedTime: 0,
+            isPaused: false,
+            pauseStartTime: null,
+            totalPauseTime: 0,
+            pauseCount: 0,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  removeIncompleteWord: (lessonId: string, wordIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        const incompleteWords = currentState.incompleteWords.filter(index => index !== wordIndex);
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            incompleteWords,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  })
 }),
 {
   name: 'lesson-storage',
