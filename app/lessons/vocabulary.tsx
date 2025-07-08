@@ -25,8 +25,6 @@ export default function VocabularyScreen() {
     resetVocabularyAttempts,
     setVocabularyCompleted,
     addAIScore,
-    setFeedback,
-    setShowFeedback,
     updatePronunciationAccuracy,
     incrementWordsCompleted,
     initializeLessonSessionState,
@@ -64,12 +62,8 @@ export default function VocabularyScreen() {
     cleanup,
   } = useRecording();
 
-  // Enhanced startRecording that resets feedback state
+  // Enhanced startRecording that handles timer state
   const startRecording = useCallback(() => {
-    // Reset feedback state to allow new feedback after recording
-    setShowFeedback(lessonId!, false);
-    setFeedback(lessonId!, '');
-
     // Resume timer when recording starts, regardless of paused state
     if (vocabularyState?.isPaused) {
       // If paused, resume the timer
@@ -80,7 +74,7 @@ export default function VocabularyScreen() {
     }
 
     originalStartRecording();
-  }, [originalStartRecording, setShowFeedback, setFeedback, lessonId, vocabularyState?.currentWordStartTime, vocabularyState?.isPaused, resumeWordTimer, resumeWordTimerFromElapsed]);
+  }, [originalStartRecording, lessonId, vocabularyState?.currentWordStartTime, vocabularyState?.isPaused, resumeWordTimer, resumeWordTimerFromElapsed]);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -175,7 +169,6 @@ export default function VocabularyScreen() {
     if (nextIndex < vocabularyState.words.length) {
       setCurrentWordIndex(lessonId!, nextIndex);
       setRecordingUri(null);
-      setShowFeedback(lessonId!, false);
 
       // Start timer for the new word
       setTimeout(() => {
@@ -199,7 +192,7 @@ export default function VocabularyScreen() {
       playWin();
       hapticSuccess?.();
     }
-  }, [vocabularyState?.words, vocabularyState?.currentWordIndex, vocabularyState?.currentWordStartTime, vocabularyState?.isRetryingWord, lessonId, setCurrentWordIndex, setRecordingUri, setShowFeedback, stopWordTimer, startWordTimer, fadeAnim, setVocabularyCompleted, playWin, hapticSuccess]);
+  }, [vocabularyState?.words, vocabularyState?.currentWordIndex, vocabularyState?.currentWordStartTime, vocabularyState?.isRetryingWord, lessonId, setCurrentWordIndex, setRecordingUri, stopWordTimer, startWordTimer, fadeAnim, setVocabularyCompleted, playWin, hapticSuccess]);
 
 
   const submitRecording = useCallback(async () => {
@@ -235,8 +228,6 @@ export default function VocabularyScreen() {
       updatePronunciationAccuracy(lessonId!);
 
       const feedback = `Pronunciation Score: ${score}%\n\n${result.feedback || 'Good effort! Keep practicing.'}`;
-      setFeedback(lessonId!, feedback);
-      setShowFeedback(lessonId!, true);
 
       incrementVocabularyAttempts(lessonId!);
 
@@ -257,7 +248,7 @@ export default function VocabularyScreen() {
     } finally {
       setIsProcessing(false);
     }
-  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, setFeedback, setShowFeedback, incrementVocabularyAttempts, incrementWordsCompleted, playCorrect, playIncorrect, hapticSuccess, hapticError]);
+  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, incrementVocabularyAttempts, incrementWordsCompleted, playCorrect, playIncorrect, hapticSuccess, hapticError]);
 
   const simulateAIFeedback = async (uri: string) => {
     setIsProcessing(true);
@@ -282,14 +273,26 @@ export default function VocabularyScreen() {
       // Add this word to incomplete words list for retry option
       addIncompleteWord(lessonId!, currentWordIndex);
 
-      setFeedback(lessonId!, "Don't worry! This word will appear in the final screen for more practice. You earned some XP for your effort! 💪");
-      setShowFeedback(lessonId!, true);
+      const feedbackMessage = "Don't worry! This word will appear in the final screen for more practice. You earned some XP for your effort! 💪";
       playIncorrect();
       hapticError?.();
 
-      setTimeout(() => {
-        nextWord();
-      }, 2500);
+      // Show feedback in modal
+      showModal({
+        title: "Attempts Completed",
+        message: feedbackMessage,
+        buttons: [
+          {
+            text: "Next Word",
+            onPress: () => {
+              hideModal();
+              setTimeout(() => {
+                nextWord();
+              }, 100);
+            }
+          }
+        ]
+      });
 
       setIsProcessing(false);
       return;
@@ -343,14 +346,27 @@ export default function VocabularyScreen() {
         // Enhanced feedback showing XP breakdown
         const attemptText = currentAttempts === 0 ? 'Perfect!' : currentAttempts === 1 ? '2nd try' : '3rd try';
         const difficultyBonus = currentWord.difficulty === 'hard' ? ' +Difficulty Bonus!' : currentWord.difficulty === 'easy' ? ' (Easy word)' : '';
-        setFeedback(lessonId!, `${randomMessage} Accuracy: ${Math.round(accuracy)}% | ${attemptText}${difficultyBonus} (+${wordXP} XP)`);
-        setShowFeedback(lessonId!, true);
+        const feedbackMessage = `${randomMessage}\n\nAccuracy: ${Math.round(accuracy)}%\n${attemptText}${difficultyBonus}\n\n+${wordXP} XP earned! 🎉`;
+        
         playCorrect();
         hapticSuccess?.();
 
-        setTimeout(() => {
-          nextWord();
-        }, 1500);
+        // Show success feedback in modal
+        showModal({
+          title: "Great Pronunciation! ✨",
+          message: feedbackMessage,
+          buttons: [
+            {
+              text: "Next Word",
+              onPress: () => {
+                hideModal();
+                setTimeout(() => {
+                  nextWord();
+                }, 100);
+              }
+            }
+          ]
+        });
       } else {
         // Enhanced encouraging messages for incorrect attempts
         const encouragingMessages = [
@@ -364,19 +380,31 @@ export default function VocabularyScreen() {
 
         const attemptsLeft = 3 - currentAttempts - 1;
         if (attemptsLeft === 1) {
-          enhancedFeedback += " 🎯 Last chance - you can do this!";
+          enhancedFeedback += "\n\n🎯 Last chance - you can do this!";
         } else if (attemptsLeft > 1) {
-          enhancedFeedback += ` 💪 ${attemptsLeft} attempts remaining!`;
+          enhancedFeedback += `\n\n💪 ${attemptsLeft} attempts remaining!`;
         }
 
-        setFeedback(lessonId!, enhancedFeedback);
-        setShowFeedback(lessonId!, true);
+        enhancedFeedback += `\n\nAccuracy: ${Math.round(accuracy)}%`;
+        
         playIncorrect();
         hapticError?.();
 
-        setTimeout(() => {
-          setShowFeedback(lessonId!, false);
-        }, 2500);
+        // Show encouraging feedback in modal
+        showModal({
+          title: "Keep Trying! 💪",
+          message: enhancedFeedback,
+          buttons: [
+            {
+              text: "Try Again",
+              onPress: () => {
+                hideModal();
+                // Clear recording to allow new attempt
+                setRecordingUri(null);
+              }
+            }
+          ]
+        });
       }
     }
 
@@ -796,22 +824,7 @@ export default function VocabularyScreen() {
             )}
           </View>
 
-          {vocabularyState?.showFeedback && vocabularyState?.feedback && (
-            <Surface
-              style={[
-                styles.feedbackContainer,
-                { backgroundColor: theme.colors.secondaryContainer }
-              ]}
-              elevation={2}
-            >
-              <Text
-                style={[styles.feedbackText, { color: theme.colors.onSecondaryContainer }]}
-                accessibilityLabel={`Pronunciation feedback: ${vocabularyState?.feedback}`}
-              >
-                {vocabularyState?.feedback}
-              </Text>
-            </Surface>
-          )}
+          {/* Feedback is now shown in modal instead of banner */}
 
           {/* Restart Button */}
           <View style={styles.restartContainer}>
@@ -875,7 +888,7 @@ export default function VocabularyScreen() {
               </Button>
             )}
 
-            {recordingUri && !vocabularyState?.showFeedback && !isRecording && (
+            {recordingUri && !isRecording && (
               <Button
                 mode="contained"
                 onPress={() => simulateAIFeedback(recordingUri)}
@@ -1010,17 +1023,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
-  feedbackContainer: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  feedbackText: {
-    fontSize: 16,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
+
   restartContainer: {
     marginTop: 10,
     marginBottom: 10,
