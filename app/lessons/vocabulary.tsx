@@ -21,7 +21,6 @@ export default function VocabularyScreen() {
     getVocabularyState,
     setVocabularyWords,
     setCurrentWordIndex,
-    setVocabularyScore,
     incrementVocabularyAttempts,
     resetVocabularyAttempts,
     setVocabularyCompleted,
@@ -40,7 +39,6 @@ export default function VocabularyScreen() {
     resetVocabularyTimers,
     resetVocabularyLesson,
     calculateWordXP,
-    addVocabularyTimeBonusXP,
     addWordXP,
     resumeWordTimerFromElapsed
   } = useLessonStore();
@@ -133,29 +131,18 @@ export default function VocabularyScreen() {
     }).start();
   };
 
-  const getCurrentWord = () => {
+  // Memoized calculations for performance
+  const currentWord = useMemo(() => {
     if (!vocabularyState?.words || (vocabularyState?.currentWordIndex ?? 0) >= vocabularyState.words.length) {
       return null;
     }
     return vocabularyState.words[vocabularyState?.currentWordIndex ?? 0];
-  };
-
-  // Memoized calculations for performance
-  const currentWord = useMemo(() => getCurrentWord(), [vocabularyState?.words, vocabularyState?.currentWordIndex]);
+  }, [vocabularyState?.words, vocabularyState?.currentWordIndex]);
 
   const progress = useMemo(() =>
     vocabularyState?.words ? (vocabularyState?.currentWordIndex ?? 0) / vocabularyState.words.length : 0,
     [vocabularyState?.words, vocabularyState?.currentWordIndex]
   );
-
-  const avgAccuracy = useMemo(() =>
-    vocabularyState?.aiScores && vocabularyState.aiScores.length > 0
-      ? vocabularyState.aiScores.reduce((sum, score) => sum + score, 0) / vocabularyState.aiScores.length
-      : 0,
-    [vocabularyState?.aiScores]
-  );
-
-
 
   // Memoized handlers for performance
   const handleNextWord = useCallback(() => {
@@ -190,15 +177,12 @@ export default function VocabularyScreen() {
         }),
       ]).start();
     } else {
-      completeLesson();
-    }
+      setVocabularyCompleted(lessonId!, true);
+      playWin();
+      hapticSuccess?.();
+      }
   }, [vocabularyState?.words, vocabularyState?.currentWordIndex, vocabularyState?.currentWordStartTime, lessonId, setCurrentWordIndex, setRecordingUri, setShowFeedback, stopWordTimer, startWordTimer, fadeAnim]);
 
-  const completeLessonCallback = useCallback(() => {
-    setVocabularyCompleted(lessonId!, true);
-    playWin();
-    hapticSuccess?.();
-  }, [lessonId, setVocabularyCompleted, playWin, hapticSuccess]);
 
   const submitRecording = useCallback(async () => {
     if (!recordingUri || !currentWord) return;
@@ -239,7 +223,6 @@ export default function VocabularyScreen() {
       incrementVocabularyAttempts(lessonId!);
 
       if (score >= 70) {
-        setVocabularyScore(lessonId!, (vocabularyState?.score ?? 0) + 10);
         incrementWordsCompleted(lessonId!);
         playCorrect();
         hapticSuccess?.();
@@ -256,14 +239,14 @@ export default function VocabularyScreen() {
     } finally {
       setIsProcessing(false);
     }
-  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, setFeedback, setShowFeedback, incrementVocabularyAttempts, vocabularyState?.score, setVocabularyScore, incrementWordsCompleted, playCorrect, playIncorrect, hapticSuccess, hapticError]);
+  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, setFeedback, setShowFeedback, incrementVocabularyAttempts, incrementWordsCompleted, playCorrect, playIncorrect, hapticSuccess, hapticError]);
 
   const simulateAIFeedback = async (uri: string) => {
     setIsProcessing(true);
 
-    // Stop the current word timer immediately when user clicks "Get Feedback"
+    // Pause the current word timer immediately when user clicks "Get Feedback"
     if (vocabularyState?.currentWordStartTime) {
-      stopWordTimer(lessonId!);
+      pauseWordTimer(lessonId!);
     }
 
     // Check attempt limit before processing
@@ -272,7 +255,6 @@ export default function VocabularyScreen() {
       // Award minimal XP for effort using best attempt score (much less than any successful attempt)
       // This prevents gaming: 15% of best attempt vs full XP for successful attempts
       const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
-      const currentWord = getCurrentWord();
       const bestAttemptScore = vocabularyState?.aiScores && vocabularyState.aiScores.length > 0 
         ? Math.max(...vocabularyState.aiScores.slice(-3)) // Best of last 3 attempts
         : 50; // Fallback if no scores available
@@ -297,7 +279,6 @@ export default function VocabularyScreen() {
 
     // Generate random but realistic feedback
     const accuracy = Math.random() * 40 + 60; // 60-100% accuracy
-    const currentWord = getCurrentWord();
 
     if (currentWord) {
       addAIScore(lessonId!, accuracy);
@@ -391,30 +372,6 @@ export default function VocabularyScreen() {
       useNativeDriver: false,
     }).start();
   }, [incrementWordsCompleted, resetVocabularyAttempts, lessonId, handleNextWord, vocabularyState?.currentWordIndex, vocabularyState?.words?.length, progressAnim]);
-
-  const completeLesson = useCallback(() => {
-    // Stop the current word timer before completing
-    if (vocabularyState?.currentWordStartTime) {
-      stopWordTimer(lessonId!);
-    }
-    completeLessonCallback();
-    // Calculate final score with proper null checking
-    setVocabularyScore(lessonId!, Math.round(avgAccuracy));
-    
-    // Calculate time bonus XP based on overall performance
-    const avgWordTime = vocabularyState?.wordTimers && vocabularyState.wordTimers.length > 0
-      ? vocabularyState.wordTimers.reduce((sum, time) => sum + time, 0) / vocabularyState.wordTimers.length
-      : 0;
-
-    let timeBonusXP = 0;
-    if (avgWordTime > 0 && avgWordTime <= 20) {
-      timeBonusXP = Math.floor(50 * (1 - avgWordTime / 20)); // Up to 50 bonus XP for fast completion
-    }
-
-    if (timeBonusXP > 0) {
-      addVocabularyTimeBonusXP(lessonId!, timeBonusXP);
-    }
-  }, [vocabularyState?.currentWordStartTime, vocabularyState?.wordXpScores, vocabularyState?.wordTimers, completeLessonCallback, setVocabularyScore, lessonId, avgAccuracy, stopWordTimer, addVocabularyTimeBonusXP]);
 
   const skipWord = useCallback(() => {
     handleNextWord();
@@ -527,8 +484,7 @@ export default function VocabularyScreen() {
     const totalSessionMinutes = Math.floor((vocabularyState?.totalSessionTime ?? 0) / 60);
     const totalSessionSeconds = (vocabularyState?.totalSessionTime ?? 0) % 60;
     const totalXP = vocabularyState?.wordXpScores?.reduce((sum, xp) => sum + xp, 0) ?? 0;
-    const timeBonusXP = vocabularyState?.currentTimeBonusXP ?? 0;
-
+    const averageWordAccurancy = Math.round(vocabularyState?.pronunciationAccuracy ?? 0);
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <Animated.View style={[styles.completionContainer, { transform: [{ scale: scaleAnim }] }]}>
@@ -536,32 +492,17 @@ export default function VocabularyScreen() {
 
           <Surface style={[styles.statsCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
             <Text style={[styles.completionScore, { color: theme.colors.onBackground }]}>
-              Final Score: {vocabularyState?.score ?? 0}%
+              Final Score: {totalXP} XP
             </Text>
             <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
               Words Completed: {vocabularyState?.wordsCompleted ?? 0}
             </Text>
             <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-              Average Accuracy: {Math.round(vocabularyState?.pronunciationAccuracy ?? 0)}%
+              Average Accuracy: {averageWordAccurancy}%
             </Text>
             <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
               Total Time: {totalSessionMinutes}:{totalSessionSeconds.toString().padStart(2, '0')}
             </Text>
-          </Surface>
-
-          <Surface style={[styles.xpCard, { backgroundColor: theme.colors.primary }]} elevation={2}>
-            <Text style={[styles.xpTitle, { color: theme.colors.onPrimary }]}>XP Earned</Text>
-            <Text style={[styles.xpTotal, { color: theme.colors.onPrimary }]}>
-              {totalXP + timeBonusXP} XP
-            </Text>
-            <Text style={[styles.xpBreakdown, { color: theme.colors.onPrimary }]}>
-              Base XP: {totalXP}
-            </Text>
-            {timeBonusXP > 0 && (
-              <Text style={[styles.xpBreakdown, { color: theme.colors.onPrimary }]}>
-                Time Bonus: +{timeBonusXP}
-              </Text>
-            )}
           </Surface>
 
           <Button

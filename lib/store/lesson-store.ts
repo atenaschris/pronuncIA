@@ -78,7 +78,6 @@ export interface VocabularyWord {
 export interface VocabularyState {
   words: VocabularyWord[];
   currentWordIndex: number;
-  score: number;
   attempts: number;
   maxAttempts: number;
   lessonCompleted: boolean;
@@ -101,7 +100,6 @@ export interface VocabularyState {
   pauseCount: number; // Number of times user has paused in current word
   // XP calculation fields
   wordXpScores: number[]; // XP earned for each word based on AI scores and timing
-  currentTimeBonusXP: number; // Current accumulated time bonus XP
 }
 
 export interface ListeningState {
@@ -173,7 +171,6 @@ interface LessonState {
   getVocabularyState: (lessonId: string) => VocabularyState | null;
   setVocabularyWords: (lessonId: string, words: VocabularyWord[]) => void;
   setCurrentWordIndex: (lessonId: string, index: number) => void;
-  setVocabularyScore: (lessonId: string, score: number) => void;
   incrementVocabularyAttempts: (lessonId: string) => void;
   resetVocabularyAttempts: (lessonId: string) => void;
   setVocabularyCompleted: (lessonId: string, completed: boolean) => void;
@@ -197,7 +194,6 @@ interface LessonState {
   addWordXP: (lessonId: string, wordXP: number) => void;
   calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => number;
   resumeWordTimerFromElapsed: (lessonId: string) => void;
-  addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => void;
 }
 
 export const useLessonStore = create<LessonState>()(persist(
@@ -440,7 +436,6 @@ export const useLessonStore = create<LessonState>()(persist(
               sessionState = {
                 words: [],
                 currentWordIndex: 0,
-                score: 0,
                 attempts: 0,
                 maxAttempts: 3,
                 lessonCompleted: false,
@@ -1196,31 +1191,6 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
 
-  setVocabularyScore: (lessonId: string, score: number) => set((state) => {
-    if (!state.dailyPlan) return state;
-    
-    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
-      if (lesson.id === lessonId && lesson.sessionState) {
-        return {
-          ...lesson,
-          sessionState: {
-            ...lesson.sessionState,
-            score,
-          } as VocabularyState,
-        };
-      }
-      return lesson;
-    });
-    
-    return {
-      ...state,
-      dailyPlan: {
-        ...state.dailyPlan,
-        lessons: updatedLessons,
-      },
-    };
-  }),
-
   incrementVocabularyAttempts: (lessonId: string) => set((state) => {
     if (!state.dailyPlan) return state;
     
@@ -1683,7 +1653,6 @@ export const useLessonStore = create<LessonState>()(persist(
           sessionState: {
             words: [],
             currentWordIndex: 0,
-            score: 0,
             attempts: 0,
             maxAttempts: 3,
             lessonCompleted: false,
@@ -1841,36 +1810,6 @@ export const useLessonStore = create<LessonState>()(persist(
       },
     };
   }),
-
-  addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => {
-    const { dailyPlan, totalXp } = get();
-    if (!dailyPlan) return;
-
-    let bonusDifference = 0;
-    const updatedLessons = dailyPlan.lessons.map(lesson => {
-      if (lesson.id === lessonId) {
-        // Calculate the difference between new and current time bonus
-        const currentBonus = lesson.currentTimeBonusXP || 0;
-        bonusDifference = bonusXP - currentBonus;
-        
-        return {
-          ...lesson,
-          xpReward: lesson.xpReward + bonusDifference,
-          currentTimeBonusXP: bonusXP,
-        };
-      }
-      return lesson;
-    });
-
-    // Update totalXp to reflect the time bonus change
-    set({
-      totalXp: totalXp + bonusDifference,
-      dailyPlan: {
-        ...dailyPlan,
-        lessons: updatedLessons,
-      },
-    });
-  },
 
   calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => {
     const { dailyPlan } = get();
