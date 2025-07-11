@@ -250,6 +250,15 @@ export default function VocabularyScreen() {
     }
   }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, incrementVocabularyAttempts, incrementWordsCompleted, playCorrect, playIncorrect, hapticSuccess, hapticError]);
 
+  // Helper function to calculate partial XP for failed final attempts
+  const calculatePartialXP = useCallback(() => {
+    const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
+    const bestAttemptScore = vocabularyState?.aiScores && vocabularyState.aiScores.length > 0
+      ? Math.max(...vocabularyState.aiScores.slice(-3)) // Best of last 3 attempts
+      : 50; // Fallback if no scores available
+    return Math.floor(calculateWordXP(lessonId!, currentWordIndex, bestAttemptScore, 3, currentWord?.difficulty) * 0.15); // 15% of best attempt XP
+  }, [vocabularyState?.currentWordIndex, vocabularyState?.aiScores, lessonId, currentWord?.difficulty, calculateWordXP]);
+
   const simulateAIFeedback = async (uri: string) => {
     setIsProcessing(true);
 
@@ -342,12 +351,14 @@ export default function VocabularyScreen() {
         ];
 
         let enhancedFeedback = encouragingMessages[Math.floor(Math.random() * encouragingMessages.length)];
-
         const attemptsLeft = 3 - (currentAttempts + 1);
         const isLastAttempt = (currentAttempts + 1) >= 3;
         
+        // Calculate partial XP once for reuse in both feedback and button handler
+        const partialXP = isLastAttempt ? calculatePartialXP() : 0;
+        
         if (isLastAttempt) {
-          enhancedFeedback = "Don't worry! This word will appear in the final screen for more practice. You earned some XP for your effort! 💪";
+          enhancedFeedback = `Don't worry! This word will appear in the final screen for more practice. You earned ${partialXP} XP for your effort! 💪\n\nAccuracy: ${Math.round(accuracy)}%`;
         } else if (attemptsLeft === 1) {
           enhancedFeedback += "\n\n🎯 Last chance - you can do this!";
         } else if (attemptsLeft > 1) {
@@ -372,13 +383,9 @@ export default function VocabularyScreen() {
                 hideModal();
                 if (isLastAttempt) {
                   // Award minimal XP for effort and add to incomplete words
-                  const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
-                  const bestAttemptScore = vocabularyState?.aiScores && vocabularyState.aiScores.length > 0
-                    ? Math.max(...vocabularyState.aiScores.slice(-3)) // Best of last 3 attempts
-                    : 50; // Fallback if no scores available
-                  const partialXP = Math.floor(calculateWordXP(lessonId!, currentWordIndex, bestAttemptScore, 3, currentWord?.difficulty) * 0.15); // 15% of best attempt XP
+                  // Reuse the partialXP calculated above to avoid double calculation
                   addWordXP(lessonId!, partialXP);
-                  addIncompleteWord(lessonId!, currentWordIndex);
+                  addIncompleteWord(lessonId!, vocabularyState?.currentWordIndex ?? 0);
                   // Move to next word after final failed attempt
                   setTimeout(() => {
                     nextWord();
