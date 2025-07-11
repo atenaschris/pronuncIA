@@ -89,6 +89,7 @@ export interface VocabularyState {
   wordsCompleted: number;
   totalWords: number;
   incompleteWords: number[]; // Indices of words that exceeded max attempts and were skipped
+  skippedWords: number[]; // Indices of words that were manually skipped by the user
   isRetryingWord: boolean; // Flag to track if we're currently retrying an incomplete word
 
   // Word-level timing (similar to set timing in word-pairs)
@@ -183,6 +184,7 @@ interface LessonState {
   updatePronunciationAccuracy: (lessonId: string) => void;
   incrementWordsCompleted: (lessonId: string) => void;
   addIncompleteWord: (lessonId: string, wordIndex: number) => void;
+  addSkippedWord: (lessonId: string, wordIndex: number) => void;
   retryIncompleteWord: (lessonId: string, wordIndex: number) => void;
   removeIncompleteWord: (lessonId: string, wordIndex: number) => void;
   // Vocabulary timer methods
@@ -451,6 +453,7 @@ export const useLessonStore = create<LessonState>()(persist(
                 wordsCompleted: 0,
                 totalWords: 0,
                 incompleteWords: [],
+                skippedWords: [],
                 isRetryingWord: false,
 
                 // Word-level timing
@@ -1671,6 +1674,7 @@ export const useLessonStore = create<LessonState>()(persist(
             wordsCompleted: 0,
             totalWords: 0,
             incompleteWords: [],
+            skippedWords: [],
             isRetryingWord: false,
             wordTimers: [],
             currentWordStartTime: null,
@@ -1908,6 +1912,39 @@ export const useLessonStore = create<LessonState>()(persist(
           sessionState: {
             ...currentState,
             incompleteWords,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  addSkippedWord: (lessonId: string, wordIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        const skippedWords = [...currentState.skippedWords];
+        
+        // Add word index if not already in the list
+        if (!skippedWords.includes(wordIndex)) {
+          skippedWords.push(wordIndex);
+        }
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            skippedWords,
           } as VocabularyState,
         };
       }

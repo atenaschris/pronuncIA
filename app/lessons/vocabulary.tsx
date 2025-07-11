@@ -41,6 +41,7 @@ export default function VocabularyScreen() {
     resumeWordTimerFromElapsed,
     // Incomplete words methods
     addIncompleteWord,
+    addSkippedWord,
     retryIncompleteWord,
     removeIncompleteWord
   } = useLessonStore();
@@ -226,9 +227,6 @@ export default function VocabularyScreen() {
       const score = Math.round(result.overall_score * 100);
       addAIScore(lessonId!, score);
       updatePronunciationAccuracy(lessonId!);
-
-      const feedback = `Pronunciation Score: ${score}%\n\n${result.feedback || 'Good effort! Keep practicing.'}`;
-
       incrementVocabularyAttempts(lessonId!);
 
       if (score >= 70) {
@@ -279,7 +277,7 @@ export default function VocabularyScreen() {
     if (currentWord) {
       addAIScore(lessonId!, accuracy);
 
-      let isCorrect = accuracy >= 99;
+      let isCorrect = accuracy >= 70;
 
       if (isCorrect) {
         // No need to increment attempts for successful completion
@@ -421,9 +419,10 @@ export default function VocabularyScreen() {
   }, [incrementWordsCompleted, resetVocabularyAttempts, lessonId, handleNextWord, vocabularyState?.currentWordIndex, vocabularyState?.words?.length, progressAnim]);
 
   const skipWord = useCallback(() => {
-    // Add the current word to incomplete words so user can retry it later
+    // Add the current word to both incomplete and skipped words so user can retry it later
     if (vocabularyState?.currentWordIndex !== undefined) {
       addIncompleteWord(lessonId!, vocabularyState.currentWordIndex);
+      addSkippedWord(lessonId!, vocabularyState.currentWordIndex);
       
       // Award minimal XP for skipped words to maintain array consistency
       // This ensures no gaps in wordXpScores array and prevents NaN in calculations
@@ -431,7 +430,7 @@ export default function VocabularyScreen() {
       addWordXP(lessonId!, minimalXP);
     }
     handleNextWord();
-  }, [handleNextWord, addIncompleteWord, lessonId, vocabularyState?.currentWordIndex, calculateWordXP, currentWord?.difficulty, addWordXP]);
+  }, [handleNextWord, addIncompleteWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, calculateWordXP, currentWord?.difficulty, addWordXP]);
 
   const handleRestartLesson = useCallback(() => {
     // Store the timer state before pausing
@@ -840,16 +839,19 @@ export default function VocabularyScreen() {
           </View>
 
           <View style={styles.actionsContainer}>
-            <Button
-              mode="outlined"
-              onPress={skipWord}
-              style={styles.skipButton}
-              disabled={isProcessing || isRecording}
-              accessibilityLabel="Skip current word"
-              accessibilityHint="Tap to skip this word and move to the next one"
-            >
-              Skip
-            </Button>
+            {/* Hide skip button if user is retrying a previously skipped word */}
+            {!(vocabularyState?.isRetryingWord && vocabularyState?.skippedWords?.includes(vocabularyState?.currentWordIndex ?? -1)) && (
+              <Button
+                mode="outlined"
+                onPress={skipWord}
+                style={styles.skipButton}
+                disabled={isProcessing || isRecording}
+                accessibilityLabel="Skip current word"
+                accessibilityHint="Tap to skip this word and move to the next one"
+              >
+                Skip
+              </Button>
+            )}
 
             {/* Pause/Resume Button */}
             {vocabularyState?.currentWordStartTime && (
