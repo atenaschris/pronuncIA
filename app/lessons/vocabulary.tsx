@@ -431,9 +431,14 @@ export default function VocabularyScreen() {
     // Add the current word to incomplete words so user can retry it later
     if (vocabularyState?.currentWordIndex !== undefined) {
       addIncompleteWord(lessonId!, vocabularyState.currentWordIndex);
+      
+      // Award minimal XP for skipped words to maintain array consistency
+      // This ensures no gaps in wordXpScores array and prevents NaN in calculations
+      const minimalXP = calculateWordXP(lessonId!, vocabularyState.currentWordIndex, 0, 1, currentWord?.difficulty); // 0 score for skipped word
+      addWordXP(lessonId!, minimalXP);
     }
     handleNextWord();
-  }, [handleNextWord, addIncompleteWord, lessonId, vocabularyState?.currentWordIndex]);
+  }, [handleNextWord, addIncompleteWord, lessonId, vocabularyState?.currentWordIndex, calculateWordXP, currentWord?.difficulty, addWordXP]);
 
   const handleRestartLesson = useCallback(() => {
     // Store the timer state before pausing
@@ -577,7 +582,7 @@ export default function VocabularyScreen() {
                 Average Accuracy: {averageWordAccurancy}%
               </Text>
               <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                Total Time: {totalSessionMinutes}:{totalSessionSeconds.toString().padStart(2, '0')}
+                Estimated Total Time: {totalSessionMinutes}:{totalSessionSeconds.toString().padStart(2, '0')}
               </Text>
             </Surface>
 

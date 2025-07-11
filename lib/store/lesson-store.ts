@@ -1835,16 +1835,14 @@ export const useLessonStore = create<LessonState>()(persist(
     
     // Improved graduated time bonus
     let timeBonus = 0;
-    if (wordTimer) {
-      if (wordTimer <= 10) {
-        timeBonus = 20;
-      } else if (wordTimer <= 20) {
-        timeBonus = Math.floor(20 - (wordTimer - 10));
-      } else if (wordTimer <= 40) {
-        timeBonus = Math.floor(10 - ((wordTimer - 20) / 2));
-      } else {
-        timeBonus = 0;
-      }
+    if (wordTimer <= 10) {
+      timeBonus = 20;
+    } else if (wordTimer <= 20) {
+      timeBonus = Math.floor(20 - (wordTimer - 10));
+    } else if (wordTimer <= 40) {
+      timeBonus = Math.floor(10 - ((wordTimer - 20) / 2));
+    } else {
+      timeBonus = 0;
     }
     
     // Attempt-based multiplier (rewards first attempts more)
