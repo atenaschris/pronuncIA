@@ -144,7 +144,7 @@ export default function VocabularyScreen() {
   }, [vocabularyState?.words, vocabularyState?.currentWordIndex]);
 
   const progress = useMemo(() =>
-    vocabularyState?.words ? (vocabularyState?.currentWordIndex ?? 0) / vocabularyState.words.length : 0,
+    vocabularyState?.words ? ((vocabularyState?.currentWordIndex ?? 0) + 1) / vocabularyState.words.length : 0,
     [vocabularyState?.words, vocabularyState?.currentWordIndex]
   );
 
@@ -258,45 +258,8 @@ export default function VocabularyScreen() {
       pauseWordTimer(lessonId!);
     }
 
-    // Check attempt limit before processing
+    // Get current attempts (don't increment yet - only increment after failure)
     const currentAttempts = vocabularyState?.attempts ?? 0;
-    if (currentAttempts >= 3) {
-      // Award minimal XP for effort using best attempt score (much less than any successful attempt)
-      // This prevents gaming: 15% of best attempt vs full XP for successful attempts
-      const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
-      const bestAttemptScore = vocabularyState?.aiScores && vocabularyState.aiScores.length > 0
-        ? Math.max(...vocabularyState.aiScores.slice(-3)) // Best of last 3 attempts
-        : 50; // Fallback if no scores available
-      const partialXP = Math.floor(calculateWordXP(lessonId!, currentWordIndex, bestAttemptScore, 3, currentWord?.difficulty) * 0.15); // 15% of best attempt XP
-      addWordXP(lessonId!, partialXP);
-
-      // Add this word to incomplete words list for retry option
-      addIncompleteWord(lessonId!, currentWordIndex);
-
-      const feedbackMessage = "Don't worry! This word will appear in the final screen for more practice. You earned some XP for your effort! 💪";
-      playIncorrect();
-      hapticError?.();
-
-      // Show feedback in modal
-      showModal({
-        title: "Attempts Completed",
-        message: feedbackMessage,
-        buttons: [
-          {
-            text: "Next Word",
-            onPress: () => {
-              hideModal();
-              setTimeout(() => {
-                nextWord();
-              }, 100);
-            }
-          }
-        ]
-      });
-
-      setIsProcessing(false);
-      return;
-    }
 
     // Simulate AI processing delay
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -306,16 +269,15 @@ export default function VocabularyScreen() {
 
     if (currentWord) {
       addAIScore(lessonId!, accuracy);
-      incrementVocabularyAttempts(lessonId!);
 
-      let isCorrect = accuracy >= 75;
+      let isCorrect = accuracy >= 99;
 
       if (isCorrect) {
+        // No need to increment attempts for successful completion
         updatePronunciationAccuracy(lessonId!);
 
         // Calculate and award XP for this word with attempt and difficulty bonuses
         const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
-        const currentAttempts = vocabularyState?.attempts ?? 0;
         const wordDifficulty = currentWord.difficulty;
         const wordXP = calculateWordXP(lessonId!, currentWordIndex, accuracy, currentAttempts + 1, wordDifficulty);
         addWordXP(lessonId!, wordXP);
@@ -368,6 +330,9 @@ export default function VocabularyScreen() {
           ]
         });
       } else {
+        // Increment attempts only after a failed attempt
+        incrementVocabularyAttempts(lessonId!);
+        
         // Enhanced encouraging messages for incorrect attempts
         const encouragingMessages = [
           `Almost there! Focus on the "${currentWord.targetSound}" sound.`,
@@ -378,29 +343,50 @@ export default function VocabularyScreen() {
 
         let enhancedFeedback = encouragingMessages[Math.floor(Math.random() * encouragingMessages.length)];
 
-        const attemptsLeft = 3 - currentAttempts - 1;
-        if (attemptsLeft === 1) {
+        const attemptsLeft = 3 - (currentAttempts + 1);
+        const isLastAttempt = (currentAttempts + 1) >= 3;
+        
+        if (isLastAttempt) {
+          enhancedFeedback = "Don't worry! This word will appear in the final screen for more practice. You earned some XP for your effort! 💪";
+        } else if (attemptsLeft === 1) {
           enhancedFeedback += "\n\n🎯 Last chance - you can do this!";
         } else if (attemptsLeft > 1) {
           enhancedFeedback += `\n\n💪 ${attemptsLeft} attempts remaining!`;
         }
 
-        enhancedFeedback += `\n\nAccuracy: ${Math.round(accuracy)}%`;
+        if (!isLastAttempt) {
+          enhancedFeedback += `\n\nAccuracy: ${Math.round(accuracy)}%`;
+        }
         
         playIncorrect();
         hapticError?.();
-
+        
         // Show encouraging feedback in modal
         showModal({
-          title: "Keep Trying! 💪",
+          title: isLastAttempt ? "Attempts Completed" : "Keep Trying! 💪",
           message: enhancedFeedback,
           buttons: [
             {
-              text: "Try Again",
+              text: isLastAttempt ? "Next Word" : "Try Again",
               onPress: () => {
                 hideModal();
-                // Clear recording to allow new attempt
-                setRecordingUri(null);
+                if (isLastAttempt) {
+                  // Award minimal XP for effort and add to incomplete words
+                  const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
+                  const bestAttemptScore = vocabularyState?.aiScores && vocabularyState.aiScores.length > 0
+                    ? Math.max(...vocabularyState.aiScores.slice(-3)) // Best of last 3 attempts
+                    : 50; // Fallback if no scores available
+                  const partialXP = Math.floor(calculateWordXP(lessonId!, currentWordIndex, bestAttemptScore, 3, currentWord?.difficulty) * 0.15); // 15% of best attempt XP
+                  addWordXP(lessonId!, partialXP);
+                  addIncompleteWord(lessonId!, currentWordIndex);
+                  // Move to next word after final failed attempt
+                  setTimeout(() => {
+                    nextWord();
+                  }, 100);
+                } else {
+                  // Clear recording to allow new attempt
+                  setRecordingUri(null);
+                }
               }
             }
           ]
@@ -709,7 +695,7 @@ export default function VocabularyScreen() {
             </Text>
             <View style={styles.attemptDots}>
               {Array.from({ length: vocabularyState?.maxAttempts ?? 3 }).map((_, index) => {
-                const currentAttempt = (vocabularyState?.attempts ?? 0);
+                const currentAttempt = (vocabularyState?.attempts ?? 0) + 1; // Add 1 to match the display
                 const isActive = index < currentAttempt;
                 const isMaxed = currentAttempt >= (vocabularyState?.maxAttempts ?? 3) && index === (vocabularyState?.maxAttempts ?? 3) - 1;
 
