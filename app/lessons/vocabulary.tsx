@@ -37,13 +37,15 @@ export default function VocabularyScreen() {
     resetVocabularyTimers,
     resetVocabularyLesson,
     calculateWordXP,
-    addWordXP,
+    addVocabularyWordXP,
+    updateVocabularyWordXP,
     resumeWordTimerFromElapsed,
     // Incomplete words methods
     addIncompleteWord,
     addSkippedWord,
     retryIncompleteWord,
-    removeIncompleteWord
+    removeIncompleteWord,
+    completeLesson
   } = useLessonStore();
 
   const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModalStore();
@@ -161,6 +163,9 @@ export default function VocabularyScreen() {
     // If we're retrying a word, return to completion screen instead of continuing
     if (vocabularyState.isRetryingWord) {
       setVocabularyCompleted(lessonId!, true);
+      // Also call the global completeLesson function to update lesson status
+      // No need to pass XP since it's already accumulated in the lesson
+      completeLesson(lessonId!, 0);
       playWin();
       hapticSuccess?.();
       return;
@@ -190,10 +195,13 @@ export default function VocabularyScreen() {
       ]).start();
     } else {
       setVocabularyCompleted(lessonId!, true);
+      // Also call the global completeLesson function to update lesson status
+      // No need to pass XP since it's already accumulated in the lesson
+      completeLesson(lessonId!, 0, 0);
       playWin();
       hapticSuccess?.();
     }
-  }, [vocabularyState?.words, vocabularyState?.currentWordIndex, vocabularyState?.currentWordStartTime, vocabularyState?.isRetryingWord, lessonId, setCurrentWordIndex, setRecordingUri, stopWordTimer, startWordTimer, fadeAnim, setVocabularyCompleted, playWin, hapticSuccess]);
+  }, [vocabularyState?.words, vocabularyState?.currentWordIndex, vocabularyState?.currentWordStartTime, vocabularyState?.isRetryingWord, lessonId, setCurrentWordIndex, setRecordingUri, stopWordTimer, startWordTimer, fadeAnim, setVocabularyCompleted, completeLesson, playWin, hapticSuccess]);
 
 
   const submitRecording = useCallback(async () => {
@@ -287,11 +295,13 @@ export default function VocabularyScreen() {
         const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
         const wordDifficulty = currentWord.difficulty;
         const wordXP = calculateWordXP(lessonId!, currentWordIndex, accuracy, currentAttempts + 1, wordDifficulty);
-        addWordXP(lessonId!, wordXP);
-
-        // If this is a retry, remove the word from incomplete words list
+        
+        // If this is a retry, update the existing XP instead of adding new XP
         if (vocabularyState?.isRetryingWord) {
+          updateVocabularyWordXP(lessonId!, currentWordIndex, wordXP);
           removeIncompleteWord(lessonId!, currentWordIndex);
+        } else {
+          addVocabularyWordXP(lessonId!, wordXP);
         }
 
         // Enhanced feedback messages for correct pronunciation
@@ -382,7 +392,7 @@ export default function VocabularyScreen() {
                 if (isLastAttempt) {
                   // Award minimal XP for effort and add to incomplete words
                   // Reuse the partialXP calculated above to avoid double calculation
-                  addWordXP(lessonId!, partialXP);
+                  addVocabularyWordXP(lessonId!, partialXP);
                   addIncompleteWord(lessonId!, vocabularyState?.currentWordIndex ?? 0);
                   // Move to next word after final failed attempt
                   setTimeout(() => {
@@ -427,10 +437,10 @@ export default function VocabularyScreen() {
       // Award minimal XP for skipped words to maintain array consistency
       // This ensures no gaps in wordXpScores array and prevents NaN in calculations
       const minimalXP = calculateWordXP(lessonId!, vocabularyState.currentWordIndex, 0, 1, currentWord?.difficulty); // 0 score for skipped word
-      addWordXP(lessonId!, minimalXP);
+      addVocabularyWordXP(lessonId!, minimalXP);
     }
     handleNextWord();
-  }, [handleNextWord, addIncompleteWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, calculateWordXP, currentWord?.difficulty, addWordXP]);
+  }, [handleNextWord, addIncompleteWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, calculateWordXP, currentWord?.difficulty, addVocabularyWordXP]);
 
   const handleRestartLesson = useCallback(() => {
     // Store the timer state before pausing
