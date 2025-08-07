@@ -821,8 +821,6 @@ export default function VocabularyScreen() {
             )}
           </View>
 
-          {/* Feedback is now shown in modal instead of banner */}
-
           {/* Restart Button */}
           <View style={styles.restartContainer}>
             <Button
