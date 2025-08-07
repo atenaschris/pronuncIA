@@ -1834,23 +1834,31 @@ export const useLessonStore = create<LessonState>()(persist(
     const vocabularyState = lesson.sessionState as VocabularyState;
     const wordTimer = vocabularyState.wordTimers[wordIndex];
     
+    // Check if this word was previously skipped
+    const wasSkipped = vocabularyState.skippedWords.includes(wordIndex);
+    
     // Base XP from AI score (0-100 maps to 0-50 XP)
     const baseXP = Math.floor(aiScore / 2);
     
-    // Improved graduated time bonus
+    // Time bonus calculation - skipped words don't get time bonuses
     let timeBonus = 0;
-    if (wordTimer <= 10) {
-      timeBonus = 20;
-    } else if (wordTimer <= 20) {
-      timeBonus = Math.floor(20 - (wordTimer - 10));
-    } else if (wordTimer <= 40) {
-      timeBonus = Math.floor(10 - ((wordTimer - 20) / 2));
-    } else {
-      timeBonus = 0;
+    if (!wasSkipped) {
+      if (wordTimer <= 10) {
+        timeBonus = 20;
+      } else if (wordTimer <= 20) {
+        timeBonus = Math.floor(20 - (wordTimer - 10));
+      } else if (wordTimer <= 40) {
+        timeBonus = Math.floor(10 - ((wordTimer - 20) / 2));
+      } else {
+        timeBonus = 0;
+      }
     }
     
     // Attempt-based multiplier (rewards first attempts more)
-    const attemptMultipliers = [1.0, 0.8, 0.6]; // 100%, 80%, 60% for attempts 1-3
+    // Skipped words get reduced multiplier since they had a previous chance
+    const attemptMultipliers = wasSkipped 
+      ? [0.6, 0.5, 0.4] // Reduced multipliers for skipped words
+      : [1.0, 0.8, 0.6]; // Normal multipliers for first-time attempts
     const attemptIndex = Math.min((currentAttempt || 1) - 1, 2);
     const attemptMultiplier = attemptMultipliers[attemptIndex];
     
