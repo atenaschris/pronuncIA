@@ -78,7 +78,6 @@ export interface VocabularyWord {
 export interface VocabularyState {
   words: VocabularyWord[];
   currentWordIndex: number;
-  score: number;
   attempts: number;
   maxAttempts: number;
   lessonCompleted: boolean;
@@ -89,6 +88,9 @@ export interface VocabularyState {
   pronunciationAccuracy: number; // Overall accuracy percentage
   wordsCompleted: number;
   totalWords: number;
+  incompleteWords: number[]; // Indices of words that exceeded max attempts and were skipped
+  skippedWords: number[]; // Indices of words that were manually skipped by the user
+  isRetryingWord: boolean; // Flag to track if we're currently retrying an incomplete word
 
   // Word-level timing (similar to set timing in word-pairs)
   wordTimers: number[]; // Array of completion times for each word (in seconds)
@@ -101,7 +103,6 @@ export interface VocabularyState {
   pauseCount: number; // Number of times user has paused in current word
   // XP calculation fields
   wordXpScores: number[]; // XP earned for each word based on AI scores and timing
-  currentTimeBonusXP: number; // Current accumulated time bonus XP
 }
 
 export interface ListeningState {
@@ -142,7 +143,7 @@ interface LessonState {
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => void;
   generateDailyPlan: () => Promise<void>;
   
-  // Lesson-specific actions
+  // WordPairs-specific actions
   setEnglishWords: (lessonId: string, words: EnglishWord[]) => void;
   setTranslationWords: (lessonId: string, words: TranslationWord[]) => void;
   setSelectedPair: (lessonId: string, pair: {index: number, column: 'english' | 'translation'} | null) => void;
@@ -173,8 +174,8 @@ interface LessonState {
   getVocabularyState: (lessonId: string) => VocabularyState | null;
   setVocabularyWords: (lessonId: string, words: VocabularyWord[]) => void;
   setCurrentWordIndex: (lessonId: string, index: number) => void;
-  setVocabularyScore: (lessonId: string, score: number) => void;
   incrementVocabularyAttempts: (lessonId: string) => void;
+  resetVocabularyAttempts: (lessonId: string) => void;
   setVocabularyCompleted: (lessonId: string, completed: boolean) => void;
   addUserRecording: (lessonId: string, recording: string) => void;
   addAIScore: (lessonId: string, score: number) => void;
@@ -182,8 +183,10 @@ interface LessonState {
   setShowFeedback: (lessonId: string, show: boolean) => void;
   updatePronunciationAccuracy: (lessonId: string) => void;
   incrementWordsCompleted: (lessonId: string) => void;
-
-
+  addIncompleteWord: (lessonId: string, wordIndex: number) => void;
+  addSkippedWord: (lessonId: string, wordIndex: number) => void;
+  retryIncompleteWord: (lessonId: string, wordIndex: number) => void;
+  removeIncompleteWord: (lessonId: string, wordIndex: number) => void;
   // Vocabulary timer methods
   startWordTimer: (lessonId: string) => void;
   stopWordTimer: (lessonId: string) => void;
@@ -193,9 +196,10 @@ interface LessonState {
   resetVocabularyTimers: (lessonId: string) => void;
   resetVocabularyLesson: (lessonId: string) => void;
   clearWordTimer: (lessonId: string, wordIndex: number) => void;
-  addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => void;
+
   addWordXP: (lessonId: string, wordXP: number) => void;
-  calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number) => number;
+  calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => number;
+  resumeWordTimerFromElapsed: (lessonId: string) => void;
 }
 
 export const useLessonStore = create<LessonState>()(persist(
@@ -322,7 +326,7 @@ export const useLessonStore = create<LessonState>()(persist(
             type: 'vocabulary',
             title: 'Business Vocabulary',
             description: 'Learn essential business terms',
-            xpReward: 100,
+            xpReward: 0,
             completed: false,
             locked: false,
           },
@@ -331,7 +335,7 @@ export const useLessonStore = create<LessonState>()(persist(
             type: 'listening',
             title: 'Active Listening',
             description: 'Improve comprehension skills',
-            xpReward: 120,
+            xpReward: 0,
             completed: false,
             locked: false,
           },
@@ -340,7 +344,7 @@ export const useLessonStore = create<LessonState>()(persist(
             type: 'pronunciation',
             title: 'Difficult Sounds',
             description: 'Practice challenging phonemes',
-            xpReward: 150,
+            xpReward: 0,
             completed: false,
             locked: false,
           },
@@ -349,7 +353,7 @@ export const useLessonStore = create<LessonState>()(persist(
             type: 'roleplay',
             title: 'Job Interview',
             description: 'Practice common interview phrases',
-            xpReward: 200,
+            xpReward: 0,
             completed: false,
             locked: false,
           },
@@ -358,7 +362,7 @@ export const useLessonStore = create<LessonState>()(persist(
             type: 'shadowing',
             title: 'Native Speech',
             description: 'Mirror native speaker patterns',
-            xpReward: 180,
+            xpReward: 0,
             completed: false,
             locked: false,
           },
@@ -367,7 +371,7 @@ export const useLessonStore = create<LessonState>()(persist(
             type: 'voice_journaling',
             title: 'Daily Reflection',
             description: 'Record your thoughts in English',
-            xpReward: 150,
+            xpReward: 0,
             completed: false,
             locked: false,
           },
@@ -438,7 +442,6 @@ export const useLessonStore = create<LessonState>()(persist(
               sessionState = {
                 words: [],
                 currentWordIndex: 0,
-                score: 0,
                 attempts: 0,
                 maxAttempts: 3,
                 lessonCompleted: false,
@@ -449,6 +452,9 @@ export const useLessonStore = create<LessonState>()(persist(
                 pronunciationAccuracy: 0,
                 wordsCompleted: 0,
                 totalWords: 0,
+                incompleteWords: [],
+                skippedWords: [],
+                isRetryingWord: false,
 
                 // Word-level timing
                 wordTimers: [],
@@ -1194,31 +1200,6 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
 
-  setVocabularyScore: (lessonId: string, score: number) => set((state) => {
-    if (!state.dailyPlan) return state;
-    
-    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
-      if (lesson.id === lessonId && lesson.sessionState) {
-        return {
-          ...lesson,
-          sessionState: {
-            ...lesson.sessionState,
-            score,
-          } as VocabularyState,
-        };
-      }
-      return lesson;
-    });
-    
-    return {
-      ...state,
-      dailyPlan: {
-        ...state.dailyPlan,
-        lessons: updatedLessons,
-      },
-    };
-  }),
-
   incrementVocabularyAttempts: (lessonId: string) => set((state) => {
     if (!state.dailyPlan) return state;
     
@@ -1245,6 +1226,32 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
 
+  resetVocabularyAttempts: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            attempts: 0,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
   setVocabularyCompleted: (lessonId: string, completed: boolean) => set((state) => {
     if (!state.dailyPlan) return state;
     
@@ -1255,6 +1262,7 @@ export const useLessonStore = create<LessonState>()(persist(
           sessionState: {
             ...lesson.sessionState,
             lessonCompleted: completed,
+            isRetryingWord: false, // Reset retry flag when lesson is completed
           } as VocabularyState,
         };
       }
@@ -1447,8 +1455,9 @@ export const useLessonStore = create<LessonState>()(persist(
             currentWordElapsedTime: 0,
             isPaused: false,
             pauseStartTime: null,
-            totalPauseTime: 0,
-            pauseCount: 0,
+            totalPauseTime: 0, // Reset for new word
+            pauseCount: 0, // Reset for new word
+            attempts: 0, // Reset attempts for new word
           } as VocabularyState,
         };
       }
@@ -1481,6 +1490,9 @@ export const useLessonStore = create<LessonState>()(persist(
           const newWordTimers = [...currentState.wordTimers];
           newWordTimers[currentState.currentWordIndex] = completionTime;
           
+          // Calculate total session time by summing all word timers
+          const totalSessionTime = newWordTimers.reduce((sum, time) => sum + (time || 0), 0);
+          
           return {
             ...lesson,
             sessionState: {
@@ -1488,11 +1500,11 @@ export const useLessonStore = create<LessonState>()(persist(
               wordTimers: newWordTimers,
               currentWordStartTime: null,
               currentWordElapsedTime: completionTime,
-              totalSessionTime: currentState.totalSessionTime + completionTime,
+              totalSessionTime: totalSessionTime,
               isPaused: false,
               pauseStartTime: null,
-              totalPauseTime: 0,
-              pauseCount: 0,
+              totalPauseTime: 0, // Reset after word completion
+              pauseCount: 0, // Reset after word completion
             } as VocabularyState,
           };
         }
@@ -1651,7 +1663,6 @@ export const useLessonStore = create<LessonState>()(persist(
           sessionState: {
             words: [],
             currentWordIndex: 0,
-            score: 0,
             attempts: 0,
             maxAttempts: 3,
             lessonCompleted: false,
@@ -1662,6 +1673,9 @@ export const useLessonStore = create<LessonState>()(persist(
             pronunciationAccuracy: 0,
             wordsCompleted: 0,
             totalWords: 0,
+            incompleteWords: [],
+            skippedWords: [],
+            isRetryingWord: false,
             wordTimers: [],
             currentWordStartTime: null,
             currentWordElapsedTime: 0,
@@ -1726,39 +1740,7 @@ export const useLessonStore = create<LessonState>()(persist(
     };
   }),
 
-  addVocabularyTimeBonusXP: (lessonId: string, bonusXP: number) => {
-    const { dailyPlan, totalXp } = get();
-    if (!dailyPlan) return;
 
-    let bonusDifference = 0;
-    const updatedLessons = dailyPlan.lessons.map(lesson => {
-      if (lesson.id === lessonId && lesson.sessionState) {
-        const currentState = lesson.sessionState as VocabularyState;
-        // Calculate the difference between new and current time bonus
-        const currentBonus = currentState.currentTimeBonusXP || 0;
-        bonusDifference = bonusXP - currentBonus;
-        
-        return {
-          ...lesson,
-          xpReward: lesson.xpReward + bonusDifference,
-          sessionState: {
-            ...currentState,
-            currentTimeBonusXP: bonusXP,
-          } as VocabularyState,
-        };
-      }
-      return lesson;
-    });
-
-    // Update totalXp to reflect the time bonus change
-    set({
-      totalXp: totalXp + bonusDifference,
-      dailyPlan: {
-        ...dailyPlan,
-        lessons: updatedLessons,
-      },
-    });
-  },
 
   addWordXP: (lessonId: string, wordXP: number) => {
     const { dailyPlan, totalXp } = get();
@@ -1783,7 +1765,66 @@ export const useLessonStore = create<LessonState>()(persist(
     });
   },
 
-  calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number) => {
+  updateVocabularyState: (lessonId: string, updatedState: Partial<VocabularyState>) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        return {
+          ...lesson,
+          sessionState: {
+            ...lesson.sessionState,
+            ...updatedState,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  resumeWordTimerFromElapsed: (lessonId: string) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        
+        // Calculate the adjusted start time based on current elapsed time
+        const currentElapsed = currentState.currentWordElapsedTime || 0;
+        const totalPauseTime = currentState.totalPauseTime || 0;
+        const adjustedStartTime = Date.now() - (currentElapsed * 1000) - (totalPauseTime * 1000);
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            currentWordStartTime: adjustedStartTime,
+            isPaused: false,
+            pauseStartTime: null,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => {
     const { dailyPlan } = get();
     if (!dailyPlan) return 0;
     
@@ -1793,21 +1834,40 @@ export const useLessonStore = create<LessonState>()(persist(
     const vocabularyState = lesson.sessionState as VocabularyState;
     const wordTimer = vocabularyState.wordTimers[wordIndex];
     
+    // Check if this word was previously skipped
+    const wasSkipped = vocabularyState.skippedWords.includes(wordIndex);
+    
     // Base XP from AI score (0-100 maps to 0-50 XP)
     const baseXP = Math.floor(aiScore / 2);
     
-    // Time bonus: faster completion = more bonus XP
+    // Time bonus calculation - skipped words don't get time bonuses
     let timeBonus = 0;
-    if (wordTimer) {
-      // Bonus decreases as time increases (max 20 bonus XP for very fast completion)
-      const maxTimeForBonus = 30; // seconds
-      const maxBonus = 20;
-      if (wordTimer <= maxTimeForBonus) {
-        timeBonus = Math.floor(maxBonus * (1 - wordTimer / maxTimeForBonus));
+    if (!wasSkipped) {
+      if (wordTimer <= 10) {
+        timeBonus = 20;
+      } else if (wordTimer <= 20) {
+        timeBonus = Math.floor(20 - (wordTimer - 10));
+      } else if (wordTimer <= 40) {
+        timeBonus = Math.floor(10 - ((wordTimer - 20) / 2));
+      } else {
+        timeBonus = 0;
       }
     }
     
-    const totalXP = baseXP + timeBonus;
+    // Attempt-based multiplier (rewards first attempts more)
+    // Skipped words get reduced multiplier since they had a previous chance
+    const attemptMultipliers = wasSkipped 
+      ? [0.6, 0.5, 0.4] // Reduced multipliers for skipped words
+      : [1.0, 0.8, 0.6]; // Normal multipliers for first-time attempts
+    const attemptIndex = Math.min((currentAttempt || 1) - 1, 2);
+    const attemptMultiplier = attemptMultipliers[attemptIndex];
+    
+    // Difficulty-based scaling
+    const difficultyMultipliers = { easy: 0.8, medium: 1.0, hard: 1.3 };
+    const difficultyMultiplier = difficultyMultipliers[wordDifficulty || 'medium'];
+    
+    // Calculate final XP with all multipliers
+    const totalXP = Math.floor((baseXP + timeBonus) * attemptMultiplier * difficultyMultiplier);
     
     // Update the word XP scores array
     set((state) => {
@@ -1840,7 +1900,140 @@ export const useLessonStore = create<LessonState>()(persist(
     });
     
     return totalXP;
-  }
+  },
+
+  addIncompleteWord: (lessonId: string, wordIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        const incompleteWords = [...currentState.incompleteWords];
+        
+        // Add word index if not already in the list
+        if (!incompleteWords.includes(wordIndex)) {
+          incompleteWords.push(wordIndex);
+        }
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            incompleteWords,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  addSkippedWord: (lessonId: string, wordIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        const skippedWords = [...currentState.skippedWords];
+        
+        // Add word index if not already in the list
+        if (!skippedWords.includes(wordIndex)) {
+          skippedWords.push(wordIndex);
+        }
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            skippedWords,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  retryIncompleteWord: (lessonId: string, wordIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            currentWordIndex: wordIndex,
+            attempts: 0,
+            feedback: null,
+            showFeedback: false,
+            lessonCompleted: false,
+            isRetryingWord: true,
+            // Reset timer state for the word
+            currentWordStartTime: null,
+            currentWordElapsedTime: 0,
+            isPaused: false,
+            pauseStartTime: null,
+            totalPauseTime: 0,
+            pauseCount: 0,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  }),
+
+  removeIncompleteWord: (lessonId: string, wordIndex: number) => set((state) => {
+    if (!state.dailyPlan) return state;
+    
+    const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+      if (lesson.id === lessonId && lesson.sessionState) {
+        const currentState = lesson.sessionState as VocabularyState;
+        const incompleteWords = currentState.incompleteWords.filter(index => index !== wordIndex);
+        
+        return {
+          ...lesson,
+          sessionState: {
+            ...currentState,
+            incompleteWords,
+          } as VocabularyState,
+        };
+      }
+      return lesson;
+    });
+    
+    return {
+      ...state,
+      dailyPlan: {
+        ...state.dailyPlan,
+        lessons: updatedLessons,
+      },
+    };
+  })
 }),
 {
   name: 'lesson-storage',
