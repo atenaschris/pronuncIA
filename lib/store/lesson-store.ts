@@ -197,7 +197,7 @@ interface LessonState {
   clearWordTimer: (lessonId: string, wordIndex: number) => void;
 
   addVocabularyWordXP: (lessonId: string, wordXP: number) => void;
-  updateVocabularyWordXP: (lessonId: string, wordIndex: number, newXP: number) => void;
+
 
   calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => number;
   resumeWordTimerFromElapsed: (lessonId: string) => void;
@@ -1754,36 +1754,13 @@ export const useLessonStore = create<LessonState>()(persist(
       const { dailyPlan } = get();
       if (!dailyPlan) return;
 
-      const updatedLessons = dailyPlan.lessons.map(lesson => {
-        if (lesson.id === lessonId) {
-          return {
-            ...lesson,
-            xpReward: lesson.xpReward + wordXP,
-          };
-        }
-        return lesson;
-      });
-
-      set({
-        dailyPlan: {
-          ...dailyPlan,
-          lessons: updatedLessons,
-        },
-      });
-    },
-
-    updateVocabularyWordXP: (lessonId: string, wordIndex: number, newXP: number) => {
-      const { dailyPlan } = get();
-      if (!dailyPlan) return;
+      console.log(`[addVocabularyWordXP] Adding ${wordXP}XP to lesson ${lessonId}`);
 
       const updatedLessons = dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId) {
-          const oldLessonXP = lesson.xpReward;
-          // For vocabulary lessons, we need to track the XP difference and update the total
-          // Since we don't track individual word XP anymore, we just adjust the total
-          const xpDifference = newXP; // This assumes we're adding new XP, not replacing
-          const newLessonXP = oldLessonXP + xpDifference;
-
+          const newLessonXP = lesson.xpReward + wordXP;
+          
+          console.log(`[addVocabularyWordXP] Lesson ${lessonId}: oldTotal=${lesson.xpReward}, newTotal=${newLessonXP}`);
 
           return {
             ...lesson,
@@ -1800,6 +1777,8 @@ export const useLessonStore = create<LessonState>()(persist(
         },
       });
     },
+
+
 
 
 

@@ -39,7 +39,7 @@ export default function VocabularyScreen() {
     resetVocabularyLesson,
     calculateWordXP,
     addVocabularyWordXP,
-    updateVocabularyWordXP,
+
     resumeWordTimerFromElapsed,
     // Incomplete words methods
     addIncompleteWord,
@@ -299,9 +299,9 @@ export default function VocabularyScreen() {
         const wordDifficulty = currentWord.difficulty;
         const wordXP = calculateWordXP(lessonId!, currentWordIndex, accuracy, currentAttempts + 1, wordDifficulty);
         
-        // If this is a retry, update the existing XP instead of adding new XP
+        // If this is a retry, add the XP for the retry attempt
         if (vocabularyState?.isRetryingWord) {
-          updateVocabularyWordXP(lessonId!, currentWordIndex, wordXP);
+          addVocabularyWordXP(lessonId!, wordXP);
           const xpDelta = wordXP;
           
           // Store the XP delta for when the lesson completes
@@ -309,7 +309,6 @@ export default function VocabularyScreen() {
           // We'll use this delta when calling completeLesson
           retryXpDeltaRef.current = (retryXpDeltaRef.current || 0) + xpDelta;
         }
-          
           removeIncompleteWord(lessonId!, currentWordIndex);
         } else {
           addVocabularyWordXP(lessonId!, wordXP);
