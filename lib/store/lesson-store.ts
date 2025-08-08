@@ -195,10 +195,7 @@ interface LessonState {
   resetVocabularyTimers: (lessonId: string) => void;
   resetVocabularyLesson: (lessonId: string) => void;
   clearWordTimer: (lessonId: string, wordIndex: number) => void;
-
   addVocabularyWordXP: (lessonId: string, wordXP: number) => void;
-
-
   calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => number;
   resumeWordTimerFromElapsed: (lessonId: string) => void;
   getLesson: (lessonId: string) => Lesson | null;

@@ -289,7 +289,7 @@ export default function VocabularyScreen() {
     if (currentWord) {
       addAIScore(lessonId!, accuracy);
 
-      let isCorrect = accuracy >= 70;
+      let isCorrect = accuracy >= 90;
 
       if (isCorrect) {
         updatePronunciationAccuracy(lessonId!);
@@ -411,6 +411,47 @@ export default function VocabularyScreen() {
                 } else {
                   // Clear recording to allow new attempt
                   setRecordingUri(null);
+                  
+                  // Show informative modal with options for the user
+                  setTimeout(() => {
+                    showModal({
+                      title: "Ready for Another Try? 🎯",
+                      message: `Great! You can now:\n\n🔊 Tap the word card to listen to the pronunciation again\n\n🎤 Or press the record button directly if you're ready to try again\n\nTake your time - there's no rush!`,
+                      buttons: [
+                        {
+                          text: "Listen First",
+                          onPress: () => {
+                            hideModal();
+                            // Resume timer first, then play the word
+                            setTimeout(() => {
+                              // Always resume timer
+                              console.log('[Try Again] Resuming timer before playing word');
+                              resumeWordTimer(lessonId!);
+                              if (currentWord?.word) {
+                                console.log('[Try Again] Playing word pronunciation:', currentWord.word);
+                                playWordAudio(currentWord.word);
+                                hapticMedium?.();
+                              }
+                            }, 200);
+                          }
+                        },
+                        {
+                          text: "Start Recording",
+                          onPress: () => {
+                            hideModal();
+                            // Resume timer and start recording
+                            setTimeout(() => {
+                              // Always resume timer before recording
+                              console.log('[Try Again] Resuming timer before recording');
+                              resumeWordTimer(lessonId!);
+                              console.log('[Try Again] Starting recording directly');
+                              startRecording();
+                            }, 200);
+                          }
+                        }
+                      ]
+                    });
+                  }, 100);
                 }
               }
             }
@@ -571,6 +612,7 @@ export default function VocabularyScreen() {
       cleanup();
       
       retryIncompleteWord(lessonId!, wordIndex);
+      
       // Start timer for the retried word
       setTimeout(() => {
         startWordTimer(lessonId!);
