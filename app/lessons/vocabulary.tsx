@@ -19,6 +19,7 @@ export default function VocabularyScreen() {
   const { playCorrect, playIncorrect, playWin, playWordAudio } = useAudio();
   const {
     getVocabularyState,
+    getLesson,
     setVocabularyWords,
     setCurrentWordIndex,
     incrementVocabularyAttempts,
@@ -80,6 +81,7 @@ export default function VocabularyScreen() {
   }, [originalStartRecording, lessonId, vocabularyState?.currentWordStartTime, vocabularyState?.isPaused, resumeWordTimer, resumeWordTimerFromElapsed]);
 
   const [error, setError] = useState<string | null>(null);
+  const retryXpDeltaRef = useRef<number>(0);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -118,6 +120,9 @@ export default function VocabularyScreen() {
     // Start with consonants_th set for demo
     const words = VOCABULARY_WORD_SETS.consonants_th;
     setVocabularyWords(lessonId!, words);
+    
+    // Reset retry XP delta for new lesson
+    retryXpDeltaRef.current = 0;
 
     // Start timer for the first word
     setTimeout(() => {
@@ -163,9 +168,9 @@ export default function VocabularyScreen() {
     // If we're retrying a word, return to completion screen instead of continuing
     if (vocabularyState.isRetryingWord) {
       setVocabularyCompleted(lessonId!, true);
-      // Also call the global completeLesson function to update lesson status
-      // No need to pass XP since it's already accumulated in the lesson
-      completeLesson(lessonId!, 0);
+      // Pass the accumulated XP delta from retried words
+      completeLesson(lessonId!, retryXpDeltaRef.current);
+      retryXpDeltaRef.current = 0; // Reset for next session
       playWin();
       hapticSuccess?.();
       return;
@@ -196,8 +201,7 @@ export default function VocabularyScreen() {
     } else {
       setVocabularyCompleted(lessonId!, true);
       // Also call the global completeLesson function to update lesson status
-      // No need to pass XP since it's already accumulated in the lesson
-      completeLesson(lessonId!, 0, 0);
+      completeLesson(lessonId!, 0);
       playWin();
       hapticSuccess?.();
     }
@@ -288,7 +292,6 @@ export default function VocabularyScreen() {
       let isCorrect = accuracy >= 70;
 
       if (isCorrect) {
-        // No need to increment attempts for successful completion
         updatePronunciationAccuracy(lessonId!);
 
         // Calculate and award XP for this word with attempt and difficulty bonuses
@@ -299,6 +302,14 @@ export default function VocabularyScreen() {
         // If this is a retry, update the existing XP instead of adding new XP
         if (vocabularyState?.isRetryingWord) {
           updateVocabularyWordXP(lessonId!, currentWordIndex, wordXP);
+          const xpDelta = wordXP;
+          
+          // Store the XP delta for when the lesson completes
+        if (xpDelta > 0) {
+          // We'll use this delta when calling completeLesson
+          retryXpDeltaRef.current = (retryXpDeltaRef.current || 0) + xpDelta;
+        }
+          
           removeIncompleteWord(lessonId!, currentWordIndex);
         } else {
           addVocabularyWordXP(lessonId!, wordXP);
@@ -434,8 +445,7 @@ export default function VocabularyScreen() {
       addIncompleteWord(lessonId!, vocabularyState.currentWordIndex);
       addSkippedWord(lessonId!, vocabularyState.currentWordIndex);
       
-      // Award minimal XP for skipped words to maintain array consistency
-      // This ensures no gaps in wordXpScores array and prevents NaN in calculations
+      // Award minimal XP for skipped words to maintain XP tracking consistency
       const minimalXP = calculateWordXP(lessonId!, vocabularyState.currentWordIndex, 0, 1, currentWord?.difficulty); // 0 score for skipped word
       addVocabularyWordXP(lessonId!, minimalXP);
     }
@@ -551,7 +561,8 @@ export default function VocabularyScreen() {
   if (vocabularyState?.lessonCompleted) {
     const totalSessionMinutes = Math.floor((vocabularyState?.totalSessionTime ?? 0) / 60);
     const totalSessionSeconds = (vocabularyState?.totalSessionTime ?? 0) % 60;
-    const totalXP = vocabularyState?.wordXpScores?.reduce((sum, xp) => sum + xp, 0) ?? 0;
+    const lesson = getLesson(lessonId!);
+    const totalXP = lesson?.xpReward ?? 0;
     const averageWordAccurancy = Math.round(vocabularyState?.pronunciationAccuracy ?? 0);
     const incompleteWords = vocabularyState?.incompleteWords ?? [];
 

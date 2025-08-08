@@ -101,8 +101,7 @@ export interface VocabularyState {
   pauseStartTime: number | null; // Timestamp when pause started
   totalPauseTime: number; // Total time spent paused in current word (in seconds)
   pauseCount: number; // Number of times user has paused in current word
-  // XP calculation fields
-  wordXpScores: number[]; // XP earned for each word based on AI scores and timing
+  // Note: lesson.xpReward is the single source of truth for all XP tracking
 }
 
 export interface ListeningState {
@@ -199,6 +198,7 @@ interface LessonState {
 
   addVocabularyWordXP: (lessonId: string, wordXP: number) => void;
   updateVocabularyWordXP: (lessonId: string, wordIndex: number, newXP: number) => void;
+
   calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => number;
   resumeWordTimerFromElapsed: (lessonId: string) => void;
   getLesson: (lessonId: string) => Lesson | null;
@@ -262,16 +262,18 @@ export const useLessonStore = create<LessonState>()(persist(
           } else if (lessonToUpdate.type === 'vocabulary') {
             // For vocabulary lessons, handle XP accumulation and completion
             // The XP has already been accumulated through addVocabularyWordXP calls
-            // We only need to add it to the global total when completing for the first time
             
             // Mark lesson as completed if not already completed
             if (!lessonToUpdate.completed) {
               lessonToUpdate.completed = true;
               lessonNewlyFullyCompleted = true;
-              // Add the lesson's accumulated XP to the global total only on first completion
+              // Add the lesson's accumulated XP to the global total on first completion
               xpDeltaForTotal = lessonToUpdate.xpReward;
+            } else {
+              // If already completed, add any additional XP from retried words
+              // The scoreForAttemptOrLesson parameter contains the XP delta for retried words
+              xpDeltaForTotal = scoreForAttemptOrLesson;
             }
-            // If already completed, no XP delta needed (prevents double-counting)
           } else {
             // For other lesson types, standard completion logic
             if (!lessonToUpdate.completed) {
@@ -474,8 +476,6 @@ export const useLessonStore = create<LessonState>()(persist(
                   pauseStartTime: null,
                   totalPauseTime: 0,
                   pauseCount: 0,
-                  // XP calculation fields
-                  wordXpScores: [],
                   currentTimeBonusXP: 0,
                 } as VocabularyState;
                 break;
@@ -1693,7 +1693,6 @@ export const useLessonStore = create<LessonState>()(persist(
               pauseStartTime: null,
               totalPauseTime: 0,
               pauseCount: 0,
-              wordXpScores: [],
               currentTimeBonusXP: 0,
             } as VocabularyState,
           };
@@ -1778,23 +1777,17 @@ export const useLessonStore = create<LessonState>()(persist(
       if (!dailyPlan) return;
 
       const updatedLessons = dailyPlan.lessons.map(lesson => {
-        if (lesson.id === lessonId && lesson.sessionState) {
-          const currentState = lesson.sessionState as VocabularyState;
-          const oldXP = currentState.wordXpScores[wordIndex] || 0;
-          const xpDifference = newXP - oldXP;
+        if (lesson.id === lessonId) {
+          const oldLessonXP = lesson.xpReward;
+          // For vocabulary lessons, we need to track the XP difference and update the total
+          // Since we don't track individual word XP anymore, we just adjust the total
+          const xpDifference = newXP; // This assumes we're adding new XP, not replacing
+          const newLessonXP = oldLessonXP + xpDifference;
 
-          // Update the word XP scores array
-          const newWordXpScores = [...currentState.wordXpScores];
-          newWordXpScores[wordIndex] = newXP;
 
           return {
             ...lesson,
-            sessionState: {
-              ...currentState,
-              wordXpScores: newWordXpScores,
-            } as VocabularyState,
-            // Adjust the lesson's total XP by the difference
-            xpReward: lesson.xpReward + xpDifference,
+            xpReward: newLessonXP,
           };
         }
         return lesson;
@@ -1807,6 +1800,8 @@ export const useLessonStore = create<LessonState>()(persist(
         },
       });
     },
+
+
 
     updateVocabularyState: (lessonId: string, updatedState: Partial<VocabularyState>) => set((state) => {
       if (!state.dailyPlan) return state;
@@ -1911,36 +1906,6 @@ export const useLessonStore = create<LessonState>()(persist(
 
       // Calculate final XP with all multipliers
       const totalXP = Math.floor((baseXP + timeBonus) * attemptMultiplier * difficultyMultiplier);
-
-      // Update the word XP scores array
-      set((state) => {
-        if (!state.dailyPlan) return state;
-
-        const updatedLessons = state.dailyPlan.lessons.map(lessonItem => {
-          if (lessonItem.id === lessonId && lessonItem.sessionState) {
-            const currentState = lessonItem.sessionState as VocabularyState;
-            const newWordXpScores = [...currentState.wordXpScores];
-            newWordXpScores[wordIndex] = totalXP;
-
-            return {
-              ...lessonItem,
-              sessionState: {
-                ...currentState,
-                wordXpScores: newWordXpScores,
-              } as VocabularyState,
-            };
-          }
-          return lessonItem;
-        });
-
-        return {
-          ...state,
-          dailyPlan: {
-            ...state.dailyPlan,
-            lessons: updatedLessons,
-          },
-        };
-      });
 
       return totalXP;
     },
