@@ -9,7 +9,7 @@ import { usePortalModalStore } from '@/lib/store/portal-modal-store';
 
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Card, IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -44,6 +44,8 @@ export default function VocabularyScreen() {
     // Incomplete words methods
     addIncompleteWord,
     addSkippedWord,
+    removeSkippedWord,
+    moveSkippedToIncomplete,
     retryIncompleteWord,
     removeIncompleteWord,
     completeLesson
@@ -261,13 +263,8 @@ export default function VocabularyScreen() {
   }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, incrementVocabularyAttempts, incrementWordsCompleted, playCorrect, playIncorrect, hapticSuccess, hapticError]);
 
   // Helper function to calculate partial XP for failed final attempts
-  const calculatePartialXP = useCallback(() => {
-    const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
-    const bestAttemptScore = vocabularyState?.aiScores && vocabularyState.aiScores.length > 0
-      ? Math.max(...vocabularyState.aiScores.slice(-3)) // Best of last 3 attempts
-      : 50; // Fallback if no scores available
-    return Math.floor(calculateWordXP(lessonId!, currentWordIndex, bestAttemptScore, 3, currentWord?.difficulty) * 0.15); // 15% of best attempt XP
-  }, [vocabularyState?.currentWordIndex, vocabularyState?.aiScores, lessonId, currentWord?.difficulty, calculateWordXP]);
+  // Remove the calculatePartialXP function entirely as it's not needed
+  // Users can retry words for full XP, so partial XP awards are redundant
 
   const simulateAIFeedback = async (uri: string) => {
     setIsProcessing(true);
@@ -279,6 +276,9 @@ export default function VocabularyScreen() {
 
     // Get current attempts (don't increment yet - only increment after failure)
     const currentAttempts = vocabularyState?.attempts ?? 0;
+    
+    // Get current word index once for the entire function
+    const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
 
     // Simulate AI processing delay
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -289,13 +289,12 @@ export default function VocabularyScreen() {
     if (currentWord) {
       addAIScore(lessonId!, accuracy);
 
-      let isCorrect = accuracy >= 90;
+      let isCorrect = accuracy >= 95;
 
       if (isCorrect) {
         updatePronunciationAccuracy(lessonId!);
 
         // Calculate and award XP for this word with attempt and difficulty bonuses
-        const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
         const wordDifficulty = currentWord.difficulty;
         const wordXP = calculateWordXP(lessonId!, currentWordIndex, accuracy, currentAttempts + 1, wordDifficulty);
         
@@ -337,6 +336,12 @@ export default function VocabularyScreen() {
         const difficultyBonus = currentWord.difficulty === 'hard' ? ' +Difficulty Bonus!' : currentWord.difficulty === 'easy' ? ' (Easy word)' : '';
         const feedbackMessage = `${randomMessage}\n\nAccuracy: ${Math.round(accuracy)}%\n${attemptText}${difficultyBonus}\n\n+${wordXP} XP earned! 🎉`;
         
+        // If this was a skipped word that was successfully completed, remove it from skipped list
+        const wasSkipped = vocabularyState?.skippedWords?.includes(currentWordIndex) ?? false;
+        if (wasSkipped) {
+          removeSkippedWord(lessonId!, currentWordIndex);
+        }
+        
         playCorrect();
         hapticSuccess?.();
 
@@ -349,6 +354,7 @@ export default function VocabularyScreen() {
               text: "Next Word",
               onPress: () => {
                 hideModal();
+                // Successful attempts always move to next word
                 setTimeout(() => {
                   nextWord();
                 }, 100);
@@ -372,11 +378,19 @@ export default function VocabularyScreen() {
         const attemptsLeft = 3 - (currentAttempts + 1);
         const isLastAttempt = (currentAttempts + 1) >= 3;
         
-        // Calculate partial XP once for reuse in both feedback and button handler
-        const partialXP = isLastAttempt ? calculatePartialXP() : 0;
-        
+        // Handle last attempt (3rd attempt failed)
         if (isLastAttempt) {
-          enhancedFeedback = `Don't worry! This word will appear in the final screen for more practice. You earned ${partialXP} XP for your effort! 💪\n\nAccuracy: ${Math.round(accuracy)}%`;
+          const wasSkipped = vocabularyState?.skippedWords?.includes(currentWordIndex) ?? false;
+          
+          if (wasSkipped) {
+            // If this was a skipped word that failed 3 times after retry, move it to challenging words
+            moveSkippedToIncomplete(lessonId!, currentWordIndex);
+            enhancedFeedback = `This word has been moved to challenging words for more practice. Keep trying! 💪\n\nAccuracy: ${Math.round(accuracy)}%`;
+          } else {
+            // Regular word that failed 3 times - add to incomplete list
+            addIncompleteWord(lessonId!, currentWordIndex);
+            enhancedFeedback = `Don't worry! This word will appear in the final screen for more practice. Try again to earn XP! 💪\n\nAccuracy: ${Math.round(accuracy)}%`;
+          }
         } else if (attemptsLeft === 1) {
           enhancedFeedback += "\n\n🎯 Last chance - you can do this!";
         } else if (attemptsLeft > 1) {
@@ -400,10 +414,8 @@ export default function VocabularyScreen() {
               onPress: () => {
                 hideModal();
                 if (isLastAttempt) {
-                  // Award minimal XP for effort and add to incomplete words
-                  // Reuse the partialXP calculated above to avoid double calculation
-                  addVocabularyWordXP(lessonId!, partialXP);
-                  addIncompleteWord(lessonId!, vocabularyState?.currentWordIndex ?? 0);
+                  // No XP awarded for failed attempts - users can retry for full XP
+                  // Word was already added to incomplete list above
                   // Move to next word after final failed attempt
                   setTimeout(() => {
                     nextWord();
@@ -480,17 +492,15 @@ export default function VocabularyScreen() {
   }, [incrementWordsCompleted, resetVocabularyAttempts, lessonId, handleNextWord, vocabularyState?.currentWordIndex, vocabularyState?.words?.length, progressAnim]);
 
   const skipWord = useCallback(() => {
-    // Add the current word to both incomplete and skipped words so user can retry it later
+    // Add the current word only to skipped words - it will move to challenging words only if retried and failed 3 times
     if (vocabularyState?.currentWordIndex !== undefined) {
-      addIncompleteWord(lessonId!, vocabularyState.currentWordIndex);
       addSkippedWord(lessonId!, vocabularyState.currentWordIndex);
       
-      // Award minimal XP for skipped words to maintain XP tracking consistency
-      const minimalXP = calculateWordXP(lessonId!, vocabularyState.currentWordIndex, 0, 1, currentWord?.difficulty); // 0 score for skipped word
-      addVocabularyWordXP(lessonId!, minimalXP);
+      // Don't award any XP for skipped words - they should only get XP when actually attempted
+      // This ensures totalXP accurately reflects actual effort and performance
     }
     handleNextWord();
-  }, [handleNextWord, addIncompleteWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, calculateWordXP, currentWord?.difficulty, addVocabularyWordXP]);
+  }, [handleNextWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex]);
 
   const handleRestartLesson = useCallback(() => {
     // Store the timer state before pausing
@@ -605,6 +615,7 @@ export default function VocabularyScreen() {
     const totalXP = lesson?.xpReward ?? 0;
     const averageWordAccurancy = Math.round(vocabularyState?.pronunciationAccuracy ?? 0);
     const incompleteWords = vocabularyState?.incompleteWords ?? [];
+    const skippedWords = vocabularyState?.skippedWords ?? [];
 
     const handleRetryWord = (wordIndex: number) => {
       // Clear recording state before retrying
@@ -619,89 +630,117 @@ export default function VocabularyScreen() {
       }, 200);
     };
 
+    const renderWordItem = (wordIndex: number, isSkipped: boolean) => {
+      const word = vocabularyState?.words?.[wordIndex];
+      if (!word) return null;
+      
+      return (
+        <View key={wordIndex} style={styles.incompleteWordItem}>
+          <View style={styles.incompleteWordInfo}>
+            <Text style={[
+              styles.incompleteWordText, 
+              { color: isSkipped ? theme.colors.onSecondaryContainer : theme.colors.onErrorContainer }
+            ]}>
+              {word.word}
+            </Text>
+            <Text style={[
+              styles.incompleteWordPhonetic, 
+              { color: isSkipped ? theme.colors.onSecondaryContainer : theme.colors.onErrorContainer }
+            ]}>
+              {word.phonetic}
+            </Text>
+          </View>
+          <Button
+            mode="contained"
+            onPress={() => handleRetryWord(wordIndex)}
+            style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
+            labelStyle={{ color: theme.colors.onPrimary }}
+            compact
+          >
+            Retry
+          </Button>
+        </View>
+      );
+    };
+
     return (
       <>
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          <Animated.View style={[styles.completionContainer, { transform: [{ scale: scaleAnim }] }]}>
-            <Text style={[styles.completionTitle, { color: theme.colors.primary }]}>🎉 Lesson Complete!</Text>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+          <ScrollView 
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContent}
+          >
+            <Animated.View style={[styles.completionContainer, { transform: [{ scale: scaleAnim }] }]}>
+              <Text style={[styles.completionTitle, { color: theme.colors.primary }]}>🎉 Lesson Complete!</Text>
 
-            <Surface style={[styles.statsCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
-              <Text style={[styles.completionScore, { color: theme.colors.onBackground }]}>
-                Final Score: {totalXP} XP
-              </Text>
-              <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                Words Completed: {vocabularyState?.wordsCompleted ?? 0}
-              </Text>
-              <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                Average Accuracy: {averageWordAccurancy}%
-              </Text>
-              <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                Estimated Total Time: {totalSessionMinutes}:{totalSessionSeconds.toString().padStart(2, '0')}
-              </Text>
-            </Surface>
-
-            {incompleteWords.length > 0 && (
-              <Surface style={[styles.incompleteWordsCard, { backgroundColor: theme.colors.errorContainer }]} elevation={2}>
-                <Text style={[styles.incompleteWordsTitle, { color: theme.colors.onErrorContainer }]}>
-                  💪 Words to Retry ({incompleteWords.length})
+              <Surface style={[styles.statsCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+                <Text style={[styles.completionScore, { color: theme.colors.onBackground }]}>
+                  Final Score: {totalXP} XP
                 </Text>
-                <Text style={[styles.incompleteWordsSubtitle, { color: theme.colors.onErrorContainer }]}>
-                  Give these words another chance!
+                <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
+                  Words Completed: {vocabularyState?.wordsCompleted ?? 0}
                 </Text>
-                {incompleteWords.map((wordIndex) => {
-                  const word = vocabularyState?.words?.[wordIndex];
-                  if (!word) return null;
-                  return (
-                    <View key={wordIndex} style={styles.incompleteWordItem}>
-                      <View style={styles.incompleteWordInfo}>
-                        <Text style={[styles.incompleteWordText, { color: theme.colors.onErrorContainer }]}>
-                          {word.word}
-                        </Text>
-                        <Text style={[styles.incompleteWordPhonetic, { color: theme.colors.onErrorContainer }]}>
-                          {word.phonetic}
-                        </Text>
-                      </View>
-                      <Button
-                        mode="contained"
-                        onPress={() => handleRetryWord(wordIndex)}
-                        style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
-                        labelStyle={{ color: theme.colors.onPrimary }}
-                        compact
-                      >
-                        Retry
-                      </Button>
-                    </View>
-                  );
-                })}
+                <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
+                  Average Accuracy: {averageWordAccurancy}%
+                </Text>
+                <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
+                  Estimated Total Time: {totalSessionMinutes}:{totalSessionSeconds.toString().padStart(2, '0')}
+                </Text>
               </Surface>
-            )}
 
-            <Button
-              mode="contained"
-              onPress={() => router.back()}
-              style={[styles.continueButton, { backgroundColor: theme.colors.primary }]}
-              labelStyle={{ color: theme.colors.onPrimary }}
-              accessibilityLabel="Return to lessons"
-              accessibilityHint="Tap to go back to the lesson selection screen"
-            >
-              Back to Lessons
-            </Button>
-            {/* Restart Button */}
-            <View style={styles.restartContainer}>
+              {/* Skipped Words Section */}
+              {skippedWords.length > 0 && (
+                <Surface style={[styles.incompleteWordsCard, { backgroundColor: theme.colors.secondaryContainer }]} elevation={2}>
+                  <Text style={[styles.incompleteWordsTitle, { color: theme.colors.onSecondaryContainer }]}>
+                    ⏭️ Skipped Words ({skippedWords.length})
+                  </Text>
+                  <Text style={[styles.incompleteWordsSubtitle, { color: theme.colors.onSecondaryContainer }]}>
+                    Words you chose to skip during the lesson
+                  </Text>
+                  {skippedWords.map((wordIndex) => renderWordItem(wordIndex, true))}
+                </Surface>
+              )}
+
+              {/* Incomplete Words Section (words that scored poorly after 3 attempts) */}
+              {incompleteWords.length > 0 && (
+                <Surface style={[styles.incompleteWordsCard, { backgroundColor: theme.colors.errorContainer }]} elevation={2}>
+                  <Text style={[styles.incompleteWordsTitle, { color: theme.colors.onErrorContainer }]}>
+                    💪 Challenging Words ({incompleteWords.length})
+                  </Text>
+                  <Text style={[styles.incompleteWordsSubtitle, { color: theme.colors.onErrorContainer }]}>
+                    Words that need more practice after 3 attempts
+                  </Text>
+                  {incompleteWords.map((wordIndex) => renderWordItem(wordIndex, false))}
+                </Surface>
+              )}
+
               <Button
                 mode="contained"
-                onPress={handleRestartLesson}
-                style={styles.restartButton}
-                disabled={isProcessing || isRecording}
-                accessibilityLabel="Restart lesson"
-                accessibilityHint="Tap to restart the entire vocabulary lesson from the beginning"
-                icon="restart"
+                onPress={() => router.back()}
+                style={[styles.continueButton, { backgroundColor: theme.colors.primary }]}
+                labelStyle={{ color: theme.colors.onPrimary }}
+                accessibilityLabel="Return to lessons"
+                accessibilityHint="Tap to go back to the lesson selection screen"
               >
-                🔄 Restart Lesson
+                Back to Lessons
               </Button>
-            </View>
-          </Animated.View>
-        </View>
+              {/* Restart Button */}
+              <View style={styles.restartContainer}>
+                <Button
+                  mode="contained"
+                  onPress={handleRestartLesson}
+                  style={styles.restartButton}
+                  disabled={isProcessing || isRecording}
+                  accessibilityLabel="Restart lesson"
+                  accessibilityHint="Tap to restart the entire vocabulary lesson from the beginning"
+                  icon="restart"
+                >
+                  🔄 Restart Lesson
+                </Button>
+              </View>
+            </Animated.View>
+          </ScrollView>
+        </SafeAreaView>
         <PortalModal
           visible={modalVisible}
           content={modalContent}
@@ -979,6 +1018,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -1107,9 +1153,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   completionContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 20,
   },
   completionTitle: {
     fontSize: 28,

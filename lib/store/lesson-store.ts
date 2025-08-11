@@ -184,6 +184,8 @@ interface LessonState {
   incrementWordsCompleted: (lessonId: string) => void;
   addIncompleteWord: (lessonId: string, wordIndex: number) => void;
   addSkippedWord: (lessonId: string, wordIndex: number) => void;
+  removeSkippedWord: (lessonId: string, wordIndex: number) => void;
+  moveSkippedToIncomplete: (lessonId: string, wordIndex: number) => void;
   retryIncompleteWord: (lessonId: string, wordIndex: number) => void;
   removeIncompleteWord: (lessonId: string, wordIndex: number) => void;
   // Vocabulary timer methods
@@ -1494,7 +1496,9 @@ export const useLessonStore = create<LessonState>()(persist(
 
             const completionTime = Math.floor((Date.now() - currentState.currentWordStartTime - totalPauseTime * 1000) / 1000);
             const newWordTimers = [...currentState.wordTimers];
-            newWordTimers[currentState.currentWordIndex] = completionTime;
+            // Add to existing time if this word was retried, otherwise set the time
+            const existingTime = newWordTimers[currentState.currentWordIndex] || 0;
+            newWordTimers[currentState.currentWordIndex] = existingTime + completionTime;
 
             // Calculate total session time by summing all word timers
             const totalSessionTime = newWordTimers.reduce((sum, time) => sum + (time || 0), 0);
@@ -1969,7 +1973,7 @@ export const useLessonStore = create<LessonState>()(persist(
               showFeedback: false,
               lessonCompleted: false,
               isRetryingWord: true,
-              // Reset timer state for the word
+              // Reset timer state for the word - currentWordElapsedTime starts from 0
               currentWordStartTime: null,
               currentWordElapsedTime: 0,
               isPaused: false,
@@ -2003,6 +2007,71 @@ export const useLessonStore = create<LessonState>()(persist(
             ...lesson,
             sessionState: {
               ...currentState,
+              incompleteWords,
+            } as VocabularyState,
+          };
+        }
+        return lesson;
+      });
+
+      return {
+        ...state,
+        dailyPlan: {
+          ...state.dailyPlan,
+          lessons: updatedLessons,
+        },
+      };
+    }),
+
+    removeSkippedWord: (lessonId: string, wordIndex: number) => set((state) => {
+      if (!state.dailyPlan) return state;
+
+      const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+        if (lesson.id === lessonId && lesson.sessionState) {
+          const currentState = lesson.sessionState as VocabularyState;
+          const skippedWords = currentState.skippedWords.filter(index => index !== wordIndex);
+
+          return {
+            ...lesson,
+            sessionState: {
+              ...currentState,
+              skippedWords,
+            } as VocabularyState,
+          };
+        }
+        return lesson;
+      });
+
+      return {
+        ...state,
+        dailyPlan: {
+          ...state.dailyPlan,
+          lessons: updatedLessons,
+        },
+      };
+    }),
+
+    moveSkippedToIncomplete: (lessonId: string, wordIndex: number) => set((state) => {
+      if (!state.dailyPlan) return state;
+
+      const updatedLessons = state.dailyPlan.lessons.map(lesson => {
+        if (lesson.id === lessonId && lesson.sessionState) {
+          const currentState = lesson.sessionState as VocabularyState;
+          
+          // Remove from skipped words
+          const skippedWords = currentState.skippedWords.filter(index => index !== wordIndex);
+          
+          // Add to incomplete words if not already there
+          const incompleteWords = [...currentState.incompleteWords];
+          if (!incompleteWords.includes(wordIndex)) {
+            incompleteWords.push(wordIndex);
+          }
+
+          return {
+            ...lesson,
+            sessionState: {
+              ...currentState,
+              skippedWords,
               incompleteWords,
             } as VocabularyState,
           };
