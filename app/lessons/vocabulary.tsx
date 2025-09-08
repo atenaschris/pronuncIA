@@ -492,15 +492,32 @@ export default function VocabularyScreen() {
   }, [incrementWordsCompleted, resetVocabularyAttempts, lessonId, handleNextWord, vocabularyState?.currentWordIndex, vocabularyState?.words?.length, progressAnim]);
 
   const skipWord = useCallback(() => {
-    // Add the current word only to skipped words - it will move to challenging words only if retried and failed 3 times
     if (vocabularyState?.currentWordIndex !== undefined) {
-      addSkippedWord(lessonId!, vocabularyState.currentWordIndex);
+      const currentWordIndex = vocabularyState.currentWordIndex;
+      const wasSkipped = vocabularyState.skippedWords?.includes(currentWordIndex) ?? false;
+      const wasIncomplete = vocabularyState.incompleteWords?.includes(currentWordIndex) ?? false;
+      
+      // Don't allow skipping words that have been retried (are in incompleteWords)
+      // This prevents infinite loops while keeping the logic simple
+      if (wasIncomplete) {
+        return;
+      }
+      
+      if (vocabularyState.isRetryingWord) {
+        // If retrying a skipped word, keep it in skipped (no action needed)
+        // The word is already in skippedWords, don't add it again
+      } else {
+        // Normal skip during first attempt - add to skipped words only
+        if (!wasSkipped) {
+          addSkippedWord(lessonId!, currentWordIndex);
+        }
+      }
       
       // Don't award any XP for skipped words - they should only get XP when actually attempted
       // This ensures totalXP accurately reflects actual effort and performance
     }
     handleNextWord();
-  }, [handleNextWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex]);
+  }, [handleNextWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, vocabularyState?.isRetryingWord, vocabularyState?.skippedWords, vocabularyState?.incompleteWords]);
 
   const handleRestartLesson = useCallback(() => {
     // Store the timer state before pausing
@@ -652,7 +669,37 @@ export default function VocabularyScreen() {
           </View>
           <Button
             mode="contained"
-            onPress={() => handleRetryWord(wordIndex)}
+            onPress={() => {
+              const currentRetryCount = vocabularyState?.wordRetryCount?.[wordIndex] ?? 0;
+              const maxRetries = vocabularyState?.maxRetries ?? 1;
+              
+              if (currentRetryCount >= maxRetries) {
+                // Show subscription modal when retry limit is reached
+                showModal({
+                  title: "Unlock Unlimited Retries! 🚀",
+                  message: "You've already retried this word once with your current plan.\n\nUpgrade to Premium to get unlimited retries and master every word at your own pace!\n\n✨ Unlimited retries for all words\n🎯 Advanced pronunciation feedback\n📊 Detailed progress analytics",
+                  buttons: [
+                    {
+                      text: "Maybe Later",
+                      style: "cancel" as const,
+                      onPress: () => {
+                        hideModal();
+                      }
+                    },
+                    {
+                      text: "Upgrade Now",
+                      onPress: () => {
+                        hideModal();
+                        // TODO: Navigate to subscription screen
+                        console.log('Navigate to subscription screen');
+                      }
+                    }
+                  ]
+                });
+              } else {
+                handleRetryWord(wordIndex);
+              }
+            }}
             style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
             labelStyle={{ color: theme.colors.onPrimary }}
             compact
@@ -938,11 +985,47 @@ export default function VocabularyScreen() {
           </View>
 
           <View style={styles.actionsContainer}>
-            {/* Hide skip button if user is retrying a previously skipped word */}
-            {!(vocabularyState?.isRetryingWord && vocabularyState?.skippedWords?.includes(vocabularyState?.currentWordIndex ?? -1)) && (
+            {/* Hide skip button if user is retrying any word (skipped or incomplete) */}
+            {!vocabularyState?.isRetryingWord && (
               <Button
                 mode="outlined"
-                onPress={skipWord}
+                onPress={() => {
+                  const currentWordIndex = vocabularyState?.currentWordIndex ?? -1;
+                  const currentSkipCount = vocabularyState?.wordSkipCount?.[currentWordIndex] ?? 0;
+                  const maxSkips = vocabularyState?.maxSkips ?? 1;
+                  const isIncompleteWord = vocabularyState?.incompleteWords?.includes(currentWordIndex) ?? false;
+                  
+                  if (isIncompleteWord) {
+                    return; // Don't allow skipping incomplete words
+                  }
+                  
+                  if (currentSkipCount >= maxSkips) {
+                    // Show subscription modal when skip limit is reached
+                    showModal({
+                      title: "Unlock Unlimited Skips! ⏭️",
+                      message: "You've already skipped this word once with your current plan.\n\nUpgrade to Premium to get unlimited skips and learn at your own pace!\n\n✨ Unlimited skips for all words\n🎯 Flexible learning experience\n📊 Detailed progress analytics",
+                      buttons: [
+                        {
+                          text: "Maybe Later",
+                          style: "cancel" as const,
+                          onPress: () => {
+                            hideModal();
+                          }
+                        },
+                        {
+                          text: "Upgrade Now",
+                          onPress: () => {
+                            hideModal();
+                            // TODO: Navigate to subscription screen
+                            console.log('Navigate to subscription screen');
+                          }
+                        }
+                      ]
+                    });
+                  } else {
+                    skipWord();
+                  }
+                }}
                 style={styles.skipButton}
                 disabled={isProcessing || isRecording}
                 accessibilityLabel="Skip current word"

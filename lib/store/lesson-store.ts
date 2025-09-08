@@ -91,6 +91,14 @@ export interface VocabularyState {
   incompleteWords: number[]; // Indices of words that exceeded max attempts and were skipped
   skippedWords: number[]; // Indices of words that were manually skipped by the user
   isRetryingWord: boolean; // Flag to track if we're currently retrying an incomplete word
+  isRetryingSkippedWord: boolean; // Flag to track if we're specifically retrying a previously skipped word
+  // Word-level tracking for limits
+  wordRetryCount: { [wordIndex: number]: number }; // Track retry count per word
+  wordSkipCount: { [wordIndex: number]: number }; // Track skip count per word
+  maxRetries: number; // Maximum retries allowed per word (default: 1)
+  maxSkips: number; // Maximum skips allowed per word (default: 1)
+
+
 
   // Word-level timing (similar to set timing in word-pairs)
   wordTimers: number[]; // Array of completion times for each word (in seconds)
@@ -465,7 +473,12 @@ export const useLessonStore = create<LessonState>()(persist(
                   incompleteWords: [],
                   skippedWords: [],
                   isRetryingWord: false,
-
+                  isRetryingSkippedWord: false,
+                  // Word-level tracking for limits
+                  wordRetryCount: {},
+                  wordSkipCount: {},
+                  maxRetries: 1,
+                  maxSkips: 1,
                   // Word-level timing
                   wordTimers: [],
                   currentWordStartTime: null,
@@ -1245,6 +1258,7 @@ export const useLessonStore = create<LessonState>()(persist(
             sessionState: {
               ...currentState,
               attempts: 0,
+              isRetryingSkippedWord: false, // Reset when moving to next word
             } as VocabularyState,
           };
         }
@@ -1271,6 +1285,7 @@ export const useLessonStore = create<LessonState>()(persist(
               ...lesson.sessionState,
               lessonCompleted: completed,
               isRetryingWord: false, // Reset retry flag when lesson is completed
+              isRetryingSkippedWord: false, // Reset skipped retry flag when lesson is completed
             } as VocabularyState,
           };
         }
@@ -1686,6 +1701,16 @@ export const useLessonStore = create<LessonState>()(persist(
               incompleteWords: [],
               skippedWords: [],
               isRetryingWord: false,
+              isRetryingSkippedWord: false,
+              // Word-level tracking for limits
+              wordRetryCount: {},
+              wordSkipCount: {},
+              maxRetries: 1,
+              maxSkips: 1,
+
+
+
+              // Word-level timing
               wordTimers: [],
               currentWordStartTime: null,
               currentWordElapsedTime: 0,
@@ -1897,17 +1922,22 @@ export const useLessonStore = create<LessonState>()(persist(
         if (lesson.id === lessonId && lesson.sessionState) {
           const currentState = lesson.sessionState as VocabularyState;
           const incompleteWords = [...currentState.incompleteWords];
+          const skippedWords = [...currentState.skippedWords];
 
-          // Add word index if not already in the list
+          // Add word index if not already in the incomplete list
           if (!incompleteWords.includes(wordIndex)) {
             incompleteWords.push(wordIndex);
           }
+          
+          // Remove from skipped words to prevent duplication
+          const cleanedSkippedWords = skippedWords.filter(index => index !== wordIndex);
 
           return {
             ...lesson,
             sessionState: {
               ...currentState,
               incompleteWords,
+              skippedWords: cleanedSkippedWords,
             } as VocabularyState,
           };
         }
@@ -1929,18 +1959,37 @@ export const useLessonStore = create<LessonState>()(persist(
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId && lesson.sessionState) {
           const currentState = lesson.sessionState as VocabularyState;
+          
+          // Check if word has reached skip limit
+          const currentSkipCount = currentState.wordSkipCount[wordIndex] || 0;
+          if (currentSkipCount >= currentState.maxSkips) {
+            return lesson; // Don't allow skip if limit reached
+          }
+          
           const skippedWords = [...currentState.skippedWords];
+          const incompleteWords = [...currentState.incompleteWords];
+          
+          // Update skip count for this word
+          const updatedSkipCount = {
+            ...currentState.wordSkipCount,
+            [wordIndex]: currentSkipCount + 1
+          };
 
-          // Add word index if not already in the list
+          // Add word index if not already in the skipped list
           if (!skippedWords.includes(wordIndex)) {
             skippedWords.push(wordIndex);
           }
+          
+          // Remove from incomplete words to prevent duplication
+          const cleanedIncompleteWords = incompleteWords.filter(index => index !== wordIndex);
 
           return {
             ...lesson,
             sessionState: {
               ...currentState,
               skippedWords,
+              incompleteWords: cleanedIncompleteWords,
+              wordSkipCount: updatedSkipCount,
             } as VocabularyState,
           };
         }
@@ -1962,6 +2011,23 @@ export const useLessonStore = create<LessonState>()(persist(
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId && lesson.sessionState) {
           const currentState = lesson.sessionState as VocabularyState;
+          
+          // Check retry limit before allowing retry
+          const currentRetryCount = currentState.wordRetryCount[wordIndex] || 0;
+          if (currentRetryCount >= currentState.maxRetries) {
+            return lesson; // Don't allow retry if limit reached
+          }
+          
+          // Check if this word was originally skipped
+          const wasSkipped = currentState.skippedWords.includes(wordIndex);
+          
+          // Increment retry count for this word
+          const updatedRetryCount = { ...currentState.wordRetryCount };
+          updatedRetryCount[wordIndex] = currentRetryCount + 1;
+          
+          // Remove the word from both incomplete and skipped lists to prevent duplication
+          const incompleteWords = currentState.incompleteWords.filter(index => index !== wordIndex);
+          const skippedWords = currentState.skippedWords.filter(index => index !== wordIndex);
 
           return {
             ...lesson,
@@ -1973,6 +2039,12 @@ export const useLessonStore = create<LessonState>()(persist(
               showFeedback: false,
               lessonCompleted: false,
               isRetryingWord: true,
+              isRetryingSkippedWord: wasSkipped, // Track if this was originally a skipped word
+              // Remove word from both lists when retrying
+              incompleteWords,
+              skippedWords,
+              // Update retry count
+              wordRetryCount: updatedRetryCount,
               // Reset timer state for the word - currentWordElapsedTime starts from 0
               currentWordStartTime: null,
               currentWordElapsedTime: 0,
