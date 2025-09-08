@@ -27,7 +27,6 @@ export default function VocabularyScreen() {
     setVocabularyCompleted,
     addAIScore,
     updatePronunciationAccuracy,
-    incrementWordsCompleted,
     initializeLessonSessionState,
     // Timer methods
     startWordTimer,
@@ -48,6 +47,9 @@ export default function VocabularyScreen() {
     moveSkippedToIncomplete,
     retryIncompleteWord,
     removeIncompleteWord,
+    // Completed words methods
+    addCompletedWord,
+    removeCompletedWord,
     completeLesson
   } = useLessonStore();
 
@@ -244,7 +246,6 @@ export default function VocabularyScreen() {
       incrementVocabularyAttempts(lessonId!);
 
       if (score >= 70) {
-        incrementWordsCompleted(lessonId!);
         playCorrect();
         hapticSuccess?.();
       } else {
@@ -260,7 +261,7 @@ export default function VocabularyScreen() {
     } finally {
       setIsProcessing(false);
     }
-  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, incrementVocabularyAttempts, incrementWordsCompleted, playCorrect, playIncorrect, hapticSuccess, hapticError]);
+  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, incrementVocabularyAttempts, playCorrect, playIncorrect, hapticSuccess, hapticError]);
 
   // Helper function to calculate partial XP for failed final attempts
   // Remove the calculatePartialXP function entirely as it's not needed
@@ -476,7 +477,17 @@ export default function VocabularyScreen() {
   };
 
   const nextWord = useCallback(() => {
-    incrementWordsCompleted(lessonId!);
+    // Check if current word should be marked as completed
+    if (vocabularyState?.currentWordIndex !== undefined) {
+      const currentWordIndex = vocabularyState.currentWordIndex;
+      const isAlreadyCompleted = vocabularyState.completedWords?.includes(currentWordIndex) ?? false;
+      
+      // Only track completion if not already completed
+      if (!isAlreadyCompleted) {
+        addCompletedWord(lessonId!, currentWordIndex);
+      }
+    }
+    
     // Reset attempts for the current word before moving to next
     resetVocabularyAttempts(lessonId!);
     handleNextWord();
@@ -489,7 +500,7 @@ export default function VocabularyScreen() {
       duration: 300,
       useNativeDriver: false,
     }).start();
-  }, [incrementWordsCompleted, resetVocabularyAttempts, lessonId, handleNextWord, vocabularyState?.currentWordIndex, vocabularyState?.words?.length, progressAnim]);
+  }, [resetVocabularyAttempts, lessonId, handleNextWord, vocabularyState?.currentWordIndex, vocabularyState?.words?.length, vocabularyState?.completedWords, progressAnim, addCompletedWord]);
 
   const skipWord = useCallback(() => {
     if (vocabularyState?.currentWordIndex !== undefined) {
@@ -639,6 +650,9 @@ export default function VocabularyScreen() {
       setRecordingUri(null);
       cleanup();
       
+      // Remove word from completed words since it's being retried
+      removeCompletedWord(lessonId!, wordIndex);
+      
       retryIncompleteWord(lessonId!, wordIndex);
       
       // Start timer for the retried word
@@ -725,7 +739,7 @@ export default function VocabularyScreen() {
                   Final Score: {totalXP} XP
                 </Text>
                 <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                  Words Completed: {vocabularyState?.wordsCompleted ?? 0}
+                  Words Completed: {vocabularyState?.completedWords?.length ?? 0}
                 </Text>
                 <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
                   Average Accuracy: {averageWordAccurancy}%
