@@ -10,9 +10,11 @@ import { usePortalModalStore } from '@/lib/store/portal-modal-store';
 
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Card, IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { VocabularyCompletionScreen } from './components/vocabulary/VocabularyCompletionScreen';
 
 export default function VocabularyScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
@@ -638,188 +640,38 @@ export default function VocabularyScreen() {
     );
   }
 
+  const handleRetryWord = (wordIndex: number) => {
+    setRecordingUri(null);
+    cleanup();
+    removeCompletedWord(lessonId!, wordIndex);
+    retryIncompleteWord(lessonId!, wordIndex);
+    setTimeout(() => {
+      startWordTimer(lessonId!);
+    }, 200);
+  };
+
   if (vocabularyState?.lessonCompleted) {
-    const totalSessionMinutes = Math.floor((vocabularyState?.totalSessionTime ?? 0) / 60);
-    const totalSessionSeconds = (vocabularyState?.totalSessionTime ?? 0) % 60;
-    const lesson = getLesson(lessonId!);
-    const totalXP = lesson?.xpReward ?? 0;
-    const averageWordAccurancy = Math.round(vocabularyState?.pronunciationAccuracy ?? 0);
-    const incompleteWords = vocabularyState?.incompleteWords ?? [];
-    const skippedWords = vocabularyState?.skippedWords ?? [];
-
-    const handleRetryWord = (wordIndex: number) => {
-      // Clear recording state before retrying
-      setRecordingUri(null);
-      cleanup();
-      
-      // Remove word from completed words since it's being retried
-      removeCompletedWord(lessonId!, wordIndex);
-      
-      retryIncompleteWord(lessonId!, wordIndex);
-      
-      // Start timer for the retried word
-      setTimeout(() => {
-        startWordTimer(lessonId!);
-      }, 200);
-    };
-
-    const renderWordItem = (wordIndex: number, isSkipped: boolean) => {
-      const word = vocabularyState?.words?.[wordIndex];
-      if (!word) return null;
-      
-      return (
-        <View key={wordIndex} style={styles.incompleteWordItem}>
-          <View style={styles.incompleteWordInfo}>
-            <Text style={[
-              styles.incompleteWordText, 
-              { color: isSkipped ? theme.colors.onSecondaryContainer : theme.colors.onErrorContainer }
-            ]}>
-              {word.word}
-            </Text>
-            <Text style={[
-              styles.incompleteWordPhonetic, 
-              { color: isSkipped ? theme.colors.onSecondaryContainer : theme.colors.onErrorContainer }
-            ]}>
-              {word.phonetic}
-            </Text>
-          </View>
-          <Button
-            mode="contained"
-            onPress={() => {
-              const currentRetryCount = vocabularyState?.wordRetryCount?.[wordIndex] ?? 0;
-              const maxRetries = vocabularyState?.maxRetries ?? 1;
-              
-              if (currentRetryCount >= maxRetries) {
-                // Show subscription modal when retry limit is reached
-                showModal({
-                  title: "Unlock Unlimited Retries! 🚀",
-                  message: "You've already retried this word once with your current plan.\n\nUpgrade to Premium to get unlimited retries and master every word at your own pace!\n\n✨ Unlimited retries for all words\n🎯 Advanced pronunciation feedback\n📊 Detailed progress analytics",
-                  buttons: [
-                    {
-                      text: "Maybe Later",
-                      style: "cancel" as const,
-                      onPress: () => {
-                        hideModal();
-                      }
-                    },
-                    {
-                      text: "Upgrade Now",
-                      onPress: () => {
-                        hideModal();
-                        // TODO: Navigate to subscription screen
-                        console.log('Navigate to subscription screen');
-                      }
-                    }
-                  ]
-                });
-              } else {
-                handleRetryWord(wordIndex);
-              }
-            }}
-            style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
-            labelStyle={{ color: theme.colors.onPrimary }}
-            compact
-          >
-            Retry
-          </Button>
-        </View>
-      );
-    };
-
     return (
-      <>
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          <ScrollView 
-            style={styles.scrollContainer}
-            contentContainerStyle={styles.scrollContent}
-          >
-            <Animated.View style={[styles.completionContainer, { transform: [{ scale: scaleAnim }] }]}>
-              <Text style={[styles.completionTitle, { color: theme.colors.primary }]}>🎉 Lesson Complete!</Text>
-
-              <Surface style={[styles.statsCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
-                <Text style={[styles.completionScore, { color: theme.colors.onBackground }]}>
-                  Final Score: {totalXP} XP
-                </Text>
-                <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                  Words Completed: {vocabularyState?.completedWords?.length ?? 0}
-                </Text>
-                <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                  Average Accuracy: {averageWordAccurancy}%
-                </Text>
-                <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                  Estimated Total Time: {totalSessionMinutes}:{totalSessionSeconds.toString().padStart(2, '0')}
-                </Text>
-              </Surface>
-
-              {/* Skipped Words Section */}
-              {skippedWords.length > 0 && (
-                <Surface style={[styles.incompleteWordsCard, { backgroundColor: theme.colors.secondaryContainer }]} elevation={2}>
-                  <Text style={[styles.incompleteWordsTitle, { color: theme.colors.onSecondaryContainer }]}>
-                    ⏭️ Skipped Words ({skippedWords.length})
-                  </Text>
-                  <Text style={[styles.incompleteWordsSubtitle, { color: theme.colors.onSecondaryContainer }]}>
-                    Words you chose to skip during the lesson
-                  </Text>
-                  {skippedWords.map((wordIndex) => renderWordItem(wordIndex, true))}
-                </Surface>
-              )}
-
-              {/* Incomplete Words Section (words that scored poorly after 3 attempts) */}
-              {incompleteWords.length > 0 && (
-                <Surface style={[styles.incompleteWordsCard, { backgroundColor: theme.colors.errorContainer }]} elevation={2}>
-                  <Text style={[styles.incompleteWordsTitle, { color: theme.colors.onErrorContainer }]}>
-                    💪 Challenging Words ({incompleteWords.length})
-                  </Text>
-                  <Text style={[styles.incompleteWordsSubtitle, { color: theme.colors.onErrorContainer }]}>
-                    Words that need more practice after 3 attempts
-                  </Text>
-                  {incompleteWords.map((wordIndex) => renderWordItem(wordIndex, false))}
-                </Surface>
-              )}
-
-              <Button
-                mode="contained"
-                onPress={() => router.back()}
-                style={[styles.continueButton, { backgroundColor: theme.colors.primary }]}
-                labelStyle={{ color: theme.colors.onPrimary }}
-                accessibilityLabel="Return to lessons"
-                accessibilityHint="Tap to go back to the lesson selection screen"
-              >
-                Back to Lessons
-              </Button>
-              {/* Restart Button */}
-              <View style={styles.restartContainer}>
-                <Button
-                  mode="contained"
-                  onPress={handleRestartLesson}
-                  style={styles.restartButton}
-                  disabled={isProcessing || isRecording}
-                  accessibilityLabel="Restart lesson"
-                  accessibilityHint="Tap to restart the entire vocabulary lesson from the beginning"
-                  icon="restart"
-                >
-                  🔄 Restart Lesson
-                </Button>
-              </View>
-            </Animated.View>
-          </ScrollView>
-        </SafeAreaView>
-        <PortalModal
-          visible={modalVisible}
-          content={modalContent}
-          onClose={hideModal}
-          id={modalId}
-        />
-      </>
+      <VocabularyCompletionScreen
+        lessonId={lessonId!}
+        isProcessing={isProcessing}
+        isRecording={isRecording}
+        scaleAnim={scaleAnim}
+        handleRestartLesson={handleRestartLesson}
+        handleRetryWord={handleRetryWord}
+      />
     );
   }
 
+  // Handle loading state
   if (!currentWord) {
     return (
-      <View style={[styles.container, styles.centerContent, { backgroundColor: theme.colors.background }]}>
-        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>Loading...</Text>
-        <ProgressBar indeterminate style={styles.loadingProgress} color={theme.colors.primary} />
-      </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.centerContent}>
+          <Text style={[styles.loadingText, { color: theme.colors.onSurface }]}>Loading Lesson...</Text>
+          <ProgressBar indeterminate style={styles.loadingProgress} color={theme.colors.primary} />
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -1249,27 +1101,6 @@ const styles = StyleSheet.create({
   nextButton: {
     flex: 1,
   },
-  completionContainer: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  completionTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  completionScore: {
-    fontSize: 24,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  completionStats: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
   loadingText: {
     fontSize: 18,
     textAlign: 'center',
@@ -1300,40 +1131,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: 'rgba(255, 0, 0, 0.1)',
   },
-  // Completion screen styles
-  statsCard: {
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
-    width: '100%',
-    alignItems: 'center',
-  },
-  xpCard: {
-    padding: 20,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-  },
-  xpTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  xpTotal: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  xpBreakdown: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  continueButton: {
-    marginTop: 24,
-    paddingVertical: 8,
-    borderRadius: 12,
-    width: '100%',
-  },
   // Attempt counter styles
   attemptCounter: {
     alignItems: 'center',
@@ -1361,51 +1158,5 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     borderWidth: 2,
     borderColor: 'transparent',
-  },
-  // Incomplete words styles
-  incompleteWordsCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    width: '100%',
-  },
-  incompleteWordsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  incompleteWordsSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 16,
-    opacity: 0.8,
-  },
-  incompleteWordItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
-  },
-  incompleteWordInfo: {
-    flex: 1,
-  },
-  incompleteWordText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  incompleteWordPhonetic: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    opacity: 0.8,
-  },
-  retryButton: {
-    marginLeft: 12,
-    minWidth: 80,
   },
 });

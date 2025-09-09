@@ -1,8 +1,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, View } from 'react-native';
-import { RNPText } from './RNPText';
-import { useAppTheme } from './theme';
+import { RNPText } from '../../../../components/ui/RNPText';
+import { useAppTheme } from '../../../../components/ui/theme';
 
 interface ProgressStepperProps {
   totalSteps: number;

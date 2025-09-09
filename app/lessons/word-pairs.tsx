@@ -1,6 +1,6 @@
+import { ProgressStepper } from '@/app/lessons/components/wordpairs/ProgressStepper';
 import { NextButton } from '@/components/ui/NextButton';
 import { PortalModal } from '@/components/ui/portal';
-import { ProgressStepper } from '@/components/ui/ProgressStepper';
 
 import { RNPText } from '@/components/ui/RNPText';
 import { useAppTheme } from '@/components/ui/theme';
