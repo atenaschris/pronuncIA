@@ -3,6 +3,7 @@ import { useAppTheme } from '@/components/ui/theme';
 import { VOCABULARY_WORD_SETS } from '@/lib/constants/constants';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
+import { usePlayback } from '@/lib/hooks/use-playback';
 import { useRecording } from '@/lib/hooks/use-recording';
 import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
 import { usePortalModalStore } from '@/lib/store/portal-modal-store';
@@ -69,6 +70,7 @@ export default function VocabularyScreen() {
     stopRecording,
     cleanup,
   } = useRecording();
+  const { playSound, isPlayingRecording } = usePlayback();
 
   // Enhanced startRecording that handles timer state
   const startRecording = useCallback(() => {
@@ -964,7 +966,7 @@ export default function VocabularyScreen() {
                 size={32}
                 iconColor={isRecording ? theme.colors.onError : theme.colors.onPrimary}
                 onPress={isRecording ? stopRecording : startRecording}
-                disabled={isProcessing}
+                disabled={isProcessing || isPlayingRecording}
                 accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
                 accessibilityHint={isRecording ? 'Tap to stop recording your pronunciation' : 'Tap to start recording your pronunciation'}
               />
@@ -983,22 +985,7 @@ export default function VocabularyScreen() {
             )}
           </View>
 
-          {/* Restart Button */}
-          <View style={styles.restartContainer}>
-            <Button
-              mode="outlined"
-              onPress={handleRestartLesson}
-              style={styles.restartButton}
-              disabled={isProcessing || isRecording}
-              accessibilityLabel="Restart lesson"
-              accessibilityHint="Tap to restart the entire vocabulary lesson from the beginning"
-              icon="restart"
-            >
-              🔄 Restart Lesson
-            </Button>
-          </View>
-
-          <View style={styles.actionsContainer}>
+          <View style={styles.actionsContainer}>           
             {/* Hide skip button if user is retrying any word (skipped or incomplete) */}
             {!vocabularyState?.isRetryingWord && (
               <Button
@@ -1041,7 +1028,7 @@ export default function VocabularyScreen() {
                   }
                 }}
                 style={styles.skipButton}
-                disabled={isProcessing || isRecording}
+                disabled={isProcessing || isRecording || isPlayingRecording}
                 accessibilityLabel="Skip current word"
                 accessibilityHint="Tap to skip this word and move to the next one"
               >
@@ -1077,24 +1064,36 @@ export default function VocabularyScreen() {
                   }
                 }}
                 style={styles.pauseButton}
-                disabled={isProcessing || isRecording}
+                disabled={isProcessing || isRecording || isPlayingRecording}
                 accessibilityLabel={vocabularyState.isPaused ? 'Resume timer' : 'Pause timer'}
               >
                 {vocabularyState.isPaused ? 'Resume' : 'Pause'}
               </Button>
             )}
-
-            {recordingUri && !isRecording && (
-              <Button
-                mode="contained"
-                onPress={() => simulateAIFeedback(recordingUri)}
-                style={styles.nextButton}
-                disabled={isProcessing}
-                accessibilityLabel={isProcessing ? 'Analyzing pronunciation' : 'Get feedback on pronunciation'}
-                accessibilityHint="Tap to analyze your pronunciation recording"
-              >
-                Get Feedback
-              </Button>
+          </View>
+          <View style={styles.actionsContainer}>
+                  {recordingUri && !isRecording && (
+              <>
+                <Button
+                  mode="outlined"
+                  onPress={() => playSound(recordingUri)}
+                  style={styles.playButton}
+                  disabled={isProcessing || isPlayingRecording}
+                  icon="play"
+                >
+                  Play Recording
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={() => simulateAIFeedback(recordingUri)}
+                  style={styles.nextButton}
+                  disabled={isProcessing || isPlayingRecording}
+                  accessibilityLabel={isProcessing ? 'Analyzing pronunciation' : 'Get feedback on pronunciation'}
+                  accessibilityHint="Tap to analyze your pronunciation recording"
+                >
+                  Get Feedback
+                </Button>
+              </>
             )}
           </View>
         </Animated.View>
@@ -1197,7 +1196,7 @@ const styles = StyleSheet.create({
   },
   targetSoundLabel: {
     fontSize: 14,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   targetSoundText: {
     fontSize: 24,
@@ -1207,7 +1206,6 @@ const styles = StyleSheet.create({
   },
   recordingContainer: {
     alignItems: 'center',
-    marginBottom: 20,
   },
   recordButton: {
     width: 80,
@@ -1215,7 +1213,6 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
   },
   recordingText: {
     fontSize: 16,
@@ -1244,6 +1241,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pauseButton: {
+    flex: 1,
+  },
+  playButton: {
     flex: 1,
   },
   nextButton: {
