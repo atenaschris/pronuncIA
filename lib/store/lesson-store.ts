@@ -1852,8 +1852,8 @@ export const useLessonStore = create<LessonState>()(persist(
       const vocabularyState = lesson.sessionState as VocabularyState;
       const wordTimer = vocabularyState.wordTimers[wordIndex];
 
-      // Check if this word was previously skipped
-      const wasSkipped = vocabularyState.skippedWords.includes(wordIndex);
+      // Check if this word was previously skipped (either currently in skippedWords or being retried from skip)
+      const wasSkipped = vocabularyState.skippedWords.includes(wordIndex) || vocabularyState.isRetryingSkippedWord;
 
       // Base XP from AI score (0-100 maps to 0-50 XP)
       const baseXP = Math.floor(aiScore / 2);

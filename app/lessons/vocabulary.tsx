@@ -290,7 +290,7 @@ export default function VocabularyScreen() {
     if (currentWord) {
       addAIScore(lessonId!, accuracy);
 
-      let isCorrect = accuracy >= 95;
+      let isCorrect = accuracy >= 70;
 
       if (isCorrect) {
         updatePronunciationAccuracy(lessonId!);
