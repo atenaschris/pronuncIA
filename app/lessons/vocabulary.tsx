@@ -3,13 +3,14 @@ import { useAppTheme } from '@/components/ui/theme';
 import { VOCABULARY_WORD_SETS } from '@/lib/constants/constants';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
+import { usePlayback } from '@/lib/hooks/use-playback';
 import { useRecording } from '@/lib/hooks/use-recording';
 import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
 import { usePortalModalStore } from '@/lib/store/portal-modal-store';
 
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Card, IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,6 +20,7 @@ export default function VocabularyScreen() {
   const { playCorrect, playIncorrect, playWin, playWordAudio } = useAudio();
   const {
     getVocabularyState,
+    getLesson,
     setVocabularyWords,
     setCurrentWordIndex,
     incrementVocabularyAttempts,
@@ -26,7 +28,6 @@ export default function VocabularyScreen() {
     setVocabularyCompleted,
     addAIScore,
     updatePronunciationAccuracy,
-    incrementWordsCompleted,
     initializeLessonSessionState,
     // Timer methods
     startWordTimer,
@@ -37,13 +38,20 @@ export default function VocabularyScreen() {
     resetVocabularyTimers,
     resetVocabularyLesson,
     calculateWordXP,
-    addWordXP,
+    addVocabularyWordXP,
+
     resumeWordTimerFromElapsed,
     // Incomplete words methods
     addIncompleteWord,
     addSkippedWord,
+    removeSkippedWord,
+    moveSkippedToIncomplete,
     retryIncompleteWord,
-    removeIncompleteWord
+    removeIncompleteWord,
+    // Completed words methods
+    addCompletedWord,
+    removeCompletedWord,
+    completeLesson
   } = useLessonStore();
 
   const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModalStore();
@@ -62,6 +70,7 @@ export default function VocabularyScreen() {
     stopRecording,
     cleanup,
   } = useRecording();
+  const { playSound, isPlayingRecording } = usePlayback();
 
   // Enhanced startRecording that handles timer state
   const startRecording = useCallback(() => {
@@ -78,6 +87,7 @@ export default function VocabularyScreen() {
   }, [originalStartRecording, lessonId, vocabularyState?.currentWordStartTime, vocabularyState?.isPaused, resumeWordTimer, resumeWordTimerFromElapsed]);
 
   const [error, setError] = useState<string | null>(null);
+  const retryXpDeltaRef = useRef<number>(0);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -116,6 +126,9 @@ export default function VocabularyScreen() {
     // Start with consonants_th set for demo
     const words = VOCABULARY_WORD_SETS.consonants_th;
     setVocabularyWords(lessonId!, words);
+    
+    // Reset retry XP delta for new lesson
+    retryXpDeltaRef.current = 0;
 
     // Start timer for the first word
     setTimeout(() => {
@@ -161,6 +174,9 @@ export default function VocabularyScreen() {
     // If we're retrying a word, return to completion screen instead of continuing
     if (vocabularyState.isRetryingWord) {
       setVocabularyCompleted(lessonId!, true);
+      // Pass the accumulated XP delta from retried words
+      completeLesson(lessonId!, retryXpDeltaRef.current);
+      retryXpDeltaRef.current = 0; // Reset for next session
       playWin();
       hapticSuccess?.();
       return;
@@ -190,10 +206,12 @@ export default function VocabularyScreen() {
       ]).start();
     } else {
       setVocabularyCompleted(lessonId!, true);
+      // Also call the global completeLesson function to update lesson status
+      completeLesson(lessonId!, 0);
       playWin();
       hapticSuccess?.();
     }
-  }, [vocabularyState?.words, vocabularyState?.currentWordIndex, vocabularyState?.currentWordStartTime, vocabularyState?.isRetryingWord, lessonId, setCurrentWordIndex, setRecordingUri, stopWordTimer, startWordTimer, fadeAnim, setVocabularyCompleted, playWin, hapticSuccess]);
+  }, [vocabularyState?.words, vocabularyState?.currentWordIndex, vocabularyState?.currentWordStartTime, vocabularyState?.isRetryingWord, lessonId, setCurrentWordIndex, setRecordingUri, stopWordTimer, startWordTimer, fadeAnim, setVocabularyCompleted, completeLesson, playWin, hapticSuccess]);
 
 
   const submitRecording = useCallback(async () => {
@@ -230,7 +248,6 @@ export default function VocabularyScreen() {
       incrementVocabularyAttempts(lessonId!);
 
       if (score >= 70) {
-        incrementWordsCompleted(lessonId!);
         playCorrect();
         hapticSuccess?.();
       } else {
@@ -246,16 +263,11 @@ export default function VocabularyScreen() {
     } finally {
       setIsProcessing(false);
     }
-  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, incrementVocabularyAttempts, incrementWordsCompleted, playCorrect, playIncorrect, hapticSuccess, hapticError]);
+  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, incrementVocabularyAttempts, playCorrect, playIncorrect, hapticSuccess, hapticError]);
 
   // Helper function to calculate partial XP for failed final attempts
-  const calculatePartialXP = useCallback(() => {
-    const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
-    const bestAttemptScore = vocabularyState?.aiScores && vocabularyState.aiScores.length > 0
-      ? Math.max(...vocabularyState.aiScores.slice(-3)) // Best of last 3 attempts
-      : 50; // Fallback if no scores available
-    return Math.floor(calculateWordXP(lessonId!, currentWordIndex, bestAttemptScore, 3, currentWord?.difficulty) * 0.15); // 15% of best attempt XP
-  }, [vocabularyState?.currentWordIndex, vocabularyState?.aiScores, lessonId, currentWord?.difficulty, calculateWordXP]);
+  // Remove the calculatePartialXP function entirely as it's not needed
+  // Users can retry words for full XP, so partial XP awards are redundant
 
   const simulateAIFeedback = async (uri: string) => {
     setIsProcessing(true);
@@ -267,6 +279,9 @@ export default function VocabularyScreen() {
 
     // Get current attempts (don't increment yet - only increment after failure)
     const currentAttempts = vocabularyState?.attempts ?? 0;
+    
+    // Get current word index once for the entire function
+    const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
 
     // Simulate AI processing delay
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -280,18 +295,25 @@ export default function VocabularyScreen() {
       let isCorrect = accuracy >= 70;
 
       if (isCorrect) {
-        // No need to increment attempts for successful completion
         updatePronunciationAccuracy(lessonId!);
 
         // Calculate and award XP for this word with attempt and difficulty bonuses
-        const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
         const wordDifficulty = currentWord.difficulty;
         const wordXP = calculateWordXP(lessonId!, currentWordIndex, accuracy, currentAttempts + 1, wordDifficulty);
-        addWordXP(lessonId!, wordXP);
-
-        // If this is a retry, remove the word from incomplete words list
+        
+        // If this is a retry, add the XP for the retry attempt
         if (vocabularyState?.isRetryingWord) {
+          addVocabularyWordXP(lessonId!, wordXP);
+          const xpDelta = wordXP;
+          
+          // Store the XP delta for when the lesson completes
+        if (xpDelta > 0) {
+          // We'll use this delta when calling completeLesson
+          retryXpDeltaRef.current = (retryXpDeltaRef.current || 0) + xpDelta;
+        }
           removeIncompleteWord(lessonId!, currentWordIndex);
+        } else {
+          addVocabularyWordXP(lessonId!, wordXP);
         }
 
         // Enhanced feedback messages for correct pronunciation
@@ -317,6 +339,12 @@ export default function VocabularyScreen() {
         const difficultyBonus = currentWord.difficulty === 'hard' ? ' +Difficulty Bonus!' : currentWord.difficulty === 'easy' ? ' (Easy word)' : '';
         const feedbackMessage = `${randomMessage}\n\nAccuracy: ${Math.round(accuracy)}%\n${attemptText}${difficultyBonus}\n\n+${wordXP} XP earned! 🎉`;
         
+        // If this was a skipped word that was successfully completed, remove it from skipped list
+        const wasSkipped = vocabularyState?.skippedWords?.includes(currentWordIndex) ?? false;
+        if (wasSkipped) {
+          removeSkippedWord(lessonId!, currentWordIndex);
+        }
+        
         playCorrect();
         hapticSuccess?.();
 
@@ -329,6 +357,7 @@ export default function VocabularyScreen() {
               text: "Next Word",
               onPress: () => {
                 hideModal();
+                // Successful attempts always move to next word
                 setTimeout(() => {
                   nextWord();
                 }, 100);
@@ -352,11 +381,19 @@ export default function VocabularyScreen() {
         const attemptsLeft = 3 - (currentAttempts + 1);
         const isLastAttempt = (currentAttempts + 1) >= 3;
         
-        // Calculate partial XP once for reuse in both feedback and button handler
-        const partialXP = isLastAttempt ? calculatePartialXP() : 0;
-        
+        // Handle last attempt (3rd attempt failed)
         if (isLastAttempt) {
-          enhancedFeedback = `Don't worry! This word will appear in the final screen for more practice. You earned ${partialXP} XP for your effort! 💪\n\nAccuracy: ${Math.round(accuracy)}%`;
+          const wasSkipped = vocabularyState?.skippedWords?.includes(currentWordIndex) ?? false;
+          
+          if (wasSkipped) {
+            // If this was a skipped word that failed 3 times after retry, move it to challenging words
+            moveSkippedToIncomplete(lessonId!, currentWordIndex);
+            enhancedFeedback = `This word has been moved to challenging words for more practice. Keep trying! 💪\n\nAccuracy: ${Math.round(accuracy)}%`;
+          } else {
+            // Regular word that failed 3 times - add to incomplete list
+            addIncompleteWord(lessonId!, currentWordIndex);
+            enhancedFeedback = `Don't worry! This word will appear in the final screen for more practice. Try again to earn XP! 💪\n\nAccuracy: ${Math.round(accuracy)}%`;
+          }
         } else if (attemptsLeft === 1) {
           enhancedFeedback += "\n\n🎯 Last chance - you can do this!";
         } else if (attemptsLeft > 1) {
@@ -380,10 +417,8 @@ export default function VocabularyScreen() {
               onPress: () => {
                 hideModal();
                 if (isLastAttempt) {
-                  // Award minimal XP for effort and add to incomplete words
-                  // Reuse the partialXP calculated above to avoid double calculation
-                  addWordXP(lessonId!, partialXP);
-                  addIncompleteWord(lessonId!, vocabularyState?.currentWordIndex ?? 0);
+                  // No XP awarded for failed attempts - users can retry for full XP
+                  // Word was already added to incomplete list above
                   // Move to next word after final failed attempt
                   setTimeout(() => {
                     nextWord();
@@ -391,6 +426,47 @@ export default function VocabularyScreen() {
                 } else {
                   // Clear recording to allow new attempt
                   setRecordingUri(null);
+                  
+                  // Show informative modal with options for the user
+                  setTimeout(() => {
+                    showModal({
+                      title: "Ready for Another Try? 🎯",
+                      message: `Great! You can now:\n\n🔊 Tap the word card to listen to the pronunciation again\n\n🎤 Or press the record button directly if you're ready to try again\n\nTake your time - there's no rush!`,
+                      buttons: [
+                        {
+                          text: "Listen First",
+                          onPress: () => {
+                            hideModal();
+                            // Resume timer first, then play the word
+                            setTimeout(() => {
+                              // Always resume timer
+                              console.log('[Try Again] Resuming timer before playing word');
+                              resumeWordTimer(lessonId!);
+                              if (currentWord?.word) {
+                                console.log('[Try Again] Playing word pronunciation:', currentWord.word);
+                                playWordAudio(currentWord.word);
+                                hapticMedium?.();
+                              }
+                            }, 200);
+                          }
+                        },
+                        {
+                          text: "Start Recording",
+                          onPress: () => {
+                            hideModal();
+                            // Resume timer and start recording
+                            setTimeout(() => {
+                              // Always resume timer before recording
+                              console.log('[Try Again] Resuming timer before recording');
+                              resumeWordTimer(lessonId!);
+                              console.log('[Try Again] Starting recording directly');
+                              startRecording();
+                            }, 200);
+                          }
+                        }
+                      ]
+                    });
+                  }, 100);
                 }
               }
             }
@@ -403,7 +479,17 @@ export default function VocabularyScreen() {
   };
 
   const nextWord = useCallback(() => {
-    incrementWordsCompleted(lessonId!);
+    // Check if current word should be marked as completed
+    if (vocabularyState?.currentWordIndex !== undefined) {
+      const currentWordIndex = vocabularyState.currentWordIndex;
+      const isAlreadyCompleted = vocabularyState.completedWords?.includes(currentWordIndex) ?? false;
+      
+      // Only track completion if not already completed
+      if (!isAlreadyCompleted) {
+        addCompletedWord(lessonId!, currentWordIndex);
+      }
+    }
+    
     // Reset attempts for the current word before moving to next
     resetVocabularyAttempts(lessonId!);
     handleNextWord();
@@ -416,21 +502,35 @@ export default function VocabularyScreen() {
       duration: 300,
       useNativeDriver: false,
     }).start();
-  }, [incrementWordsCompleted, resetVocabularyAttempts, lessonId, handleNextWord, vocabularyState?.currentWordIndex, vocabularyState?.words?.length, progressAnim]);
+  }, [resetVocabularyAttempts, lessonId, handleNextWord, vocabularyState?.currentWordIndex, vocabularyState?.words?.length, vocabularyState?.completedWords, progressAnim, addCompletedWord]);
 
   const skipWord = useCallback(() => {
-    // Add the current word to both incomplete and skipped words so user can retry it later
     if (vocabularyState?.currentWordIndex !== undefined) {
-      addIncompleteWord(lessonId!, vocabularyState.currentWordIndex);
-      addSkippedWord(lessonId!, vocabularyState.currentWordIndex);
+      const currentWordIndex = vocabularyState.currentWordIndex;
+      const wasSkipped = vocabularyState.skippedWords?.includes(currentWordIndex) ?? false;
+      const wasIncomplete = vocabularyState.incompleteWords?.includes(currentWordIndex) ?? false;
       
-      // Award minimal XP for skipped words to maintain array consistency
-      // This ensures no gaps in wordXpScores array and prevents NaN in calculations
-      const minimalXP = calculateWordXP(lessonId!, vocabularyState.currentWordIndex, 0, 1, currentWord?.difficulty); // 0 score for skipped word
-      addWordXP(lessonId!, minimalXP);
+      // Don't allow skipping words that have been retried (are in incompleteWords)
+      // This prevents infinite loops while keeping the logic simple
+      if (wasIncomplete) {
+        return;
+      }
+      
+      if (vocabularyState.isRetryingWord) {
+        // If retrying a skipped word, keep it in skipped (no action needed)
+        // The word is already in skippedWords, don't add it again
+      } else {
+        // Normal skip during first attempt - add to skipped words only
+        if (!wasSkipped) {
+          addSkippedWord(lessonId!, currentWordIndex);
+        }
+      }
+      
+      // Don't award any XP for skipped words - they should only get XP when actually attempted
+      // This ensures totalXP accurately reflects actual effort and performance
     }
     handleNextWord();
-  }, [handleNextWord, addIncompleteWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, calculateWordXP, currentWord?.difficulty, addWordXP]);
+  }, [handleNextWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, vocabularyState?.isRetryingWord, vocabularyState?.skippedWords, vocabularyState?.incompleteWords]);
 
   const handleRestartLesson = useCallback(() => {
     // Store the timer state before pausing
@@ -541,105 +641,169 @@ export default function VocabularyScreen() {
   if (vocabularyState?.lessonCompleted) {
     const totalSessionMinutes = Math.floor((vocabularyState?.totalSessionTime ?? 0) / 60);
     const totalSessionSeconds = (vocabularyState?.totalSessionTime ?? 0) % 60;
-    const totalXP = vocabularyState?.wordXpScores?.reduce((sum, xp) => sum + xp, 0) ?? 0;
+    const lesson = getLesson(lessonId!);
+    const totalXP = lesson?.xpReward ?? 0;
     const averageWordAccurancy = Math.round(vocabularyState?.pronunciationAccuracy ?? 0);
     const incompleteWords = vocabularyState?.incompleteWords ?? [];
+    const skippedWords = vocabularyState?.skippedWords ?? [];
 
     const handleRetryWord = (wordIndex: number) => {
       // Clear recording state before retrying
       setRecordingUri(null);
       cleanup();
       
+      // Remove word from completed words since it's being retried
+      removeCompletedWord(lessonId!, wordIndex);
+      
       retryIncompleteWord(lessonId!, wordIndex);
+      
       // Start timer for the retried word
       setTimeout(() => {
         startWordTimer(lessonId!);
       }, 200);
     };
 
+    const renderWordItem = (wordIndex: number, isSkipped: boolean) => {
+      const word = vocabularyState?.words?.[wordIndex];
+      if (!word) return null;
+      
+      return (
+        <View key={wordIndex} style={styles.incompleteWordItem}>
+          <View style={styles.incompleteWordInfo}>
+            <Text style={[
+              styles.incompleteWordText, 
+              { color: isSkipped ? theme.colors.onSecondaryContainer : theme.colors.onErrorContainer }
+            ]}>
+              {word.word}
+            </Text>
+            <Text style={[
+              styles.incompleteWordPhonetic, 
+              { color: isSkipped ? theme.colors.onSecondaryContainer : theme.colors.onErrorContainer }
+            ]}>
+              {word.phonetic}
+            </Text>
+          </View>
+          <Button
+            mode="contained"
+            onPress={() => {
+              const currentRetryCount = vocabularyState?.wordRetryCount?.[wordIndex] ?? 0;
+              const maxRetries = vocabularyState?.maxRetries ?? 1;
+              
+              if (currentRetryCount >= maxRetries) {
+                // Show subscription modal when retry limit is reached
+                showModal({
+                  title: "Unlock Unlimited Retries! 🚀",
+                  message: "You've already retried this word once with your current plan.\n\nUpgrade to Premium to get unlimited retries and master every word at your own pace!\n\n✨ Unlimited retries for all words\n🎯 Advanced pronunciation feedback\n📊 Detailed progress analytics",
+                  buttons: [
+                    {
+                      text: "Maybe Later",
+                      style: "cancel" as const,
+                      onPress: () => {
+                        hideModal();
+                      }
+                    },
+                    {
+                      text: "Upgrade Now",
+                      onPress: () => {
+                        hideModal();
+                        // TODO: Navigate to subscription screen
+                        console.log('Navigate to subscription screen');
+                      }
+                    }
+                  ]
+                });
+              } else {
+                handleRetryWord(wordIndex);
+              }
+            }}
+            style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
+            labelStyle={{ color: theme.colors.onPrimary }}
+            compact
+          >
+            Retry
+          </Button>
+        </View>
+      );
+    };
+
     return (
       <>
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          <Animated.View style={[styles.completionContainer, { transform: [{ scale: scaleAnim }] }]}>
-            <Text style={[styles.completionTitle, { color: theme.colors.primary }]}>🎉 Lesson Complete!</Text>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+          <ScrollView 
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContent}
+          >
+            <Animated.View style={[styles.completionContainer, { transform: [{ scale: scaleAnim }] }]}>
+              <Text style={[styles.completionTitle, { color: theme.colors.primary }]}>🎉 Lesson Complete!</Text>
 
-            <Surface style={[styles.statsCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
-              <Text style={[styles.completionScore, { color: theme.colors.onBackground }]}>
-                Final Score: {totalXP} XP
-              </Text>
-              <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                Words Completed: {vocabularyState?.wordsCompleted ?? 0}
-              </Text>
-              <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                Average Accuracy: {averageWordAccurancy}%
-              </Text>
-              <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
-                Estimated Total Time: {totalSessionMinutes}:{totalSessionSeconds.toString().padStart(2, '0')}
-              </Text>
-            </Surface>
-
-            {incompleteWords.length > 0 && (
-              <Surface style={[styles.incompleteWordsCard, { backgroundColor: theme.colors.errorContainer }]} elevation={2}>
-                <Text style={[styles.incompleteWordsTitle, { color: theme.colors.onErrorContainer }]}>
-                  💪 Words to Retry ({incompleteWords.length})
+              <Surface style={[styles.statsCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+                <Text style={[styles.completionScore, { color: theme.colors.onBackground }]}>
+                  Final Score: {totalXP} XP
                 </Text>
-                <Text style={[styles.incompleteWordsSubtitle, { color: theme.colors.onErrorContainer }]}>
-                  Give these words another chance!
+                <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
+                  Words Completed: {vocabularyState?.completedWords?.length ?? 0}
                 </Text>
-                {incompleteWords.map((wordIndex) => {
-                  const word = vocabularyState?.words?.[wordIndex];
-                  if (!word) return null;
-                  return (
-                    <View key={wordIndex} style={styles.incompleteWordItem}>
-                      <View style={styles.incompleteWordInfo}>
-                        <Text style={[styles.incompleteWordText, { color: theme.colors.onErrorContainer }]}>
-                          {word.word}
-                        </Text>
-                        <Text style={[styles.incompleteWordPhonetic, { color: theme.colors.onErrorContainer }]}>
-                          {word.phonetic}
-                        </Text>
-                      </View>
-                      <Button
-                        mode="contained"
-                        onPress={() => handleRetryWord(wordIndex)}
-                        style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
-                        labelStyle={{ color: theme.colors.onPrimary }}
-                        compact
-                      >
-                        Retry
-                      </Button>
-                    </View>
-                  );
-                })}
+                <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
+                  Average Accuracy: {averageWordAccurancy}%
+                </Text>
+                <Text style={[styles.completionStats, { color: theme.colors.onSurfaceVariant }]}>
+                  Estimated Total Time: {totalSessionMinutes}:{totalSessionSeconds.toString().padStart(2, '0')}
+                </Text>
               </Surface>
-            )}
 
-            <Button
-              mode="contained"
-              onPress={() => router.back()}
-              style={[styles.continueButton, { backgroundColor: theme.colors.primary }]}
-              labelStyle={{ color: theme.colors.onPrimary }}
-              accessibilityLabel="Return to lessons"
-              accessibilityHint="Tap to go back to the lesson selection screen"
-            >
-              Back to Lessons
-            </Button>
-            {/* Restart Button */}
-            <View style={styles.restartContainer}>
+              {/* Skipped Words Section */}
+              {skippedWords.length > 0 && (
+                <Surface style={[styles.incompleteWordsCard, { backgroundColor: theme.colors.secondaryContainer }]} elevation={2}>
+                  <Text style={[styles.incompleteWordsTitle, { color: theme.colors.onSecondaryContainer }]}>
+                    ⏭️ Skipped Words ({skippedWords.length})
+                  </Text>
+                  <Text style={[styles.incompleteWordsSubtitle, { color: theme.colors.onSecondaryContainer }]}>
+                    Words you chose to skip during the lesson
+                  </Text>
+                  {skippedWords.map((wordIndex) => renderWordItem(wordIndex, true))}
+                </Surface>
+              )}
+
+              {/* Incomplete Words Section (words that scored poorly after 3 attempts) */}
+              {incompleteWords.length > 0 && (
+                <Surface style={[styles.incompleteWordsCard, { backgroundColor: theme.colors.errorContainer }]} elevation={2}>
+                  <Text style={[styles.incompleteWordsTitle, { color: theme.colors.onErrorContainer }]}>
+                    💪 Challenging Words ({incompleteWords.length})
+                  </Text>
+                  <Text style={[styles.incompleteWordsSubtitle, { color: theme.colors.onErrorContainer }]}>
+                    Words that need more practice after 3 attempts
+                  </Text>
+                  {incompleteWords.map((wordIndex) => renderWordItem(wordIndex, false))}
+                </Surface>
+              )}
+
               <Button
                 mode="contained"
-                onPress={handleRestartLesson}
-                style={styles.restartButton}
-                disabled={isProcessing || isRecording}
-                accessibilityLabel="Restart lesson"
-                accessibilityHint="Tap to restart the entire vocabulary lesson from the beginning"
-                icon="restart"
+                onPress={() => router.back()}
+                style={[styles.continueButton, { backgroundColor: theme.colors.primary }]}
+                labelStyle={{ color: theme.colors.onPrimary }}
+                accessibilityLabel="Return to lessons"
+                accessibilityHint="Tap to go back to the lesson selection screen"
               >
-                🔄 Restart Lesson
+                Back to Lessons
               </Button>
-            </View>
-          </Animated.View>
-        </View>
+              {/* Restart Button */}
+              <View style={styles.restartContainer}>
+                <Button
+                  mode="contained"
+                  onPress={handleRestartLesson}
+                  style={styles.restartButton}
+                  disabled={isProcessing || isRecording}
+                  accessibilityLabel="Restart lesson"
+                  accessibilityHint="Tap to restart the entire vocabulary lesson from the beginning"
+                  icon="restart"
+                >
+                  🔄 Restart Lesson
+                </Button>
+              </View>
+            </Animated.View>
+          </ScrollView>
+        </SafeAreaView>
         <PortalModal
           visible={modalVisible}
           content={modalContent}
@@ -802,7 +966,7 @@ export default function VocabularyScreen() {
                 size={32}
                 iconColor={isRecording ? theme.colors.onError : theme.colors.onPrimary}
                 onPress={isRecording ? stopRecording : startRecording}
-                disabled={isProcessing}
+                disabled={isProcessing || isPlayingRecording}
                 accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
                 accessibilityHint={isRecording ? 'Tap to stop recording your pronunciation' : 'Tap to start recording your pronunciation'}
               />
@@ -821,29 +985,50 @@ export default function VocabularyScreen() {
             )}
           </View>
 
-          {/* Restart Button */}
-          <View style={styles.restartContainer}>
-            <Button
-              mode="outlined"
-              onPress={handleRestartLesson}
-              style={styles.restartButton}
-              disabled={isProcessing || isRecording}
-              accessibilityLabel="Restart lesson"
-              accessibilityHint="Tap to restart the entire vocabulary lesson from the beginning"
-              icon="restart"
-            >
-              🔄 Restart Lesson
-            </Button>
-          </View>
-
-          <View style={styles.actionsContainer}>
-            {/* Hide skip button if user is retrying a previously skipped word */}
-            {!(vocabularyState?.isRetryingWord && vocabularyState?.skippedWords?.includes(vocabularyState?.currentWordIndex ?? -1)) && (
+          <View style={styles.actionsContainer}>           
+            {/* Hide skip button if user is retrying any word (skipped or incomplete) */}
+            {!vocabularyState?.isRetryingWord && (
               <Button
                 mode="outlined"
-                onPress={skipWord}
+                onPress={() => {
+                  const currentWordIndex = vocabularyState?.currentWordIndex ?? -1;
+                  const currentSkipCount = vocabularyState?.wordSkipCount?.[currentWordIndex] ?? 0;
+                  const maxSkips = vocabularyState?.maxSkips ?? 1;
+                  const isIncompleteWord = vocabularyState?.incompleteWords?.includes(currentWordIndex) ?? false;
+                  
+                  if (isIncompleteWord) {
+                    return; // Don't allow skipping incomplete words
+                  }
+                  
+                  if (currentSkipCount >= maxSkips) {
+                    // Show subscription modal when skip limit is reached
+                    showModal({
+                      title: "Unlock Unlimited Skips! ⏭️",
+                      message: "You've already skipped this word once with your current plan.\n\nUpgrade to Premium to get unlimited skips and learn at your own pace!\n\n✨ Unlimited skips for all words\n🎯 Flexible learning experience\n📊 Detailed progress analytics",
+                      buttons: [
+                        {
+                          text: "Maybe Later",
+                          style: "cancel" as const,
+                          onPress: () => {
+                            hideModal();
+                          }
+                        },
+                        {
+                          text: "Upgrade Now",
+                          onPress: () => {
+                            hideModal();
+                            // TODO: Navigate to subscription screen
+                            console.log('Navigate to subscription screen');
+                          }
+                        }
+                      ]
+                    });
+                  } else {
+                    skipWord();
+                  }
+                }}
                 style={styles.skipButton}
-                disabled={isProcessing || isRecording}
+                disabled={isProcessing || isRecording || isPlayingRecording}
                 accessibilityLabel="Skip current word"
                 accessibilityHint="Tap to skip this word and move to the next one"
               >
@@ -879,24 +1064,36 @@ export default function VocabularyScreen() {
                   }
                 }}
                 style={styles.pauseButton}
-                disabled={isProcessing || isRecording}
+                disabled={isProcessing || isRecording || isPlayingRecording}
                 accessibilityLabel={vocabularyState.isPaused ? 'Resume timer' : 'Pause timer'}
               >
                 {vocabularyState.isPaused ? 'Resume' : 'Pause'}
               </Button>
             )}
-
-            {recordingUri && !isRecording && (
-              <Button
-                mode="contained"
-                onPress={() => simulateAIFeedback(recordingUri)}
-                style={styles.nextButton}
-                disabled={isProcessing}
-                accessibilityLabel={isProcessing ? 'Analyzing pronunciation' : 'Get feedback on pronunciation'}
-                accessibilityHint="Tap to analyze your pronunciation recording"
-              >
-                Get Feedback
-              </Button>
+          </View>
+          <View style={styles.actionsContainer}>
+                  {recordingUri && !isRecording && (
+              <>
+                <Button
+                  mode="outlined"
+                  onPress={() => playSound(recordingUri)}
+                  style={styles.playButton}
+                  disabled={isProcessing || isPlayingRecording}
+                  icon="play"
+                >
+                  Play Recording
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={() => simulateAIFeedback(recordingUri)}
+                  style={styles.nextButton}
+                  disabled={isProcessing || isPlayingRecording}
+                  accessibilityLabel={isProcessing ? 'Analyzing pronunciation' : 'Get feedback on pronunciation'}
+                  accessibilityHint="Tap to analyze your pronunciation recording"
+                >
+                  Get Feedback
+                </Button>
+              </>
             )}
           </View>
         </Animated.View>
@@ -916,6 +1113,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   centerContent: {
     justifyContent: 'center',
@@ -992,7 +1196,7 @@ const styles = StyleSheet.create({
   },
   targetSoundLabel: {
     fontSize: 14,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   targetSoundText: {
     fontSize: 24,
@@ -1002,7 +1206,6 @@ const styles = StyleSheet.create({
   },
   recordingContainer: {
     alignItems: 'center',
-    marginBottom: 20,
   },
   recordButton: {
     width: 80,
@@ -1010,7 +1213,6 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
   },
   recordingText: {
     fontSize: 16,
@@ -1041,13 +1243,15 @@ const styles = StyleSheet.create({
   pauseButton: {
     flex: 1,
   },
+  playButton: {
+    flex: 1,
+  },
   nextButton: {
     flex: 1,
   },
   completionContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 20,
   },
   completionTitle: {
     fontSize: 28,

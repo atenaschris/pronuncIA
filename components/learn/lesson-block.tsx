@@ -46,7 +46,7 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
             <View style={styles.xpAndLessonCompletedIconWrapper}>
             <RNPText variant="titleMedium" style={{fontWeight: '500',color: theme.colors.success}}>+{lesson.xpReward} XP</RNPText>
             {lesson.completed && (
-              <MaterialCommunityIcons name="check-circle" size={30} color={theme.colors.success} />
+              <MaterialCommunityIcons name="check-circle" size={25} color={theme.colors.success} />
             )}
             </View>
           </View>
