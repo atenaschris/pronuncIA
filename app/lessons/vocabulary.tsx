@@ -842,43 +842,7 @@ export default function VocabularyScreen() {
             {!vocabularyState?.isRetryingWord && (
               <Button
                 mode="outlined"
-                onPress={() => {
-                  const currentWordIndex = vocabularyState?.currentWordIndex ?? -1;
-                  const currentSkipCount = vocabularyState?.wordSkipCount?.[currentWordIndex] ?? 0;
-                  const maxSkips = vocabularyState?.maxSkips ?? 1;
-                  const isIncompleteWord = vocabularyState?.incompleteWords?.includes(currentWordIndex) ?? false;
-                  
-                  if (isIncompleteWord) {
-                    return; // Don't allow skipping incomplete words
-                  }
-                  
-                  if (currentSkipCount >= maxSkips) {
-                    // Show subscription modal when skip limit is reached
-                    showModal({
-                      title: "Unlock Unlimited Skips! ⏭️",
-                      message: "You've already skipped this word once with your current plan.\n\nUpgrade to Premium to get unlimited skips and learn at your own pace!\n\n✨ Unlimited skips for all words\n🎯 Flexible learning experience\n📊 Detailed progress analytics",
-                      buttons: [
-                        {
-                          text: "Maybe Later",
-                          style: "cancel" as const,
-                          onPress: () => {
-                            hideModal();
-                          }
-                        },
-                        {
-                          text: "Upgrade Now",
-                          onPress: () => {
-                            hideModal();
-                            // TODO: Navigate to subscription screen
-                            console.log('Navigate to subscription screen');
-                          }
-                        }
-                      ]
-                    });
-                  } else {
-                    skipWord();
-                  }
-                }}
+                onPress={() => skipWord()}
                 style={styles.skipButton}
                 disabled={isProcessing || isRecording || isPlayingRecording}
                 accessibilityLabel="Skip current word"
