@@ -107,7 +107,6 @@ interface LessonState {
   addAIScore: (lessonId: string, score: number) => void;
   setFeedback: (lessonId: string, feedback: string | null) => void;
   setShowFeedback: (lessonId: string, show: boolean) => void;
-  updatePronunciationAccuracy: (lessonId: string) => void;
   addFailedWord: (lessonId: string, wordIndex: number) => void;
   addSkippedWord: (lessonId: string, wordIndex: number) => void;
   addSuccessWord: (lessonId: string, wordIndex: number) => void;
@@ -1361,35 +1360,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    updatePronunciationAccuracy: (lessonId: string) => set((state) => {
-      if (!state.dailyPlan) return state;
 
-      const updatedLessons = state.dailyPlan.lessons.map(lesson => {
-        if (lesson.id === lessonId && lesson.sessionState) {
-          const currentState = lesson.sessionState as VocabularyState;
-          const accuracy = currentState.aiScores.length > 0
-            ? currentState.aiScores.reduce((sum, score) => sum + score, 0) / currentState.aiScores.length
-            : 0;
-
-          return {
-            ...lesson,
-            sessionState: {
-              ...currentState,
-              pronunciationAccuracy: accuracy,
-            } as VocabularyState,
-          };
-        }
-        return lesson;
-      });
-
-      return {
-        ...state,
-        dailyPlan: {
-          ...state.dailyPlan,
-          lessons: updatedLessons,
-        },
-      };
-    }),
 
 
 

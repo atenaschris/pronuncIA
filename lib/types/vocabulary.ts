@@ -21,7 +21,6 @@ export interface VocabularyState {
   aiScores: number[]; // AI pronunciation scores for each word (0-100)
   feedback: string | null; // AI feedback text
   showFeedback: boolean;
-  pronunciationAccuracy: number; // Overall accuracy percentage
   totalWords: number;
   failedWords: number[]; // Indices of words that exceeded max attempts and were skipped
   skippedWords: number[]; // Indices of words that were manually skipped by the user
