@@ -60,6 +60,7 @@ interface LessonState {
   currentStreak: number;
   totalXp: number;
   dailyPlan: DailyPlan | null;
+  lastActivityDate: string | null; // Track last day user completed any lesson (YYYY-MM-DD format)
   isLoading: boolean;
   error: string | null;
 
@@ -131,23 +132,39 @@ interface LessonState {
   getLesson: (lessonId: string) => Lesson | null;
 }
 
+// Helper function to get today's date in YYYY-MM-DD format
+const getTodayDateString = (): string => {
+  return new Date().toISOString().split('T')[0];
+};
+
+// Helper function to check if two dates are consecutive days
+const areConsecutiveDays = (date1: string, date2: string): boolean => {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  const diffTime = Math.abs(d2.getTime() - d1.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays === 1;
+};
+
 export const useLessonStore = create<LessonState>()(persist(
   (set, get) => ({
     // Common lesson state
     currentStreak: 0,
     totalXp: 0,
     dailyPlan: null,
+    lastActivityDate: null,
     isLoading: false,
     error: null,
     setDailyPlan: (plan) => set({ dailyPlan: plan }),
     completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
-      const { dailyPlan, totalXp, currentStreak } = get();
+      const { dailyPlan, totalXp, currentStreak, lastActivityDate } = get();
       if (!dailyPlan) return;
 
       let lessonNewlyFullyCompleted = false; // Tracks if this action makes the lesson fully complete for the first time
       let xpDeltaForTotal = 0; // How much the global totalXp should change
       let newTotalXp = totalXp;
       let newCurrentStreak = currentStreak;
+      let newLastActivityDate = lastActivityDate;
       let newCompletedLessonsCount = dailyPlan.completedLessons;
 
       const newLessonsArray = dailyPlan.lessons.map(lesson => {
@@ -218,13 +235,33 @@ export const useLessonStore = create<LessonState>()(persist(
       if (lessonNewlyFullyCompleted) {
         // This logic ensures streak and completed count only increment if the lesson state *changed* to completed
         // No need to check originalLesson.completed as lessonNewlyFullyCompleted is only true if it wasn't completed before.
-        newCurrentStreak += 1;
         newCompletedLessonsCount += 1;
+        
+        // Update streak based on consecutive days, not lesson count
+        const today = getTodayDateString();
+        
+        if (!newLastActivityDate) {
+          // First ever lesson completion - start streak at 1
+          newCurrentStreak = 1;
+        } else if (newLastActivityDate === today) {
+          // Already completed a lesson today - streak stays the same
+          // (multiple lessons in same day don't increase streak)
+        } else if (areConsecutiveDays(newLastActivityDate, today)) {
+          // Completed lesson on consecutive day - increment streak
+          newCurrentStreak += 1;
+        } else {
+          // Gap in activity - reset streak to 1
+          newCurrentStreak = 1;
+        }
+        
+        // Update last activity date to today
+        newLastActivityDate = today;
       }
 
       set({
         totalXp: newTotalXp,
         currentStreak: newCurrentStreak,
+        lastActivityDate: newLastActivityDate,
         dailyPlan: {
           ...dailyPlan,
           lessons: newLessonsArray,
