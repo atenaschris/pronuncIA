@@ -31,7 +31,6 @@ export default function VocabularyScreen() {
     resetVocabularyAttempts,
     setVocabularyCompleted,
     addAIScore,
-    updatePronunciationAccuracy,
     initializeLessonSessionState,
     // Timer methods
     startWordTimer,
@@ -249,7 +248,6 @@ export default function VocabularyScreen() {
 
       const score = Math.round(result.overall_score * 100);
       addAIScore(lessonId!, score);
-      updatePronunciationAccuracy(lessonId!);
       incrementVocabularyAttempts(lessonId!);
 
       if (score >= 70) {
@@ -268,7 +266,7 @@ export default function VocabularyScreen() {
     } finally {
       setIsProcessing(false);
     }
-  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, updatePronunciationAccuracy, incrementVocabularyAttempts, playCorrect, playIncorrect, hapticSuccess, hapticError]);
+  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, incrementVocabularyAttempts, playCorrect, playIncorrect, hapticSuccess, hapticError]);
 
   // Helper function to calculate partial XP for failed final attempts
   // Remove the calculatePartialXP function entirely as it's not needed
@@ -301,7 +299,6 @@ export default function VocabularyScreen() {
 
       if (isCorrect) {
         addSuccessWord(lessonId!, currentWordIndex);
-        updatePronunciationAccuracy(lessonId!);
 
         // Calculate and award XP for this word with attempt and difficulty bonuses
         const wordDifficulty = currentWord.difficulty;

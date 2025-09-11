@@ -18,6 +18,13 @@ interface VocabularyCompletionScreenProps {
   handleRetryWord: (wordIndex: number) => void;
 }
 
+// Helper function to calculate pronunciation accuracy on-demand from aiScores
+const calculatePronunciationAccuracy = (aiScores: number[]): number => {
+  if (aiScores.length === 0) return 0;
+  const sum = aiScores.reduce((total, score) => total + score, 0);
+  return Math.round(sum / aiScores.length);
+};
+
 export const VocabularyCompletionScreen: React.FC<VocabularyCompletionScreenProps> = ({
   lessonId,
   isProcessing,
@@ -40,7 +47,7 @@ export const VocabularyCompletionScreen: React.FC<VocabularyCompletionScreenProp
   const totalSessionMinutes = Math.floor((vocabularyState.totalSessionTime ?? 0) / 60);
   const totalSessionSeconds = (vocabularyState.totalSessionTime ?? 0) % 60;
   const totalXP = lesson?.xpReward ?? 0;
-  const averageWordAccurancy = Math.round(vocabularyState.pronunciationAccuracy ?? 0);
+  const averageWordAccurancy = calculatePronunciationAccuracy(vocabularyState.aiScores ?? []);
   const failedWords = vocabularyState.failedWords ?? [];
   const skippedWords = vocabularyState.skippedWords ?? [];
   const successWords = vocabularyState.successWords ?? [];
