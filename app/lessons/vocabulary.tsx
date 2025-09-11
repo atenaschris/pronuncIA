@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { VocabularyCompletionScreen } from './components/vocabulary/VocabularyCompletionScreen';
 
+import { ACCURACY_THRESHOLD } from '@/lib/constants/constants';
+
 export default function VocabularyScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
   const theme = useAppTheme();
@@ -44,8 +46,9 @@ export default function VocabularyScreen() {
 
     resumeWordTimerFromElapsed,
     // Incomplete words methods
-    addIncompleteWord,
+    addFailedWord,
     addSkippedWord,
+    addSuccessWord,
     removeSkippedWord,
     moveSkippedToIncomplete,
     retryIncompleteWord,
@@ -294,9 +297,10 @@ export default function VocabularyScreen() {
     if (currentWord) {
       addAIScore(lessonId!, accuracy);
 
-      let isCorrect = accuracy >= 70;
+      let isCorrect = accuracy >= ACCURACY_THRESHOLD;
 
       if (isCorrect) {
+        addSuccessWord(lessonId!, currentWordIndex);
         updatePronunciationAccuracy(lessonId!);
 
         // Calculate and award XP for this word with attempt and difficulty bonuses
@@ -346,7 +350,7 @@ export default function VocabularyScreen() {
         if (wasSkipped) {
           removeSkippedWord(lessonId!, currentWordIndex);
         }
-        
+
         playCorrect();
         hapticSuccess?.();
 
@@ -393,7 +397,7 @@ export default function VocabularyScreen() {
             enhancedFeedback = `This word has been moved to challenging words for more practice. Keep trying! 💪\n\nAccuracy: ${Math.round(accuracy)}%`;
           } else {
             // Regular word that failed 3 times - add to incomplete list
-            addIncompleteWord(lessonId!, currentWordIndex);
+            addFailedWord(lessonId!, currentWordIndex);
             enhancedFeedback = `Don't worry! This word will appear in the final screen for more practice. Try again to earn XP! 💪\n\nAccuracy: ${Math.round(accuracy)}%`;
           }
         } else if (attemptsLeft === 1) {
@@ -510,9 +514,9 @@ export default function VocabularyScreen() {
     if (vocabularyState?.currentWordIndex !== undefined) {
       const currentWordIndex = vocabularyState.currentWordIndex;
       const wasSkipped = vocabularyState.skippedWords?.includes(currentWordIndex) ?? false;
-      const wasIncomplete = vocabularyState.incompleteWords?.includes(currentWordIndex) ?? false;
+      const wasIncomplete = vocabularyState.failedWords?.includes(currentWordIndex) ?? false;
       
-      // Don't allow skipping words that have been retried (are in incompleteWords)
+      // Don't allow skipping words that have been retried (are in failedWords)
       // This prevents infinite loops while keeping the logic simple
       if (wasIncomplete) {
         return;
@@ -532,7 +536,7 @@ export default function VocabularyScreen() {
       // This ensures totalXP accurately reflects actual effort and performance
     }
     handleNextWord();
-  }, [handleNextWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, vocabularyState?.isRetryingWord, vocabularyState?.skippedWords, vocabularyState?.incompleteWords]);
+  }, [handleNextWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, vocabularyState?.isRetryingWord, vocabularyState?.skippedWords, vocabularyState?.failedWords]);
 
   const handleRestartLesson = useCallback(() => {
     // Store the timer state before pausing

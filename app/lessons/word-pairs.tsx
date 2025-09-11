@@ -8,14 +8,14 @@ import { WORD_PAIR_SETS, WORD_PAIRS_SET_KEYS } from '@/lib/constants/constants';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
 import { usePortalModalStore } from '@/lib/store/portal-modal-store';
-import { ColumnType } from '@/lib/types/word-pairs';
+import { ColumnType, WordPairsState } from '@/lib/types/word-pairs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LessonType, useLessonStore, WordPairsState } from '../../lib/store/lesson-store';
+import { LessonType, useLessonStore } from '../../lib/store/lesson-store';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
