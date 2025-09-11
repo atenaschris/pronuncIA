@@ -12,7 +12,7 @@ interface LessonBlockProps {
 }
 
 export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
-  const  theme  = useAppTheme();
+  const theme = useAppTheme();
   const dynamicStyles = {
     container: {
       borderWidth: 2,
@@ -33,21 +33,21 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
       >
         <View style={styles.content}>
           <View style={styles.titleContainer}>
-            <RNPText variant="headlineSmall" style={{color: theme.colors.primary}}>{lesson.title}</RNPText>
+            <RNPText variant="headlineSmall" style={{ color: theme.colors.primary }}>{lesson.title}</RNPText>
             <MaterialCommunityIcons
               name={LESSON_ICONS[lesson.type]}
               size={30}
-              color={lesson.completed ? theme.colors.success : theme.colors.grey4 }
+              color={lesson.completed ? theme.colors.success : theme.colors.grey4}
               style={{ marginLeft: 10 }}
             />
           </View>
           <View style={styles.belowLessonBlockContainer}>
-            <RNPText variant="titleMedium" style={{fontWeight:'300'}}>{lesson.description}</RNPText>
+            <RNPText variant="titleMedium" style={{ fontWeight: '300' }}>{lesson.description}</RNPText>
             <View style={styles.xpAndLessonCompletedIconWrapper}>
-            <RNPText variant="titleMedium" style={{fontWeight: '500',color: theme.colors.success}}>+{lesson.xpReward} XP</RNPText>
-            {lesson.completed && (
-              <MaterialCommunityIcons name="check-circle" size={25} color={theme.colors.success} />
-            )}
+                <RNPText variant="titleMedium" style={{ fontWeight: '500', color: theme.colors.success }}>+{lesson.xpReward} XP</RNPText>
+                {lesson.completed && (
+                  <MaterialCommunityIcons name="check-circle" size={25} color={theme.colors.success} />
+                )}
             </View>
           </View>
         </View>
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   belowLessonBlockContainer: {
     width: '100%',
-    flexDirection: 'row',
+    flexDirection: 'column',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
@@ -106,6 +106,7 @@ const styles = StyleSheet.create({
   },
   xpAndLessonCompletedIconWrapper: {
     justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
   }

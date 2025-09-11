@@ -486,6 +486,7 @@ export const VOCABULARY_WORD_SETS = {
 
 export const VOCABULARY_SET_KEYS = Object.keys(VOCABULARY_WORD_SETS) as (keyof typeof VOCABULARY_WORD_SETS)[];
 
+export const ACCURACY_THRESHOLD = 70;
 
 export const LESSON_ICONS = {
   vocabulary: 'book-open-variant',
