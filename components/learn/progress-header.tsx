@@ -7,9 +7,10 @@ import { useAppTheme } from '../ui/theme';
 interface ProgressHeaderProps {
   currentStreak: number;
   totalXp: number;
+  streakFreezes?: number;
 }
 
-export function ProgressHeader({ currentStreak, totalXp }: ProgressHeaderProps) {
+export function ProgressHeader({ currentStreak, totalXp, streakFreezes }: ProgressHeaderProps) {
   const theme = useAppTheme();
   const dynamicStyles = {
     container: {
@@ -20,7 +21,15 @@ export function ProgressHeader({ currentStreak, totalXp }: ProgressHeaderProps) 
     <RNPView style={[styles.container, dynamicStyles.container]}>
       <View style={styles.streakContainer}>
         <MaterialCommunityIcons name="fire" size={40} color="#FF9800" />
-        <RNPText variant="titleMedium">{currentStreak} Day Streak</RNPText>
+        <View style={styles.streakInfo}>
+          <RNPText variant="titleMedium">{currentStreak} Day Streak</RNPText>
+          {streakFreezes !== undefined && (
+            <View style={styles.freezeIndicator}>
+              <MaterialCommunityIcons name="snowflake" size={16} color="#2196F3" />
+              <RNPText variant="bodySmall" style={styles.freezeText}>{streakFreezes} freezes</RNPText>
+            </View>
+          )}
+        </View>
       </View>
 
       <View style={styles.xpContainer}>
@@ -48,6 +57,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  streakInfo: {
+    alignItems: 'center',
+  },
+  freezeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  freezeText: {
+    opacity: 0.8,
   },
   xpContainer: {
     flexDirection: 'row',
