@@ -178,7 +178,7 @@ const calculateFreezesNeeded = (gapDays: number): number => {
 
 // Check if a gap can be covered by available freezes
 const canCoverGap = (gapDays: number, availableFreezes: number): boolean => {
-  const MAX_TOTAL_GAP_COVERAGE = 7; // Maximum 7 days can be covered total
+  const MAX_TOTAL_GAP_COVERAGE = 9; // Maximum 9 days can be covered total (3 freezes × 3 days each)
   if (gapDays > MAX_TOTAL_GAP_COVERAGE) return false;
   return calculateFreezesNeeded(gapDays) <= availableFreezes;
 };
@@ -190,7 +190,7 @@ export const useLessonStore = create<LessonState>()(persist(
     currentStreak: 0,
     totalXp: 0,
     streakFreezes: 2, // Start with 2 streak freezes like Duolingo
-    maxStreakFreezes: 5, // Maximum of 5 streak freezes
+    maxStreakFreezes: 3, // Maximum of 3 streak freezes (can cover up to 9 days total)
     dailyPlan: null,
     lastActivityDate: null,
     lastValidationDate: null,
@@ -2285,8 +2285,8 @@ export const useLessonStore = create<LessonState>()(persist(
             gapDays,
             freezesUsed: freezesNeeded,
           };
-        } else if (gapDays > 7) {
-          // Gap is too large to be covered (more than 7 days)
+        } else if (gapDays > 9) {
+          // Gap is too large to be covered (more than 9 days)
           set({ currentStreak: 0, lastValidationDate: today });
           return {
             status: 'gap_too_large',

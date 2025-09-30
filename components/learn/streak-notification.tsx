@@ -33,7 +33,7 @@ const showStreakNotification = (result: StreakValidationResult) => {
     case 'gap_too_large':
       Alert.alert(
         '⚠️ Gap Too Large',
-        `You've been away for ${result.gapDays} days, which is beyond the maximum coverage limit (7 days). Your ${result.lostStreak}-day streak has been reset. Time to start fresh!`,
+        `You've been away for ${result.gapDays} days, which is beyond the maximum coverage limit (9 days). Your ${result.lostStreak}-day streak has been reset. Time to start fresh!`,
         [{ text: 'Start Over', style: 'default' }]
       );
       break;
