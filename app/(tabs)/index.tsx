@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LessonBlock } from '@/components/learn/lesson-block';
 import { ProgressHeader } from '@/components/learn/progress-header';
-
 import { RNPText } from '@/components/ui/RNPText';
 import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
 import { RelativePathString, router } from 'expo-router';
@@ -12,7 +11,14 @@ import { useEffect } from 'react';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 export default function LearnScreen() {
-  const { dailyPlan, currentStreak, totalXp, generateDailyPlan, isLoading } = useLessonStore();
+  const {
+    dailyPlan,
+    currentStreak,
+    totalXp,
+    streakFreezes,
+    generateDailyPlan,
+    isLoading,
+  } = useLessonStore();
 
   useEffect(() => {
     if (!dailyPlan) {
@@ -42,7 +48,7 @@ export default function LearnScreen() {
         <OnboardingSubtitle style={{ marginBottom: 20 }}>Your personalized learning path</OnboardingSubtitle>
       </View>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <ProgressHeader currentStreak={currentStreak} totalXp={totalXp} />
+        <ProgressHeader currentStreak={currentStreak} totalXp={totalXp} streakFreezes={streakFreezes} />
         {isLoading ? (
           <RNPText style={styles.loadingText}>Generating your daily plan...</RNPText>
         ) : dailyPlan?.lessons.map((lesson) => (

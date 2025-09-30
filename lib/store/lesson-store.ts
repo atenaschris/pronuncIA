@@ -56,11 +56,16 @@ export interface WordPairsActions {
 }
 
 interface LessonState {
-  // Common lesson state
+  lessons: Lesson[];
   currentStreak: number;
   totalXp: number;
+  streakFreezes: number; // Number of streak freezes available
+  maxStreakFreezes: number; // Maximum streak freezes user can hold
   dailyPlan: DailyPlan | null;
   lastActivityDate: string | null; // Track last day user completed any lesson (YYYY-MM-DD format)
+  lastValidationDate: string | null; // Track last day streak validation was performed (YYYY-MM-DD format)
+  streakNotificationLastShown: string | null; // Track last day a streak notification was shown
+  dateOverride: string | null; // For time travel debugging
   isLoading: boolean;
   error: string | null;
 
@@ -68,6 +73,7 @@ interface LessonState {
   setDailyPlan: (plan: DailyPlan) => void;
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => void;
   generateDailyPlan: () => Promise<void>;
+  setDateOverride: (date: string | null) => void; // For time travel debugging
 
   // WordPairs-specific actions
   setEnglishWords: (lessonId: string, words: EnglishWord[]) => void;
@@ -129,10 +135,21 @@ interface LessonState {
   calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => number;
   resumeWordTimerFromElapsed: (lessonId: string) => void;
   getLesson: (lessonId: string) => Lesson | null;
+  
+  // Streak freeze functions
+  purchaseStreakFreeze: () => boolean;
+  validateDailyStreak: () => { status: 'no_previous_activity' | 'streak_maintained' | 'freeze_used' | 'streak_lost' | 'gap_too_large'; streakProtected?: number; freezesRemaining?: number; lostStreak?: number; gapDays?: number; freezesUsed?: number; };
+  checkDailyGoalMet: () => boolean;
+  useStreakFreeze: () => boolean;
+  setStreakNotificationLastShown: (date: string) => void;
 }
 
 // Helper function to get today's date in YYYY-MM-DD format
-const getTodayDateString = (): string => {
+export const getTodayDateString = (): string => {
+  const { dateOverride } = useLessonStore.getState();
+  if (dateOverride) {
+    return dateOverride;
+  }
   return new Date().toISOString().split('T')[0];
 };
 
@@ -145,16 +162,44 @@ const areConsecutiveDays = (date1: string, date2: string): boolean => {
   return diffDays === 1;
 };
 
+// Calculate the gap size in days between two dates
+const calculateGapDays = (lastDate: string, currentDate: string): number => {
+  const d1 = new Date(lastDate);
+  const d2 = new Date(currentDate);
+  const diffTime = Math.abs(d2.getTime() - d1.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; // Subtract 1 to get actual gap days
+};
+
+// Calculate how many streak freezes are needed to cover a gap
+const calculateFreezesNeeded = (gapDays: number): number => {
+  const MAX_GAP_PER_FREEZE = 3; // Each freeze can cover up to 3 days
+  return Math.ceil(gapDays / MAX_GAP_PER_FREEZE);
+};
+
+// Check if a gap can be covered by available freezes
+const canCoverGap = (gapDays: number, availableFreezes: number): boolean => {
+  const MAX_TOTAL_GAP_COVERAGE = 9; // Maximum 9 days can be covered total (3 freezes × 3 days each)
+  if (gapDays > MAX_TOTAL_GAP_COVERAGE) return false;
+  return calculateFreezesNeeded(gapDays) <= availableFreezes;
+};
+
 export const useLessonStore = create<LessonState>()(persist(
   (set, get) => ({
     // Common lesson state
+    lessons: [],
     currentStreak: 0,
     totalXp: 0,
+    streakFreezes: 2, // Start with 2 streak freezes like Duolingo
+    maxStreakFreezes: 3, // Maximum of 3 streak freezes (can cover up to 9 days total)
     dailyPlan: null,
     lastActivityDate: null,
+    lastValidationDate: null,
+    streakNotificationLastShown: null,
+    dateOverride: null, // For time travel debugging
     isLoading: false,
     error: null,
     setDailyPlan: (plan) => set({ dailyPlan: plan }),
+    setDateOverride: (date) => set({ dateOverride: date }), // For time travel debugging
     completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
       const { dailyPlan, totalXp, currentStreak, lastActivityDate } = get();
       if (!dailyPlan) return;
@@ -249,8 +294,23 @@ export const useLessonStore = create<LessonState>()(persist(
           // Completed lesson on consecutive day - increment streak
           newCurrentStreak += 1;
         } else {
-          // Gap in activity - reset streak to 1
-          newCurrentStreak = 1;
+          // Gap in activity - use enhanced streak validation system
+          const streakResult = get().validateDailyStreak();
+          
+          if (streakResult.status === 'freeze_used' || streakResult.status === 'streak_lost' || streakResult.status === 'gap_too_large') {
+            // Import and call streak notification system
+            import('../../components/learn/streak-notification').then(({ checkAndNotifyStreakStatus }) => {
+              checkAndNotifyStreakStatus(() => streakResult);
+            });
+          }
+          
+          if (streakResult.status === 'freeze_used' || streakResult.status === 'streak_maintained') {
+            // Increment streak for today's lesson (either consecutive or gap covered by freeze)
+            newCurrentStreak += 1;
+          } else {
+            // Reset scenarios: streak_lost, gap_too_large, or no_previous_activity
+            newCurrentStreak = 1;
+          }
         }
         
         // Update last activity date to today
@@ -268,6 +328,8 @@ export const useLessonStore = create<LessonState>()(persist(
         },
       });
     },
+
+    setStreakNotificationLastShown: (date: string) => set({ streakNotificationLastShown: date }),
 
     generateDailyPlan: async () => {
       set({ isLoading: true, error: null });
@@ -2148,6 +2210,103 @@ export const useLessonStore = create<LessonState>()(persist(
       if (!dailyPlan) return null;
 
       return dailyPlan.lessons.find(lesson => lesson.id === lessonId) || null;
+    },
+
+    // Streak freeze functions
+    purchaseStreakFreeze: () => {
+      const { totalXp, streakFreezes, maxStreakFreezes } = get();
+      const FREEZE_COST = 100; // Cost in XP to purchase a streak freeze
+      
+      if (totalXp < FREEZE_COST) return false; // Not enough XP
+      if (streakFreezes >= maxStreakFreezes) return false; // Already at max capacity
+      
+      set({
+        totalXp: totalXp - FREEZE_COST,
+        streakFreezes: streakFreezes + 1
+      });
+      return true;
+    },
+
+    checkDailyGoalMet: () => {
+      const { dailyPlan, lastActivityDate } = get();
+      if (!dailyPlan) return false;
+      
+      const today = getTodayDateString();
+      
+      // Daily goal is met only if:
+      // 1. At least one lesson is completed in the daily plan
+      // 2. The user has completed at least one lesson TODAY
+      return dailyPlan.completedLessons > 0 && lastActivityDate === today;
+    },
+
+    useStreakFreeze: () => {
+      const { streakFreezes } = get();
+      if (streakFreezes <= 0) return false;
+      
+      set({ streakFreezes: streakFreezes - 1 });
+      return true;
+    },
+
+    validateDailyStreak: () => {
+      const { lastActivityDate, currentStreak, streakFreezes, lastValidationDate } = get();
+      const today = getTodayDateString();
+
+      // If validation has already run today, don't re-evaluate.
+      if (lastValidationDate === today) {
+        return { status: 'streak_maintained' };
+      }
+
+      // If no previous activity, this is the first lesson - start fresh
+      if (!lastActivityDate) {
+        set({ lastValidationDate: today }); // Mark validation as run for today
+        return { status: 'no_previous_activity' };
+      }
+
+      // Check if there's a gap between last activity and today
+      if (!areConsecutiveDays(lastActivityDate, today)) {
+        // Calculate the gap size
+        const gapDays = calculateGapDays(lastActivityDate, today);
+
+        // Check if gap can be covered by available freezes
+        if (canCoverGap(gapDays, streakFreezes)) {
+          // Calculate how many freezes are needed
+          const freezesNeeded = calculateFreezesNeeded(gapDays);
+          const newFreezeCount = streakFreezes - freezesNeeded;
+
+          set({
+            streakFreezes: newFreezeCount,
+            lastValidationDate: today, // Mark validation as run
+          });
+
+          return {
+            status: 'freeze_used',
+            streakProtected: currentStreak,
+            freezesRemaining: newFreezeCount,
+            gapDays,
+            freezesUsed: freezesNeeded,
+          };
+        } else if (gapDays > 9) {
+          // Gap is too large to be covered (more than 9 days)
+          set({ currentStreak: 0, lastValidationDate: today });
+          return {
+            status: 'gap_too_large',
+            lostStreak: currentStreak,
+            gapDays,
+          };
+        } else {
+          // Not enough freezes available - reset streak
+          set({ currentStreak: 0, lastValidationDate: today });
+          return {
+            status: 'streak_lost',
+            lostStreak: currentStreak,
+            gapDays,
+          };
+        }
+      }
+
+      // No gap detected - streak is maintained
+      set({ lastValidationDate: today });
+      return { status: 'streak_maintained' };
     }
   }),
   {
