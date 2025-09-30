@@ -4,8 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LessonBlock } from '@/components/learn/lesson-block';
 import { ProgressHeader } from '@/components/learn/progress-header';
-import { checkAndNotifyStreakStatus } from '@/components/learn/streak-notification';
-
 import { RNPText } from '@/components/ui/RNPText';
 import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
 import { RelativePathString, router } from 'expo-router';
@@ -19,9 +17,7 @@ export default function LearnScreen() {
     totalXp,
     streakFreezes,
     generateDailyPlan,
-    validateDailyStreak,
     isLoading,
-    dateOverride,
   } = useLessonStore();
 
   useEffect(() => {
@@ -29,10 +25,6 @@ export default function LearnScreen() {
       generateDailyPlan();
     }
   }, []);
-
-  useEffect(() => {
-      checkAndNotifyStreakStatus(validateDailyStreak);
-  }, [dateOverride]);
 
   const handleLessonPress = (lessonType: LessonType) => {    
     let routePath = lessonType.toLowerCase();

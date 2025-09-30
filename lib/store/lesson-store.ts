@@ -297,6 +297,13 @@ export const useLessonStore = create<LessonState>()(persist(
           // Gap in activity - use enhanced streak validation system
           const streakResult = get().validateDailyStreak();
           
+          if (streakResult.status === 'freeze_used' || streakResult.status === 'streak_lost' || streakResult.status === 'gap_too_large') {
+            // Import and call streak notification system
+            import('../../components/learn/streak-notification').then(({ checkAndNotifyStreakStatus }) => {
+              checkAndNotifyStreakStatus(() => streakResult);
+            });
+          }
+          
           if (streakResult.status === 'freeze_used' || streakResult.status === 'streak_maintained') {
             // Increment streak for today's lesson (either consecutive or gap covered by freeze)
             newCurrentStreak += 1;
@@ -2245,19 +2252,13 @@ export const useLessonStore = create<LessonState>()(persist(
         return { status: 'streak_maintained' };
       }
 
-      // If no previous activity, start fresh
+      // If no previous activity, this is the first lesson - start fresh
       if (!lastActivityDate) {
         set({ lastValidationDate: today }); // Mark validation as run for today
         return { status: 'no_previous_activity' };
       }
 
-      // If user was active today, streak is maintained
-      if (lastActivityDate === today) {
-        set({ lastValidationDate: today });
-        return { status: 'streak_maintained' };
-      }
-
-      // Check if user missed yesterday
+      // Check if there's a gap between last activity and today
       if (!areConsecutiveDays(lastActivityDate, today)) {
         // Calculate the gap size
         const gapDays = calculateGapDays(lastActivityDate, today);
@@ -2299,6 +2300,7 @@ export const useLessonStore = create<LessonState>()(persist(
         }
       }
 
+      // No gap detected - streak is maintained
       set({ lastValidationDate: today });
       return { status: 'streak_maintained' };
     }
