@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { useLessonStore } from '../../lib/store/lesson-store';
+import { getTodayDateString, useLessonStore } from '../../lib/store/lesson-store';
 
 interface StreakValidationResult {
   status: 'no_previous_activity' | 'streak_maintained' | 'freeze_used' | 'streak_lost' | 'gap_too_large';
@@ -46,7 +46,7 @@ const showStreakNotification = (result: StreakValidationResult) => {
 
 export const checkAndNotifyStreakStatus = (validateDailyStreak: () => StreakValidationResult) => {
   const { streakNotificationLastShown, setStreakNotificationLastShown } = useLessonStore.getState();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateString();
 
   if (streakNotificationLastShown === today) {
     return;

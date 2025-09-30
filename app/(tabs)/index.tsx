@@ -13,15 +13,26 @@ import { useEffect } from 'react';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
 
 export default function LearnScreen() {
-  const { dailyPlan, currentStreak, totalXp, streakFreezes, generateDailyPlan, validateDailyStreak, isLoading } = useLessonStore();
+  const {
+    dailyPlan,
+    currentStreak,
+    totalXp,
+    streakFreezes,
+    generateDailyPlan,
+    validateDailyStreak,
+    isLoading,
+    dateOverride,
+  } = useLessonStore();
 
   useEffect(() => {
     if (!dailyPlan) {
       generateDailyPlan();
     }
-    // Check streak status when the screen loads
-    checkAndNotifyStreakStatus(validateDailyStreak);
   }, []);
+
+  useEffect(() => {
+      checkAndNotifyStreakStatus(validateDailyStreak);
+  }, [dateOverride]);
 
   const handleLessonPress = (lessonType: LessonType) => {    
     let routePath = lessonType.toLowerCase();
