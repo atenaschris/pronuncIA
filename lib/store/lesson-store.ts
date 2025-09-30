@@ -2228,11 +2228,15 @@ export const useLessonStore = create<LessonState>()(persist(
     },
 
     checkDailyGoalMet: () => {
-      const { dailyPlan } = get();
+      const { dailyPlan, lastActivityDate } = get();
       if (!dailyPlan) return false;
       
-      // Consider daily goal met if at least one lesson is completed
-      return dailyPlan.completedLessons > 0;
+      const today = getTodayDateString();
+      
+      // Daily goal is met only if:
+      // 1. At least one lesson is completed in the daily plan
+      // 2. The user has completed at least one lesson TODAY
+      return dailyPlan.completedLessons > 0 && lastActivityDate === today;
     },
 
     useStreakFreeze: () => {
