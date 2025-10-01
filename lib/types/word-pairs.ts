@@ -4,10 +4,16 @@ import { WORD_PAIR_SETS } from '../constants/constants';
 // Infer the type of a single set (e.g., set1, set2, etc.)
 type WordPairSet = typeof WORD_PAIR_SETS[keyof typeof WORD_PAIR_SETS];
 
-// Infer the type of a single word pair object from one of the sets
-export type WordPair = WordPairSet[number];
-export type EnglishWord = WordPair['english'];
-export type TranslationWord = WordPair['translation'];
+// Define a flexible WordPair type that allows any string values
+export interface WordPair {
+  english: string;
+  translation: string;
+}
+
+// Keep the original constrained types for when we need them
+export type PredefinedWordPair = WordPairSet[number];
+export type EnglishWord = string;
+export type TranslationWord = string;
 export type ColumnType = 'english' | 'translation';
 
 export type FeedbackType =

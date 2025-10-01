@@ -43,6 +43,32 @@ export const NATIVE_LANGUAGE_LABELS = {
   ar: 'Arabic',
 } as const;
 
+export const TARGET_LANGUAGES = [
+  { id: 'en', label: 'English', description: 'Learn English pronunciation and speaking skills' },
+  { id: 'es', label: 'Spanish', description: 'Learn Spanish pronunciation and speaking skills' },
+  { id: 'fr', label: 'French', description: 'Learn French pronunciation and speaking skills' },
+  { id: 'de', label: 'German', description: 'Learn German pronunciation and speaking skills' },
+  { id: 'it', label: 'Italian', description: 'Learn Italian pronunciation and speaking skills' },
+  { id: 'pt', label: 'Portuguese', description: 'Learn Portuguese pronunciation and speaking skills' },
+  { id: 'zh', label: 'Chinese', description: 'Learn Chinese pronunciation and speaking skills' },
+  { id: 'ja', label: 'Japanese', description: 'Learn Japanese pronunciation and speaking skills' },
+  { id: 'ko', label: 'Korean', description: 'Learn Korean pronunciation and speaking skills' },
+  { id: 'ru', label: 'Russian', description: 'Learn Russian pronunciation and speaking skills' },
+] as const;
+
+export const TARGET_LANGUAGE_LABELS = {
+  en: 'English',
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+  pt: 'Portuguese',
+  zh: 'Chinese',
+  ja: 'Japanese',
+  ko: 'Korean',
+  ru: 'Russian',
+} as const;
+
 export const LEARNING_GOALS = [
   {
     id: 'travel',

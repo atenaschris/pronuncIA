@@ -1,6 +1,5 @@
 import { PortalModal } from '@/components/ui/portal';
 import { useAppTheme } from '@/components/ui/theme';
-import { VOCABULARY_WORD_SETS } from '@/lib/constants/constants';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
 import { usePlayback } from '@/lib/hooks/use-playback';
@@ -32,6 +31,7 @@ export default function VocabularyScreen() {
     setVocabularyCompleted,
     addAIScore,
     initializeLessonSessionState,
+    generateVocabularyContent,
     // Timer methods
     startWordTimer,
     stopWordTimer,
@@ -125,11 +125,18 @@ export default function VocabularyScreen() {
     };
   }, []); // No dependencies - only cleanup on unmount
 
-  const initializeLesson = () => {
+  const initializeLesson = async () => {
     initializeLessonSessionState(lessonId!, 'vocabulary');
-    // Start with consonants_th set for demo
-    const words = VOCABULARY_WORD_SETS.consonants_th;
-    setVocabularyWords(lessonId!, words);
+    
+    try {
+      // Generate dynamic vocabulary content based on user preferences
+      const words = await generateVocabularyContent(lessonId!, 'consonant', 'θ');
+      setVocabularyWords(lessonId!, words);
+    } catch (error) {
+      console.error('Failed to generate vocabulary content:', error);
+      // Fallback to empty array - the component will handle this gracefully
+      setVocabularyWords(lessonId!, []);
+    }
     
     // Reset retry XP delta for new lesson
     retryXpDeltaRef.current = 0;

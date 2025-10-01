@@ -4,6 +4,7 @@ import { LanguageLevel, LearningGoal, LearningStyle, NativeLanguageCode, TimeCom
 export type UserPreferences = {
     language_level: LanguageLevel;
     native_language: NativeLanguageCode;
+    target_language: string; // The language the user wants to learn
     learning_goal: LearningGoal;
     time_commitment: TimeCommitment;
     learning_style: LearningStyle;

@@ -41,7 +41,7 @@ export default function NativeLanguageScreen() {
         </Animated.View>
       </ScrollView>
       <NextButton
-        onPress={() => router.push('/onboarding/learning-goals')}
+        onPress={() => router.push('/onboarding/target-language')}
       >
         Continue
       </NextButton>

@@ -1,8 +1,30 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import {
+  areConsecutiveDays,
+  calculateFreezesNeeded,
+  calculateGapDays,
+  calculateLessonCount,
+  canCoverGap
+} from '../helpers/date-streak-utils';
+import {
+  generateIntelligentMockPlan
+} from '../helpers/lesson-generation-utils';
+import {
+  formatLanguageLevelForAI,
+  formatLearningGoalForAI,
+  formatLearningStyleForAI,
+  formatNativeLanguageForAI,
+  formatTargetLanguageForAI
+} from '../helpers/onboarding-utils';
+import {
+  calculateSpacedRepetitionNeeds,
+  calculateUserPerformanceMetrics
+} from '../helpers/performance-utils';
+import { aiService } from '../services/ai-service'; // Import AI service
 import { createMMKVStorage, userDataStorage } from '../storage/storage-utils';
 import { VocabularyState, VocabularyWord } from '../types/vocabulary';
-import { EnglishWord, TranslationWord, WordPairsState } from '../types/word-pairs';
+import { EnglishWord, TranslationWord, WordPair, WordPairsState } from '../types/word-pairs';
 import { useOnboardingStore } from './onboarding-store'; // Import onboarding store
 
 export type LessonType = 'vocabulary' | 'listening' | 'pronunciation' | 'roleplay' | 'shadowing' | 'voice_journaling' | 'word_pairs';
@@ -24,6 +46,7 @@ export interface Lesson {
 }
 
 export interface DailyPlan {
+  id: string;
   date: string;
   lessons: Lesson[];
   totalXp: number;
@@ -68,12 +91,24 @@ interface LessonState {
   dateOverride: string | null; // For time travel debugging
   isLoading: boolean;
   error: string | null;
+  // Content caching
+  cachedVocabularyContent: { [key: string]: VocabularyWord[] }; // Cache by user preferences hash
+  cachedWordPairsContent: { [key: string]: WordPair[] }; // Cache by user preferences hash
+  contentCacheTimestamp: { [key: string]: number }; // Track when content was cached
+  contentCacheExpiry: number; // Cache expiry time in milliseconds (24 hours)
 
-  // Common actions
+  // Actions
   setDailyPlan: (plan: DailyPlan) => void;
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => void;
-  generateDailyPlan: () => Promise<void>;
+  generateDailyPlan: (forceRegenerate?: boolean) => Promise<void>;
   setDateOverride: (date: string | null) => void; // For time travel debugging
+
+  // Content generation methods
+  generateVocabularyContent: (lessonId: string, soundType?: 'consonant' | 'vowel' | 'mixed', targetSound?: string) => Promise<VocabularyWord[]>;
+  generateWordPairsContent: (lessonId: string) => Promise<WordPair[]>;
+  getCachedContent: (cacheKey: string, contentType: 'vocabulary' | 'wordPairs') => VocabularyWord[] | WordPair[] | null;
+  setCachedContent: (cacheKey: string, content: VocabularyWord[] | WordPair[], contentType: 'vocabulary' | 'wordPairs') => void;
+  generateContentCacheKey: (contentType: 'vocabulary' | 'wordPairs', additionalParams?: Record<string, any>) => string;
 
   // WordPairs-specific actions
   setEnglishWords: (lessonId: string, words: EnglishWord[]) => void;
@@ -153,36 +188,6 @@ export const getTodayDateString = (): string => {
   return new Date().toISOString().split('T')[0];
 };
 
-// Helper function to check if two dates are consecutive days
-const areConsecutiveDays = (date1: string, date2: string): boolean => {
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
-  const diffTime = Math.abs(d2.getTime() - d1.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays === 1;
-};
-
-// Calculate the gap size in days between two dates
-const calculateGapDays = (lastDate: string, currentDate: string): number => {
-  const d1 = new Date(lastDate);
-  const d2 = new Date(currentDate);
-  const diffTime = Math.abs(d2.getTime() - d1.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; // Subtract 1 to get actual gap days
-};
-
-// Calculate how many streak freezes are needed to cover a gap
-const calculateFreezesNeeded = (gapDays: number): number => {
-  const MAX_GAP_PER_FREEZE = 3; // Each freeze can cover up to 3 days
-  return Math.ceil(gapDays / MAX_GAP_PER_FREEZE);
-};
-
-// Check if a gap can be covered by available freezes
-const canCoverGap = (gapDays: number, availableFreezes: number): boolean => {
-  const MAX_TOTAL_GAP_COVERAGE = 9; // Maximum 9 days can be covered total (3 freezes × 3 days each)
-  if (gapDays > MAX_TOTAL_GAP_COVERAGE) return false;
-  return calculateFreezesNeeded(gapDays) <= availableFreezes;
-};
-
 export const useLessonStore = create<LessonState>()(persist(
   (set, get) => ({
     // Common lesson state
@@ -198,6 +203,12 @@ export const useLessonStore = create<LessonState>()(persist(
     dateOverride: null, // For time travel debugging
     isLoading: false,
     error: null,
+    
+    // Content caching
+    cachedVocabularyContent: {},
+    cachedWordPairsContent: {},
+    contentCacheTimestamp: {},
+    contentCacheExpiry: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
     setDailyPlan: (plan) => set({ dailyPlan: plan }),
     setDateOverride: (date) => set({ dateOverride: date }), // For time travel debugging
     completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
@@ -331,103 +342,87 @@ export const useLessonStore = create<LessonState>()(persist(
 
     setStreakNotificationLastShown: (date: string) => set({ streakNotificationLastShown: date }),
 
-    generateDailyPlan: async () => {
+    generateDailyPlan: async (forceRegenerate = false) => {
+      const { dailyPlan } = get();
+      const today = getTodayDateString();
+      
+      // Check if we need to regenerate the plan
+      const needsRegeneration = forceRegenerate || 
+        !dailyPlan || 
+        dailyPlan.date.split('T')[0] !== today;
+      
+      if (!needsRegeneration) {
+        console.log('Daily plan is current, no regeneration needed');
+        return;
+      }
+
       set({ isLoading: true, error: null });
       try {
-        const { languageLevel, nativeLanguage, learningGoal, timeCommitment, learningStyle } = useOnboardingStore.getState();
+        const { languageLevel, nativeLanguage, targetLanguage, learningGoal, timeCommitment, learningStyle } = useOnboardingStore.getState();
+        const { currentStreak, totalXp, lastActivityDate } = get();
 
-        // Construct the prompt for the AI service
-        const prompt = `Generate a personalized daily lesson plan for a user with the following preferences:
-        Language Level: ${languageLevel}
-        Native Language: ${nativeLanguage}
-        Learning Goal: ${learningGoal}
-        Time Commitment: ${timeCommitment} minutes per day
-        Learning Style: ${learningStyle}
+        // Calculate user performance metrics for AI context
+        const performanceMetrics = calculateUserPerformanceMetrics(get());
+        const spacedRepetitionData = calculateSpacedRepetitionNeeds(get());
+
+        // Enhanced AI prompt with comprehensive user data
+        const prompt = `Generate a personalized daily lesson plan for a user with the following comprehensive profile:
+
+ONBOARDING DATA:
+- Target Language: ${formatTargetLanguageForAI(targetLanguage)}
+- Language Level: ${formatLanguageLevelForAI(languageLevel)}
+- Native Language: ${formatNativeLanguageForAI(nativeLanguage)}
+- Learning Goal: ${formatLearningGoalForAI(learningGoal)}
+- Time Commitment: ${timeCommitment} minutes per day
+- Learning Style: ${formatLearningStyleForAI(learningStyle)}
+
+PERFORMANCE METRICS:
+- Current Streak: ${currentStreak} days
+- Total XP: ${totalXp}
+- Last Activity: ${lastActivityDate || 'Never'}
+- Average Lesson Completion Rate: ${performanceMetrics.completionRate}%
+- Average Accuracy: ${performanceMetrics.averageAccuracy}%
+- Preferred Lesson Types: ${performanceMetrics.preferredLessonTypes.join(', ')}
+- Struggling Areas: ${performanceMetrics.strugglingAreas.join(', ')}
+
+SPACED REPETITION NEEDS:
+- Vocabulary Words to Review: ${spacedRepetitionData.vocabularyReview.length}
+- Pronunciation Sounds to Practice: ${spacedRepetitionData.pronunciationReview.join(', ')}
+- Difficulty Adjustment: ${spacedRepetitionData.difficultyAdjustment}
+
+REQUIREMENTS:
+1. Create ${calculateLessonCount(parseInt(timeCommitment))} lessons based on time commitment
+2. Prioritize ${learningGoal} related content
+3. Adapt difficulty to ${languageLevel} level
+4. Include spaced repetition for struggling areas
+5. Match ${learningStyle} preferences
+6. Consider native language ${nativeLanguage} specific challenges
+
+The plan should include a variety of lesson types: vocabulary, listening, pronunciation, roleplay, shadowing, voice journaling, and word pairs.
+Each lesson should have an id, type, title, description, xpReward, completed (false), and locked (false).
+Return a JSON object matching the DailyPlan interface.`;
+
+        console.log('Sending enhanced prompt to AI Service:', prompt);
         
-        The plan should include a variety of lesson types for each lesson, such as vocabulary, listening, pronunciation, roleplay, shadowing, voice journaling, and word pairs.
-        Each lesson should have an id, type, title, description, xpReward, completed (boolean, default false), and locked (boolean, default false).
-        The response should be a JSON object matching the DailyPlan interface.`;
+        // Try to generate plan using AI service first
+        try {
+          const aiGeneratedPlan = await aiService.generateDailyPlan(prompt);
+          console.log('Successfully generated AI plan:', aiGeneratedPlan);
+          set({ dailyPlan: aiGeneratedPlan, isLoading: false });
+          return;
+        } catch (aiError) {
+          console.warn('AI service failed, falling back to intelligent mock plan:', aiError);
+          
+          // Fallback to intelligent mock plan if AI service fails
+          const intelligentPlan = generateIntelligentMockPlan(
+            { languageLevel, nativeLanguage, learningGoal, timeCommitment, learningStyle },
+            performanceMetrics,
+            spacedRepetitionData,
+            today
+          );
 
-        // Placeholder for AI service call
-        console.log('Sending to AI Service:', prompt);
-        // const aiGeneratedPlan = await callAIService(prompt); // Replace with actual AI service call
-
-        // For now, we'll continue to use the mock plan until AI integration is complete
-        // In a real scenario, you would parse the aiGeneratedPlan response here.
-        const mockPlan: DailyPlan = {
-          date: new Date().toISOString(),
-          lessons: [
-            {
-              id: '1',
-              type: 'vocabulary',
-              title: 'Business Vocabulary',
-              description: 'Learn essential business terms',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '2',
-              type: 'listening',
-              title: 'Active Listening',
-              description: 'Improve comprehension skills',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '3',
-              type: 'pronunciation',
-              title: 'Difficult Sounds',
-              description: 'Practice challenging phonemes',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '4',
-              type: 'roleplay',
-              title: 'Job Interview',
-              description: 'Practice common interview phrases',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '5',
-              type: 'shadowing',
-              title: 'Native Speech',
-              description: 'Mirror native speaker patterns',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '6',
-              type: 'voice_journaling',
-              title: 'Daily Reflection',
-              description: 'Record your thoughts in English',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '7',
-              type: 'word_pairs',
-              title: 'Match Business Terms',
-              description: 'Match related business vocabulary pairs',
-              xpReward: 0, // Initial XP for word_pairs is 0, sum of setBestScores
-              completed: false,
-              locked: false,
-              totalSets: 3, // Example: 10 sets for word_pairs
-              completedSets: 0, // Number of unique sets attempted
-              setBestScores: Array(3).fill(0), // Initialize best scores for 10 sets
-            },
-          ],
-          totalXp: 2000,
-          completedLessons: 0,
-        };
-        set({ dailyPlan: mockPlan, isLoading: false });
+          set({ dailyPlan: intelligentPlan, isLoading: false });
+        }
       } catch (error) {
         set({ error: (error as Error).message, isLoading: false });
       }
@@ -1423,13 +1418,6 @@ export const useLessonStore = create<LessonState>()(persist(
     }),
 
 
-
-
-
-
-
-
-
     // Vocabulary timer methods
     startWordTimer: (lessonId: string) => set((state) => {
       if (!state.dailyPlan) return state;
@@ -1740,8 +1728,6 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-
-
     addVocabularyWordXP: (lessonId: string, wordXP: number) => {
       const { dailyPlan } = get();
       if (!dailyPlan) return;
@@ -1769,10 +1755,6 @@ export const useLessonStore = create<LessonState>()(persist(
         },
       });
     },
-
-
-
-
 
     updateVocabularyState: (lessonId: string, updatedState: Partial<VocabularyState>) => set((state) => {
       if (!state.dailyPlan) return state;
@@ -2307,7 +2289,134 @@ export const useLessonStore = create<LessonState>()(persist(
       // No gap detected - streak is maintained
       set({ lastValidationDate: today });
       return { status: 'streak_maintained' };
-    }
+    },
+
+    // Content generation methods
+    generateVocabularyContent: async (
+      lessonId: string, 
+      soundType?: 'consonant' | 'vowel' | 'mixed', 
+      targetSound?: string
+    ): Promise<VocabularyWord[]> => {
+      const cacheKey = get().generateContentCacheKey('vocabulary', { lessonId, soundType, targetSound });
+      
+      // Check cache first
+      const cachedContent = get().getCachedContent(cacheKey, 'vocabulary') as VocabularyWord[] | null;
+      if (cachedContent) {
+        return cachedContent;
+      }
+
+      try {
+        // Get user onboarding data for personalization
+        const onboardingData = useOnboardingStore.getState();
+        
+        // Generate content using AI service
+        const generatedContent = await aiService.generateVocabularyWords(
+          onboardingData.targetLanguage || 'italian',
+          onboardingData.nativeLanguage || 'english',
+          onboardingData.languageLevel || 'beginner',
+          onboardingData.learningGoal || 'pronunciation',
+          8, // Default count
+          soundType || 'mixed',
+          targetSound || undefined
+        );
+
+        // Cache the generated content
+        get().setCachedContent(cacheKey, generatedContent, 'vocabulary');
+        
+        return generatedContent;
+      } catch (error) {
+        console.error('Failed to generate vocabulary content:', error);
+        return [];
+      }
+    },
+
+    generateWordPairsContent: async (): Promise<WordPair[]> => {
+      const cacheKey = get().generateContentCacheKey('wordPairs', {});
+      
+      // Check cache first
+      const cachedContent = get().getCachedContent(cacheKey, 'wordPairs') as WordPair[] | null;
+      if (cachedContent) {
+        return cachedContent;
+      }
+
+      try {
+        // Get user onboarding data for personalization
+        const onboardingData = useOnboardingStore.getState();
+        
+        // Generate content using AI service
+        const generatedContent = await aiService.generateWordPairs(
+          onboardingData.targetLanguage || 'italian',
+          onboardingData.nativeLanguage || 'english',
+          onboardingData.languageLevel || 'beginner',
+          onboardingData.learningGoal || 'pronunciation',
+          8 // Default count
+        );
+
+        // Cache the generated content
+        get().setCachedContent(cacheKey, generatedContent, 'wordPairs');
+        
+        return generatedContent;
+      } catch (error) {
+        console.error('Failed to generate word pairs content:', error);
+        return [];
+      }
+    },
+
+    getCachedContent: (cacheKey: string, contentType: 'vocabulary' | 'wordPairs'): VocabularyWord[] | WordPair[] | null => {
+      const { cachedVocabularyContent, cachedWordPairsContent, contentCacheTimestamp, contentCacheExpiry } = get();
+      
+      // Check if cache has expired
+      const cacheTime = contentCacheTimestamp[cacheKey];
+      if (!cacheTime || Date.now() - cacheTime > contentCacheExpiry) {
+        return null;
+      }
+
+      if (contentType === 'vocabulary') {
+        return cachedVocabularyContent[cacheKey] || null;
+      } else {
+        return cachedWordPairsContent[cacheKey] || null;
+      }
+    },
+
+    setCachedContent: (cacheKey: string, content: VocabularyWord[] | WordPair[], contentType: 'vocabulary' | 'wordPairs'): void => {
+      const currentState = get();
+      
+      if (contentType === 'vocabulary') {
+        set({
+          cachedVocabularyContent: {
+            ...currentState.cachedVocabularyContent,
+            [cacheKey]: content as VocabularyWord[],
+          },
+          contentCacheTimestamp: {
+            ...currentState.contentCacheTimestamp,
+            [cacheKey]: Date.now(),
+          },
+        });
+      } else {
+        set({
+          cachedWordPairsContent: {
+            ...currentState.cachedWordPairsContent,
+            [cacheKey]: content as WordPair[],
+          },
+          contentCacheTimestamp: {
+            ...currentState.contentCacheTimestamp,
+            [cacheKey]: Date.now(),
+          },
+        });
+      }
+    },
+
+    generateContentCacheKey: (contentType: 'vocabulary' | 'wordPairs', additionalParams?: Record<string, any>): string => {
+      const onboardingData = useOnboardingStore.getState();
+      const keyData = {
+        contentType,
+        targetLanguage: onboardingData.targetLanguage,
+        nativeLanguage: onboardingData.nativeLanguage,
+        languageLevel: onboardingData.languageLevel,
+        ...(additionalParams || {}),
+      };
+      return JSON.stringify(keyData);
+    },
   }),
   {
     name: 'lesson-storage',

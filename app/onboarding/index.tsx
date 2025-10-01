@@ -46,10 +46,10 @@ export default function WelcomeScreen() {
         <Divider style={styles.spacer} />
         <Animated.View>
           <NextButton
-            onPress={() => router.push('/onboarding/language-level')}
-          >
-            Get Started
-          </NextButton>
+          onPress={() => router.push('/onboarding/native-language')}
+        >
+          Get Started
+        </NextButton>
         </Animated.View>
       </Animated.View>
     </SafeAreaView>

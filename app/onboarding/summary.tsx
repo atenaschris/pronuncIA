@@ -1,7 +1,7 @@
 import { NextButton } from '@/components/ui/NextButton';
 import { RNPText } from '@/components/ui/RNPText';
 import { RNPView } from '@/components/ui/RNPView';
-import { DAILY_PRACTICE_TIME_LABELS, LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS } from '@/lib/constants/constants';
+import { DAILY_PRACTICE_TIME_LABELS, LANGUAGE_LEVEL_LABELS, LEARNING_GOAL_LABELS, LEARNING_STYLE_LABELS, NATIVE_LANGUAGE_LABELS, TARGET_LANGUAGE_LABELS } from '@/lib/constants/constants';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { useEffect, useState } from 'react';
@@ -18,6 +18,7 @@ export default function SummaryScreen() {
   const {
     languageLevel,
     nativeLanguage,
+    targetLanguage,
     learningGoal,
     timeCommitment,
     learningStyle,
@@ -44,6 +45,7 @@ export default function SummaryScreen() {
       await createOrUpsertProfile({
         language_level: languageLevel,
         native_language: nativeLanguage,
+        target_language: targetLanguage,
         learning_goal: learningGoal,
         time_commitment: timeCommitment,
         learning_style: learningStyle,
@@ -67,7 +69,11 @@ export default function SummaryScreen() {
       <Animated.View style={[styles.content, animatedStyle]}>
         <RNPView style={styles.summaryContainer}>
           <RNPView style={styles.summaryItem}>
-            <RNPText variant="titleMedium" style={styles.label}>English Level</RNPText>
+            <RNPText variant="titleMedium" style={styles.label}>Target Language</RNPText>
+            <RNPText variant="titleMedium" style={styles.value}>{targetLanguage ? TARGET_LANGUAGE_LABELS[targetLanguage] : '-'}</RNPText>
+          </RNPView>
+          <RNPView style={styles.summaryItem}>
+            <RNPText variant="titleMedium" style={styles.label}>Language Level</RNPText>
             <RNPText variant="titleMedium" style={styles.value}>{languageLevel ? LANGUAGE_LEVEL_LABELS[languageLevel] : '-'}</RNPText>
           </RNPView>
           <RNPView style={styles.summaryItem}>

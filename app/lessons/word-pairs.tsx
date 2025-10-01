@@ -4,7 +4,8 @@ import { PortalModal } from '@/components/ui/portal';
 
 import { RNPText } from '@/components/ui/RNPText';
 import { useAppTheme } from '@/components/ui/theme';
-import { WORD_PAIR_SETS, WORD_PAIRS_SET_KEYS } from '@/lib/constants/constants';
+
+import { WORD_PAIRS_SET_KEYS } from '@/lib/constants/constants';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
 import { usePortalModalStore } from '@/lib/store/portal-modal-store';
@@ -47,6 +48,7 @@ export default function WordPairsScreen() {
     resumeSetTimer,
     setIsReplayingForErrors,
     setIsGoingBack,
+    generateWordPairsContent,
   } = useLessonStore();
 
   // Initialize the lesson session state if needed
@@ -84,6 +86,10 @@ export default function WordPairsScreen() {
 
   // Portal Modal management
   const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModalStore();
+
+  // State for dynamic word pairs content
+  const [dynamicWordPairs, setDynamicWordPairs] = React.useState<Array<{ english: string; translation: string }>>([]);
+  const [isLoadingContent, setIsLoadingContent] = React.useState(false);
 
   const HapticSuccess = useHaptic('success');
   const HapticError = useHaptic('error');
@@ -164,12 +170,31 @@ export default function WordPairsScreen() {
 
   // Memoize current word pairs to avoid redundant calculations
   const currentWordPairs = useMemo(() => {
-    const currentSetKey = WORD_PAIRS_SET_KEYS[currentSetIndex];
-    return WORD_PAIR_SETS[currentSetKey];
-  }, [currentSetIndex]);
+    // Use dynamic content if available, otherwise fallback to empty array
+    return dynamicWordPairs.length > 0 ? dynamicWordPairs : [];
+  }, [dynamicWordPairs]);
 
-  const initializeGame = useCallback(() => {
+  const initializeGame = useCallback(async () => {
     if (!lessonId) return;
+    
+    // Generate dynamic content if not already loaded
+    if (dynamicWordPairs.length === 0 && !isLoadingContent) {
+      setIsLoadingContent(true);
+      try {
+        const generatedPairs = await generateWordPairsContent(lessonId || 'word-pairs');
+        setDynamicWordPairs(generatedPairs);
+      } catch (error) {
+        console.error('Failed to generate word pairs content:', error);
+        // Fallback to empty array - could show error message to user
+        setDynamicWordPairs([]);
+      } finally {
+        setIsLoadingContent(false);
+      }
+      return; // Exit early, useEffect will re-run when dynamicWordPairs updates
+    }
+
+    if (currentWordPairs.length === 0) return; // Don't initialize if no content
+
     // Extract and shuffle words
     const english = currentWordPairs.map(pair => pair.english);
     const translations = currentWordPairs.map(pair => pair.translation);
@@ -194,14 +219,14 @@ export default function WordPairsScreen() {
 
     // Start the timer for this set
     startSetTimer(lessonId);
-  }, [lessonId, currentSetIndex, currentWordPairs, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer, pauseSetTimer, resumeSetTimer]);
+  }, [lessonId, currentSetIndex, currentWordPairs, dynamicWordPairs, isLoadingContent, generateWordPairsContent, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer, pauseSetTimer, resumeSetTimer]);
 
   // Initialize the game
   useEffect(() => {
     if (lessonId) {
       initializeGame();
     }
-  }, [currentSetIndex, lessonId, initializeGame]); // Re-initialize when currentSetIndex or lessonId changes
+  }, [currentSetIndex, lessonId, initializeGame, dynamicWordPairs]); // Re-initialize when currentSetIndex, lessonId, or dynamicWordPairs changes
 
   // Reset replay state when set index changes (unless we're in the middle of a replay)
   useEffect(() => {
