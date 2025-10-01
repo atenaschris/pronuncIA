@@ -12,7 +12,7 @@ export interface PerformanceMetrics {
 }
 
 export const calculateUserPerformanceMetrics = (state: any): PerformanceMetrics => {
-  const { dailyPlan, lessons } = state;
+  const { dailyPlan } = state;
   
   if (!dailyPlan || !dailyPlan.lessons.length) {
     return {

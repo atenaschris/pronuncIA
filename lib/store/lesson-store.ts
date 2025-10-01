@@ -35,6 +35,7 @@ export interface Lesson {
   title: string;
   description: string;
   xpReward: number; // For word_pairs, this is the sum of best scores for each set
+  rewardableXP: number; // Maximum potential XP that can be earned from this lesson
   completed: boolean;
   locked: boolean;
   totalSets?: number; // Total number of sets for this lesson (e.g., 10 for word_pairs)

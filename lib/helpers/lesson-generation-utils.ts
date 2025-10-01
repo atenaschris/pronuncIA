@@ -3,13 +3,11 @@
  * Extracted from lesson-store.ts for better code organization
  */
 
-import { VocabularyState, VocabularyWord } from '../types/vocabulary';
-import { EnglishWord, TranslationWord, WordPair, WordPairsState } from '../types/word-pairs';
 import { calculateLessonCount } from './date-streak-utils';
 import { PerformanceMetrics, SpacedRepetitionData } from './performance-utils';
 
 // Re-export types from lesson store to maintain consistency
-export type { LessonType, Lesson, DailyPlan } from '../store/lesson-store';
+export type { DailyPlan, Lesson, LessonType } from '../store/lesson-store';
 
 // Intelligent mock plan generator with spaced repetition
 export const generateIntelligentMockPlan = (
@@ -37,7 +35,8 @@ export const generateIntelligentMockPlan = (
       type: type as import('../store/lesson-store').LessonType,
       title: generateLessonTitle(type, onboardingData.learningGoal, spacedRepetitionData, reason),
       description: generateLessonDescription(type, onboardingData.languageLevel, reason),
-      xpReward: calculateXpReward(type, onboardingData.languageLevel, priority),
+      xpReward: 0,
+      rewardableXP: calculateRewardableXP(type, onboardingData.languageLevel, priority),
       completed: false,
       locked: false,
     };
@@ -179,22 +178,25 @@ export const generateLessonDescription = (type: string, languageLevel: string, r
   return descriptions[type as keyof typeof descriptions] || 'Practice session';
 };
 
-export const calculateXpReward = (type: string, languageLevel: string, priority?: number): number => {
-  const baseXp = {
-    vocabulary: 100,
-    listening: 150,
-    pronunciation: 120,
-    roleplay: 200,
-    shadowing: 180,
-    voice_journaling: 160,
-    word_pairs: 0 // Calculated from setBestScores
+
+
+export const calculateRewardableXP = (type: string, languageLevel: string, priority?: number): number => {
+  // Calculate maximum potential XP based on game mechanics analysis
+  const baseRewardableXp = {
+    vocabulary: 840, // 10 words × 84 XP max (50 base + 20 time bonus + hard difficulty multiplier)
+    listening: 150, // Same as base XP (no complex scoring mechanics)
+    pronunciation: 120, // Same as base XP (no complex scoring mechanics)
+    roleplay: 200, // Same as base XP (no complex scoring mechanics)
+    shadowing: 180, // Same as base XP (no complex scoring mechanics)
+    voice_journaling: 160, // Same as base XP (no complex scoring mechanics)
+    word_pairs: 850 // 10 sets × 8 pairs × 10 XP + 50 time bonus = 850 XP max
   };
   
   const levelMultiplier = languageLevel === 'beginner' ? 0.8 : 
                          languageLevel === 'advanced' ? 1.2 : 1.0;
   
-  // Priority-based XP bonus (higher priority = more XP)
+  // Priority-based XP bonus (higher priority = more potential XP)
   const priorityMultiplier = priority ? Math.min(1.5, 1 + (priority - 50) / 100) : 1.0;
   
-  return Math.round((baseXp[type as keyof typeof baseXp] || 100) * levelMultiplier * priorityMultiplier);
+  return Math.round((baseRewardableXp[type as keyof typeof baseRewardableXp] || 150) * levelMultiplier * priorityMultiplier);
 };

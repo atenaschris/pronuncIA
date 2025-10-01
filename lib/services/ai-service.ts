@@ -73,11 +73,26 @@ The response must be a valid JSON object with this exact structure:
       "title": "string",
       "description": "string",
       "xpReward": number,
+      "rewardableXP": number,
       "completed": false,
       "locked": false
     }
   ]
 }
+
+IMPORTANT XP GUIDELINES:
+- xpReward: Current earned XP (starts at 0 for all lesson types - earned through gameplay)
+- rewardableXP: Maximum potential XP based on perfect performance
+- Use these approximate rewardableXP values as guidelines:
+  * vocabulary: ~840 XP (10 words with perfect scores and time bonuses)
+  * word_pairs: ~850 XP (10 sets with perfect matches and time bonuses)  
+  * listening: ~150 XP (base difficulty-adjusted value)
+  * pronunciation: ~120 XP (base difficulty-adjusted value)
+  * roleplay: ~200 XP (base difficulty-adjusted value)
+  * shadowing: ~180 XP (base difficulty-adjusted value)
+  * voice_journaling: ~160 XP (base difficulty-adjusted value)
+- Adjust values based on language level: beginner (×0.8), intermediate (×1.0), advanced (×1.2)
+- Higher priority lessons can have up to 50% bonus XP
 
 RESPOND WITH ONLY THE JSON OBJECT - NO OTHER TEXT OR FORMATTING.`
         },
@@ -86,6 +101,9 @@ RESPOND WITH ONLY THE JSON OBJECT - NO OTHER TEXT OR FORMATTING.`
           content: prompt
         }
       ];
+      if(messages.length) {
+        throw new Error('Trying the fallback intelligent fallback');
+      }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -187,6 +205,7 @@ RESPOND WITH ONLY THE JSON OBJECT - NO OTHER TEXT OR FORMATTING.`
         typeof lesson.title === 'string' &&
         typeof lesson.description === 'string' &&
         typeof lesson.xpReward === 'number' &&
+        typeof lesson.rewardableXP === 'number' &&
         typeof lesson.completed === 'boolean' &&
         typeof lesson.locked === 'boolean'
       )
@@ -222,6 +241,12 @@ RESPOND WITH ONLY THE JSON OBJECT - NO OTHER TEXT OR FORMATTING.`
           role: 'system',
           content: `You are an expert language pronunciation coach. Generate ${count} vocabulary words for pronunciation practice.
 
+CRITICAL INSTRUCTIONS:
+1. ALWAYS respond with ONLY valid JSON - no markdown, no explanations, no code blocks
+2. The response must start with [ and end with ]
+3. Do not wrap the JSON in \`\`\`json or any other formatting
+4. Respond with ONLY the JSON array - NO OTHER TEXT OR FORMATTING
+
 REQUIREMENTS:
 - Target language: ${targetLanguage}
 - User's native language: ${nativeLanguage}
@@ -251,7 +276,7 @@ ${spacedRepetitionData?.difficultyAdjustment === 'increase' ? 'Include more chal
 ${spacedRepetitionData?.difficultyAdjustment === 'decrease' ? 'Include simpler, more common words to build foundation.' : ''}
 ${spacedRepetitionData?.vocabularyReview.length ? `Prioritize words similar to these review words: ${spacedRepetitionData.vocabularyReview.slice(0, 3).join(', ')}` : ''}
 
-Respond with valid JSON array matching this structure:
+Respond with valid JSON array matching this exact structure:
 [{
   "id": "unique_id",
   "word": "word_in_target_language",
@@ -263,7 +288,9 @@ Respond with valid JSON array matching this structure:
   "targetSound": "specific_sound_focus"
 }]
 
-Make words relevant to the user's learning goal and appropriate for their level and performance.`
+Make words relevant to the user's learning goal and appropriate for their level and performance.
+
+RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
         },
         {
           role: 'user',
@@ -296,7 +323,35 @@ Make words relevant to the user's learning goal and appropriate for their level 
         throw new Error('No content received from OpenAI API');
       }
 
-      const vocabularyWords = JSON.parse(content);
+      // Clean and parse the response with robust error handling
+      let cleanedContent = content.trim();
+      
+      // Remove markdown formatting if present
+      cleanedContent = cleanedContent.replace(/```json\s*/, '').replace(/```\s*$/, '');
+      
+      // Remove any leading/trailing whitespace
+      cleanedContent = cleanedContent.trim();
+
+      let vocabularyWords;
+      try {
+        vocabularyWords = JSON.parse(cleanedContent);
+      } catch (parseError) {
+        console.warn('Initial JSON parse failed, attempting to extract JSON from content:', parseError);
+        
+        // Try to extract JSON array from the content
+        const jsonMatch = cleanedContent.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          try {
+            vocabularyWords = JSON.parse(jsonMatch[0]);
+          } catch (extractError) {
+            console.error('Failed to parse extracted JSON:', extractError);
+            throw new Error(`Failed to parse AI response as JSON: ${extractError}`);
+          }
+        } else {
+          console.error('No JSON array found in content:', cleanedContent);
+          throw new Error('No valid JSON array found in AI response');
+        }
+      }
       
       if (!Array.isArray(vocabularyWords) || !this.validateVocabularyWords(vocabularyWords)) {
         throw new Error('Invalid vocabulary words format received from AI');
@@ -334,6 +389,12 @@ Make words relevant to the user's learning goal and appropriate for their level 
           role: 'system',
           content: `You are an expert language learning coach. Generate ${count} word pairs for translation practice.
 
+CRITICAL INSTRUCTIONS:
+1. ALWAYS respond with ONLY valid JSON - no markdown, no explanations, no code blocks
+2. The response must start with [ and end with ]
+3. Do not wrap the JSON in \`\`\`json or any other formatting
+4. Respond with ONLY the JSON array - NO OTHER TEXT OR FORMATTING
+
 REQUIREMENTS:
 - Target language: ${targetLanguage}
 - User's native language: ${nativeLanguage}
@@ -362,14 +423,16 @@ ${spacedRepetitionData?.difficultyAdjustment === 'increase' ? 'Include more chal
 ${spacedRepetitionData?.difficultyAdjustment === 'decrease' ? 'Include basic, high-frequency words to build foundation.' : ''}
 ${spacedRepetitionData?.vocabularyReview.length ? `Include these words that need review: ${spacedRepetitionData.vocabularyReview.slice(0, 4).join(', ')}` : ''}
 
-Respond with valid JSON array matching this structure:
+Respond with valid JSON array matching this exact structure:
 [{
   "english": "word_or_phrase_in_target_language",
   "translation": "translation_in_native_language"
 }]
 
 Note: Despite the field name "english", use the target language (${targetLanguage}) for the first field.
-Make the pairs relevant to the user's learning goal, appropriate for their level, and adaptive to their performance.`
+Make the pairs relevant to the user's learning goal, appropriate for their level, and adaptive to their performance.
+
+RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
         },
         {
           role: 'user',
@@ -402,7 +465,41 @@ Make the pairs relevant to the user's learning goal, appropriate for their level
         throw new Error('No content received from OpenAI API');
       }
 
-      const wordPairs = JSON.parse(content);
+      // Parse the JSON response with robust error handling
+      let wordPairs: any;
+      try {
+        // Clean the content to remove potential markdown formatting
+        let cleanContent = content.trim();
+        
+        // Remove markdown code blocks if present
+        if (cleanContent.startsWith('```json')) {
+          cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (cleanContent.startsWith('```')) {
+          cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+        
+        // Remove any leading/trailing whitespace again
+        cleanContent = cleanContent.trim();
+        
+        wordPairs = JSON.parse(cleanContent);
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response as JSON. Raw content:', content);
+        console.error('Parse error:', parseError);
+        
+        // Try to extract JSON from the content if it's wrapped in text
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          try {
+            console.log('Attempting to parse extracted JSON:', jsonMatch[0]);
+            wordPairs = JSON.parse(jsonMatch[0]);
+          } catch (secondParseError) {
+            console.error('Second parse attempt failed:', secondParseError);
+            throw new Error(`Invalid JSON response from AI service. Raw response: ${content.substring(0, 500)}...`);
+          }
+        } else {
+          throw new Error(`Invalid JSON response from AI service. Raw response: ${content.substring(0, 500)}...`);
+        }
+      }
       
       if (!Array.isArray(wordPairs) || !this.validateWordPairs(wordPairs)) {
         throw new Error('Invalid word pairs format received from AI');
