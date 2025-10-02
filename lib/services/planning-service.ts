@@ -1,7 +1,7 @@
-import { aiService } from './ai-service';
 import { generateIntelligentMockPlan } from '../helpers/lesson-generation-utils';
 import type { PerformanceMetrics, SpacedRepetitionData } from '../helpers/performance-utils';
 import type { DailyPlan } from '../store/lesson-store';
+import { aiService } from './ai-service';
 
 export interface PlanningOnboardingData {
   languageLevel: string;
@@ -24,8 +24,7 @@ export const generateDailyPlanWithFallback = async (
   date: string
 ): Promise<DailyPlan> => {
   try {
-    const aiGeneratedPlan = await aiService.generateDailyPlan(prompt);
-    return aiGeneratedPlan;
+    return await aiService.generateDailyPlan(prompt);
   } catch (error) {
     return generateIntelligentMockPlan(
       onboardingData,

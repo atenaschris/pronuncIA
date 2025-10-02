@@ -112,7 +112,7 @@ interface LessonState {
   setCurrentSetCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
   setIsReplayingForErrors: (lessonId: string, isReplaying: boolean) => void;
-  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number) => void;
+  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string) => void;
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
   getWordPairsState: (lessonId: string) => WordPairsState | null;
@@ -790,7 +790,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number) => set((state) => {
+    addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string) => set((state) => {
       if (!state.dailyPlan) return state;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -808,6 +808,7 @@ export const useLessonStore = create<LessonState>()(persist(
                     attemptedTranslation,
                     timestamp: Date.now(),
                     setIndex,
+                    correctTranslation,
                   }
                 ],
                 totalErrors: currentState.errorDetails.totalErrors + 1,

@@ -624,7 +624,8 @@ export default function WordPairsScreen() {
       incorrectSound?.replayAsync()
 
       // Track detailed error information
-      addErrorDetail(lessonId, englishWord, translationWord, currentSetIndex);
+      const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation || '';
+      addErrorDetail(lessonId, englishWord, translationWord, currentSetIndex, correctTranslation);
 
       setIncorrectPair(lessonId, {
         english: column === 'english' ? index : selectedPair.index,

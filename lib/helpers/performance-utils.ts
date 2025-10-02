@@ -6,6 +6,7 @@
 import type { DailyPlan, Lesson } from '../store/lesson-store';
 import type { VocabularyState } from '../types/vocabulary';
 import type { WordPairsState } from '../types/word-pairs';
+import { VOCABULARY_WORD_SETS } from '../constants/constants';
 
 // Performance metrics calculation
 export interface PerformanceMetrics {
@@ -168,10 +169,10 @@ export const calculateSpacedRepetitionNeeds = (state: { dailyPlan: DailyPlan | n
         }
       }
       
-      // Pronunciation lessons - identify struggling sounds
+      // Pronunciation lessons - add baseline sounds for review
       if (lesson.type === 'pronunciation') {
-        // If we have specific sounds tracked for pronunciation lessons, they should be added here.
-        // Currently, we default to a common set as a safety net.
+        // Until PronunciationState collects per-sound accuracy, use common English phonemes
+        // These align with early practice targets and existing sound mapping utils
         pronunciationReview.push('/θ/', '/ð/', '/r/', '/l/');
       }
       
@@ -180,7 +181,17 @@ export const calculateSpacedRepetitionNeeds = (state: { dailyPlan: DailyPlan | n
         const wordPairsState = lesson.sessionState as WordPairsState;
         if (wordPairsState.errorDetails?.incorrectMatches?.length > 0) {
           wordPairsState.errorDetails.incorrectMatches.forEach((error) => {
+            // From word-pairs errors, schedule the English word for vocabulary review.
             vocabularyReview.push(error.englishWord);
+
+            // Also derive a pronunciation target if this word exists in our vocabulary sets.
+            const lower = error.englishWord.toLowerCase();
+            const matchingEntry = Object.values(VOCABULARY_WORD_SETS)
+              .flat()
+              .find((v) => v.word.toLowerCase() === lower);
+            if (matchingEntry?.targetSound) {
+              pronunciationReview.push(`/${matchingEntry.targetSound}/`);
+            }
           });
         }
 

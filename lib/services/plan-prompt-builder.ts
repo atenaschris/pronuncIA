@@ -64,8 +64,9 @@ PERFORMANCE METRICS:
 - Struggling Areas: ${performanceMetrics.strugglingAreas.join(', ')}
 
 SPACED REPETITION NEEDS:
-- Vocabulary Words to Review: ${spacedRepetitionData.vocabularyReview.length}
-- Pronunciation Sounds to Practice: ${spacedRepetitionData.pronunciationReview.join(', ')}
+- Vocabulary Words to Review (count): ${spacedRepetitionData.vocabularyReview.length}
+- Top Review Words: ${spacedRepetitionData.vocabularyReview.slice(0, 6).join(', ') || 'None'}
+- Pronunciation Sounds to Practice: ${spacedRepetitionData.pronunciationReview.join(', ') || 'None'}
 - Difficulty Adjustment: ${spacedRepetitionData.difficultyAdjustment}
 
 REQUIREMENTS:
@@ -75,8 +76,16 @@ REQUIREMENTS:
 4. Include spaced repetition for struggling areas
 5. Match ${learningStyle} preferences
 6. Consider native language ${nativeLanguage} specific challenges
+7. Explicitly prioritize lessons that directly address the Top Review Words and Pronunciation Sounds listed above (e.g., vocabulary targeting those words, word_pairs containing them, and pronunciation drills focused on those sounds)
+8. Set the top-level DailyPlan field 'completedLessons' to 0
 
-The plan should include a variety of lesson types: vocabulary, listening, pronunciation, roleplay, shadowing, voice journaling, and word pairs.
-Each lesson should have an id, type, title, description, xpReward, completed (false), and locked (false).
+WORD_PAIRS TRACKING FIELDS:
+- For any lesson of type word_pairs, include auxiliary tracking fields to support progress and XP calculation:
+- totalSets: number of sets planned for the lesson (default 10 if unsure)
+- completedSets: start at 0
+- setBestScores: an array of length totalSets, initialized with 0 values
+
+The plan should include a variety of lesson types: vocabulary, listening, pronunciation, roleplay, shadowing, voice_journaling, and word_pairs.
+Each lesson should have an id, type, title, description, xpReward, rewardableXP, completed (false), and locked (false).
 Return a JSON object matching the DailyPlan interface.`;
 };
