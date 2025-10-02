@@ -24,7 +24,7 @@ import {
 import { aiService } from '../services/ai-service'; // Import AI service
 import { createMMKVStorage, userDataStorage } from '../storage/storage-utils';
 import { VocabularyState, VocabularyWord } from '../types/vocabulary';
-import { EnglishWord, TranslationWord, WordPair, WordPairsState } from '../types/word-pairs';
+import { EnglishWord, TranslationWord, WordPairsState } from '../types/word-pairs';
 import { useOnboardingStore } from './onboarding-store'; // Import onboarding store
 
 export type LessonType = 'vocabulary' | 'listening' | 'pronunciation' | 'roleplay' | 'shadowing' | 'voice_journaling' | 'word_pairs';
@@ -94,7 +94,7 @@ interface LessonState {
   error: string | null;
   // Content caching
   cachedVocabularyContent: { [key: string]: VocabularyWord[] }; // Cache by user preferences hash
-  cachedWordPairsContent: { [key: string]: WordPair[] }; // Cache by user preferences hash
+  cachedWordPairsContent: { [key: string]: Record<string, Array<{ english: string; translation: string }>> }; // Cache by user preferences hash
   contentCacheTimestamp: { [key: string]: number }; // Track when content was cached
   contentCacheExpiry: number; // Cache expiry time in milliseconds (24 hours)
 
@@ -106,9 +106,9 @@ interface LessonState {
 
   // Content generation methods
   generateVocabularyContent: (lessonId: string, soundType?: 'consonant' | 'vowel' | 'mixed', targetSound?: string) => Promise<VocabularyWord[]>;
-  generateWordPairsContent: (lessonId: string) => Promise<WordPair[]>;
-  getCachedContent: (cacheKey: string, contentType: 'vocabulary' | 'wordPairs') => VocabularyWord[] | WordPair[] | null;
-  setCachedContent: (cacheKey: string, content: VocabularyWord[] | WordPair[], contentType: 'vocabulary' | 'wordPairs') => void;
+  generateWordPairsContent: (lessonId: string) => Promise<Record<string, Array<{ english: string; translation: string }>>>;
+  getCachedContent: (cacheKey: string, contentType: 'vocabulary' | 'wordPairs') => VocabularyWord[] | Record<string, Array<{ english: string; translation: string }>> | null;
+  setCachedContent: (cacheKey: string, content: VocabularyWord[] | Record<string, Array<{ english: string; translation: string }>>, contentType: 'vocabulary' | 'wordPairs') => void;
   generateContentCacheKey: (contentType: 'vocabulary' | 'wordPairs', additionalParams?: Record<string, any>) => string;
 
   // WordPairs-specific actions
@@ -361,10 +361,10 @@ export const useLessonStore = create<LessonState>()(persist(
       try {
         const { languageLevel, nativeLanguage, targetLanguage, learningGoal, timeCommitment, learningStyle } = useOnboardingStore.getState();
         const { currentStreak, totalXp, lastActivityDate } = get();
-
+        const stateForMetrics = get();
         // Calculate user performance metrics for AI context
-        const performanceMetrics = calculateUserPerformanceMetrics(get());
-        const spacedRepetitionData = calculateSpacedRepetitionNeeds(get());
+        const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
+        const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
 
         // Enhanced AI prompt with comprehensive user data
         const prompt = `Generate a personalized daily lesson plan for a user with the following comprehensive profile:
@@ -2298,7 +2298,24 @@ Return a JSON object matching the DailyPlan interface.`;
       soundType?: 'consonant' | 'vowel' | 'mixed', 
       targetSound?: string
     ): Promise<VocabularyWord[]> => {
-      const cacheKey = get().generateContentCacheKey('vocabulary', { lessonId, soundType, targetSound });
+      // Compute performance metrics and spaced-repetition needs first to form a robust cache key
+      const stateForMetrics = get();
+      const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
+      const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
+
+      // Create a lightweight signature of review items to avoid overly long keys
+      const reviewSignature = (spacedRepetitionData?.vocabularyReview || [])
+        .slice(0, 10)
+        .sort()
+        .join('|');
+
+      const cacheKey = get().generateContentCacheKey('vocabulary', {
+        lessonId,
+        soundType,
+        targetSound,
+        difficultyAdjustment: spacedRepetitionData?.difficultyAdjustment,
+        reviewSignature,
+      });
       
       // Check cache first
       const cachedContent = get().getCachedContent(cacheKey, 'vocabulary') as VocabularyWord[] | null;
@@ -2309,7 +2326,7 @@ Return a JSON object matching the DailyPlan interface.`;
       try {
         // Get user onboarding data for personalization
         const onboardingData = useOnboardingStore.getState();
-        
+
         // Generate content using AI service
         const generatedContent = await aiService.generateVocabularyWords(
           onboardingData.targetLanguage || 'italian',
@@ -2318,7 +2335,9 @@ Return a JSON object matching the DailyPlan interface.`;
           onboardingData.learningGoal || 'pronunciation',
           8, // Default count
           soundType || 'mixed',
-          targetSound || undefined
+          targetSound || undefined,
+          performanceMetrics,
+          spacedRepetitionData
         );
 
         // Cache the generated content
@@ -2331,11 +2350,25 @@ Return a JSON object matching the DailyPlan interface.`;
       }
     },
 
-    generateWordPairsContent: async (): Promise<WordPair[]> => {
-      const cacheKey = get().generateContentCacheKey('wordPairs', {});
+    generateWordPairsContent: async (): Promise<Record<string, Array<{ english: string; translation: string }>>> => {
+      // Compute performance metrics and spaced-repetition needs first to form a robust cache key
+      const stateForMetrics = get();
+      const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
+      const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
+
+      // Create a lightweight signature of review items to avoid overly long keys
+      const reviewSignature = (spacedRepetitionData?.vocabularyReview || [])
+        .slice(0, 10)
+        .sort()
+        .join('|');
+
+      const cacheKey = get().generateContentCacheKey('wordPairs', {
+        difficultyAdjustment: spacedRepetitionData?.difficultyAdjustment,
+        reviewSignature,
+      });
       
       // Check cache first
-      const cachedContent = get().getCachedContent(cacheKey, 'wordPairs') as WordPair[] | null;
+      const cachedContent = get().getCachedContent(cacheKey, 'wordPairs') as Record<string, Array<{ english: string; translation: string }>> | null;
       if (cachedContent) {
         return cachedContent;
       }
@@ -2343,14 +2376,17 @@ Return a JSON object matching the DailyPlan interface.`;
       try {
         // Get user onboarding data for personalization
         const onboardingData = useOnboardingStore.getState();
-        
-        // Generate content using AI service
+
+        // Generate content using AI service with new structure
         const generatedContent = await aiService.generateWordPairs(
           onboardingData.targetLanguage || 'italian',
           onboardingData.nativeLanguage || 'english',
           onboardingData.languageLevel || 'beginner',
           onboardingData.learningGoal || 'pronunciation',
-          8 // Default count
+          10, // Generate 10 sets
+          8,   // 8 pairs per set
+          performanceMetrics,
+          spacedRepetitionData
         );
 
         // Cache the generated content
@@ -2359,11 +2395,11 @@ Return a JSON object matching the DailyPlan interface.`;
         return generatedContent;
       } catch (error) {
         console.error('Failed to generate word pairs content:', error);
-        return [];
+        return {};
       }
     },
 
-    getCachedContent: (cacheKey: string, contentType: 'vocabulary' | 'wordPairs'): VocabularyWord[] | WordPair[] | null => {
+    getCachedContent: (cacheKey: string, contentType: 'vocabulary' | 'wordPairs'): VocabularyWord[] | Record<string, Array<{ english: string; translation: string }>> | null => {
       const { cachedVocabularyContent, cachedWordPairsContent, contentCacheTimestamp, contentCacheExpiry } = get();
       
       // Check if cache has expired
@@ -2379,7 +2415,7 @@ Return a JSON object matching the DailyPlan interface.`;
       }
     },
 
-    setCachedContent: (cacheKey: string, content: VocabularyWord[] | WordPair[], contentType: 'vocabulary' | 'wordPairs'): void => {
+    setCachedContent: (cacheKey: string, content: VocabularyWord[] | Record<string, Array<{ english: string; translation: string }>>, contentType: 'vocabulary' | 'wordPairs'): void => {
       const currentState = get();
       
       if (contentType === 'vocabulary') {
@@ -2397,7 +2433,7 @@ Return a JSON object matching the DailyPlan interface.`;
         set({
           cachedWordPairsContent: {
             ...currentState.cachedWordPairsContent,
-            [cacheKey]: content as WordPair[],
+            [cacheKey]: content as Record<string, Array<{ english: string; translation: string }>>,
           },
           contentCacheTimestamp: {
             ...currentState.contentCacheTimestamp,

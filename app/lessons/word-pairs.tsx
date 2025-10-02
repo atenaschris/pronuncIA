@@ -4,8 +4,6 @@ import { PortalModal } from '@/components/ui/portal';
 
 import { RNPText } from '@/components/ui/RNPText';
 import { useAppTheme } from '@/components/ui/theme';
-
-import { WORD_PAIRS_SET_KEYS } from '@/lib/constants/constants';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
 import { usePortalModalStore } from '@/lib/store/portal-modal-store';
@@ -88,8 +86,14 @@ export default function WordPairsScreen() {
   const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModalStore();
 
   // State for dynamic word pairs content
-  const [dynamicWordPairs, setDynamicWordPairs] = React.useState<Array<{ english: string; translation: string }>>([]);
+  const [dynamicWordPairs, setDynamicWordPairs] = React.useState<Record<string, Array<{ english: string; translation: string }>>>({});
   const [isLoadingContent, setIsLoadingContent] = React.useState(false);
+
+  // Calculate total sets from dynamic content
+  const totalSets = useMemo(() => {
+    // Use planned total sets from lesson metadata; do NOT derive from loaded content
+    return (currentLesson?.totalSets ?? 10);
+  }, [currentLesson?.totalSets]);
 
   const HapticSuccess = useHaptic('success');
   const HapticError = useHaptic('error');
@@ -109,7 +113,13 @@ export default function WordPairsScreen() {
   // Memoized ProgressStepper props for performance optimization
   const completedSteps = useMemo(() => {
     console.log('calculated completedSteps')
-    return currentLesson?.setBestScores?.map((_, index) => index).filter(index => currentLesson?.setBestScores![index] > 0);
+    if (!currentLesson?.setBestScores) return [];
+    
+    // Only mark sets as completed if they have a recorded score > 0
+    return currentLesson.setBestScores
+      .map((score, index) => ({ score, index }))
+      .filter(({ score }) => score > 0)
+      .map(({ index }) => index);
   }, [currentLesson?.setBestScores]);
 
   const stepsWithErrors = useMemo(() => {
@@ -124,7 +134,7 @@ export default function WordPairsScreen() {
   }, [selectedPair]);
 
   const isMatched = useCallback((index: number) => {
-    return matchedPairs.includes(index);
+    return matchedPairs?.includes(index) ?? false;
   }, [matchedPairs]);
 
   // Create individual animated styles for each item (fixed number of hooks)
@@ -170,23 +180,24 @@ export default function WordPairsScreen() {
 
   // Memoize current word pairs to avoid redundant calculations
   const currentWordPairs = useMemo(() => {
-    // Use dynamic content if available, otherwise fallback to empty array
-    return dynamicWordPairs.length > 0 ? dynamicWordPairs : [];
-  }, [dynamicWordPairs]);
+    // Get the current set's word pairs based on currentSetIndex
+    const setKey = `set${currentSetIndex + 1}`;
+    return dynamicWordPairs[setKey] || [];
+  }, [dynamicWordPairs, currentSetIndex]);
 
   const initializeGame = useCallback(async () => {
     if (!lessonId) return;
     
     // Generate dynamic content if not already loaded
-    if (dynamicWordPairs.length === 0 && !isLoadingContent) {
+    if (Object.keys(dynamicWordPairs).length === 0 && !isLoadingContent) {
       setIsLoadingContent(true);
       try {
         const generatedPairs = await generateWordPairsContent(lessonId || 'word-pairs');
         setDynamicWordPairs(generatedPairs);
       } catch (error) {
         console.error('Failed to generate word pairs content:', error);
-        // Fallback to empty array - could show error message to user
-        setDynamicWordPairs([]);
+        // Fallback to empty object - could show error message to user
+        setDynamicWordPairs({});
       } finally {
         setIsLoadingContent(false);
       }
@@ -277,11 +288,11 @@ export default function WordPairsScreen() {
 
   // Helper function to check if a translation word is matched
   const isTranslationMatched = useCallback((translationIndex: number) => {
-    return matchedPairs.some(englishIndex => {
+    return matchedPairs?.some(englishIndex => {
       const englishWord = englishWords[englishIndex];
       const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation;
       return correctTranslation === translationWords[translationIndex];
-    });
+    }) ?? false;
   }, [matchedPairs, englishWords, translationWords, currentWordPairs]);
 
   // Helper function to format time display
@@ -302,7 +313,7 @@ export default function WordPairsScreen() {
     }
 
     // If the word is already matched, do nothing (including animations)
-    if ((matchedPairs.includes(index) && column === 'english') ||
+    if ((matchedPairs?.includes(index) && column === 'english') ||
       (column === 'translation' && isTranslationMatched(index))) {
       return;
     }
@@ -351,11 +362,11 @@ export default function WordPairsScreen() {
       HapticSuccess?.();
       correctSound?.replayAsync()
 
-      setMatchedPairs(lessonId, [...matchedPairs, englishIndex]);
+      setMatchedPairs(lessonId, [...(matchedPairs ?? []), englishIndex]);
       setScore(lessonId, score + 10);
 
       // Check if all pairs are matched
-      if (matchedPairs.length + 1 === currentWordPairs.length && !lessonCompleted) {
+      if ((matchedPairs?.length ?? 0) + 1 === currentWordPairs.length && !lessonCompleted) {
         // Stop the timer for this set
         stopSetTimer(lessonId);
 
@@ -372,7 +383,8 @@ export default function WordPairsScreen() {
         console.log('After completeLesson - Accumulated Lesson XP:', updatedLessonState?.xpReward);
         const updatedWPLesson = useLessonStore.getState().dailyPlan?.lessons.find(l => l.id === lessonId);
         const accumulatedLessonXP = updatedWPLesson?.xpReward || 0;
-        const allSetsAttempted = (updatedWPLesson?.completedSets || 0) >= (updatedWPLesson?.totalSets || WORD_PAIRS_SET_KEYS.length);
+        const plannedTotalSets = updatedWPLesson?.totalSets ?? (currentLesson?.totalSets ?? 10);
+        const allSetsAttempted = (updatedWPLesson?.completedSets || 0) >= plannedTotalSets;
 
         // Get the current set completion time
         const currentSetTime = setTimers[currentSetIndex] || currentSetElapsedTime;
@@ -384,7 +396,7 @@ export default function WordPairsScreen() {
 
         if (allSetsAttempted) {
           // Calculate time bonus based on total session time (including error correction time)
-          const timeBonus = calculateTimeBonusXP(totalTime, WORD_PAIRS_SET_KEYS.length);
+          const timeBonus = calculateTimeBonusXP(totalTime, plannedTotalSets);
 
           // Apply/update time bonus (this handles recalculation automatically)
           addTimeBonusXP(lessonId, timeBonus.bonusXP);
@@ -821,7 +833,7 @@ export default function WordPairsScreen() {
           </View>
         </View>
         <ProgressStepper
-          totalSteps={WORD_PAIRS_SET_KEYS.length}
+          totalSteps={totalSets}
           currentStep={currentSetIndex}
           completedSteps={completedSteps!}
           stepsWithErrors={stepsWithErrors}

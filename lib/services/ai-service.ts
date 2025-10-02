@@ -1,3 +1,11 @@
+import {
+  ACCURACY_THRESHOLD,
+  VOCABULARY_SET_KEYS,
+  VOCABULARY_WORD_SETS,
+  WORD_PAIR_SETS,
+  WORD_PAIRS_SET_KEYS,
+} from "../constants/constants";
+import { desiredTargetSoundsForSetKey, mapPronunciationTokensToSetKeys } from "../helpers/sound-mapping-utils";
 import { DailyPlan } from "../store/lesson-store";
 import { VocabularyWord } from "../types/vocabulary";
 import { WordPair } from "../types/word-pairs";
@@ -101,7 +109,7 @@ RESPOND WITH ONLY THE JSON OBJECT - NO OTHER TEXT OR FORMATTING.`
           content: prompt
         }
       ];
-      if(messages.length) {
+      if (messages.length) {
         throw new Error('Trying the fallback intelligent fallback');
       }
 
@@ -298,6 +306,10 @@ RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
         }
       ];
 
+      if (messages.length) {
+        throw new Error('testing fallback generation couple words')
+      }
+
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -360,7 +372,7 @@ RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
       return vocabularyWords;
     } catch (error) {
       console.error('Error generating vocabulary words:', error);
-      return this.getFallbackVocabularyWords(count, soundType, targetSound);
+      return this.getFallbackVocabularyWords(count, soundType, targetSound, performanceMetrics, spacedRepetitionData);
     }
   }
 
@@ -370,7 +382,8 @@ RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
     nativeLanguage: string,
     languageLevel: string,
     learningGoal: string,
-    count: number = 8,
+    setsCount: number = 10,
+    pairsPerSet: number = 8,
     performanceMetrics?: {
       completionRate: number;
       averageAccuracy: number;
@@ -382,24 +395,26 @@ RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
       pronunciationReview: string[];
       difficultyAdjustment: 'increase' | 'maintain' | 'decrease';
     }
-  ): Promise<WordPair[]> {
+  ): Promise<Record<string, Array<{ english: string; translation: string }>>> {
     try {
       const messages: OpenAIMessage[] = [
         {
           role: 'system',
-          content: `You are an expert language learning coach. Generate ${count} word pairs for translation practice.
+          content: `You are an expert language learning coach. Generate ${setsCount} sets of ${pairsPerSet} word pairs each for translation practice.
 
 CRITICAL INSTRUCTIONS:
 1. ALWAYS respond with ONLY valid JSON - no markdown, no explanations, no code blocks
-2. The response must start with [ and end with ]
+2. The response must start with { and end with }
 3. Do not wrap the JSON in \`\`\`json or any other formatting
-4. Respond with ONLY the JSON array - NO OTHER TEXT OR FORMATTING
+4. Respond with ONLY the JSON object - NO OTHER TEXT OR FORMATTING
 
 REQUIREMENTS:
 - Target language: ${targetLanguage}
 - User's native language: ${nativeLanguage}
 - Language level: ${languageLevel}
 - Learning goal: ${learningGoal}
+- Generate exactly ${setsCount} sets
+- Each set should contain exactly ${pairsPerSet} word pairs
 
 ${performanceMetrics ? `
 PERFORMANCE CONTEXT:
@@ -423,22 +438,30 @@ ${spacedRepetitionData?.difficultyAdjustment === 'increase' ? 'Include more chal
 ${spacedRepetitionData?.difficultyAdjustment === 'decrease' ? 'Include basic, high-frequency words to build foundation.' : ''}
 ${spacedRepetitionData?.vocabularyReview.length ? `Include these words that need review: ${spacedRepetitionData.vocabularyReview.slice(0, 4).join(', ')}` : ''}
 
-Respond with valid JSON array matching this exact structure:
-[{
-  "english": "word_or_phrase_in_target_language",
-  "translation": "translation_in_native_language"
-}]
+Respond with valid JSON object matching this exact structure:
+{
+  "set1": [
+    {"english": "word_or_phrase_in_target_language", "translation": "translation_in_native_language"},
+    ...
+  ],
+  "set2": [...],
+  ...
+}
 
 Note: Despite the field name "english", use the target language (${targetLanguage}) for the first field.
 Make the pairs relevant to the user's learning goal, appropriate for their level, and adaptive to their performance.
 
-RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
+RESPOND WITH ONLY THE JSON OBJECT - NO OTHER TEXT OR FORMATTING.`
         },
         {
           role: 'user',
-          content: `Generate ${count} word pairs for ${targetLanguage} to ${nativeLanguage} translation practice.`
+          content: `Generate ${setsCount} sets of ${pairsPerSet} word pairs each for ${targetLanguage} to ${nativeLanguage} translation practice.`
         }
       ];
+
+      if(messages.length) {
+        throw new Error('testing fallback generatiing vocabulary')
+      }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -466,7 +489,7 @@ RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
       }
 
       // Parse the JSON response with robust error handling
-      let wordPairs: any;
+      let wordPairsData: any;
       try {
         // Clean the content to remove potential markdown formatting
         let cleanContent = content.trim();
@@ -481,17 +504,17 @@ RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
         // Remove any leading/trailing whitespace again
         cleanContent = cleanContent.trim();
         
-        wordPairs = JSON.parse(cleanContent);
+        wordPairsData = JSON.parse(cleanContent);
       } catch (parseError) {
         console.error('Failed to parse OpenAI response as JSON. Raw content:', content);
         console.error('Parse error:', parseError);
         
         // Try to extract JSON from the content if it's wrapped in text
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           try {
             console.log('Attempting to parse extracted JSON:', jsonMatch[0]);
-            wordPairs = JSON.parse(jsonMatch[0]);
+            wordPairsData = JSON.parse(jsonMatch[0]);
           } catch (secondParseError) {
             console.error('Second parse attempt failed:', secondParseError);
             throw new Error(`Invalid JSON response from AI service. Raw response: ${content.substring(0, 500)}...`);
@@ -501,14 +524,14 @@ RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
         }
       }
       
-      if (!Array.isArray(wordPairs) || !this.validateWordPairs(wordPairs)) {
+      if (!wordPairsData || typeof wordPairsData !== 'object' || !this.validateWordPairsSets(wordPairsData)) {
         throw new Error('Invalid word pairs format received from AI');
       }
 
-      return wordPairs;
+      return wordPairsData;
     } catch (error) {
       console.error('Error generating word pairs:', error);
-      return this.getFallbackWordPairs(count);
+      return this.getFallbackWordPairs(setsCount, pairsPerSet, performanceMetrics, spacedRepetitionData);
     }
   }
 
@@ -533,57 +556,174 @@ RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`
     );
   }
 
-  // Fallback methods
-  private getFallbackVocabularyWords(count: number, soundType?: string, targetSound?: string): VocabularyWord[] {
-    const fallbackWords: VocabularyWord[] = [
-      {
-        id: 'fallback1',
-        word: 'hello',
-        phonetic: '/həˈloʊ/',
-        definition: 'a greeting',
-        example: 'Hello, how are you?',
-        difficulty: 'easy',
-        soundType: 'mixed',
-        targetSound: 'h'
-      },
-      {
-        id: 'fallback2',
-        word: 'thank',
-        phonetic: '/θæŋk/',
-        definition: 'to express gratitude',
-        example: 'Thank you for your help.',
-        difficulty: 'easy',
-        soundType: 'consonant',
-        targetSound: 'θ'
-      },
-      {
-        id: 'fallback3',
-        word: 'water',
-        phonetic: '/ˈwɔːtər/',
-        definition: 'a clear liquid',
-        example: 'I drink water every day.',
-        difficulty: 'easy',
-        soundType: 'mixed',
-        targetSound: 'w'
-      }
-    ];
-
-    return fallbackWords.slice(0, count);
+  private validateWordPairsSets(data: any): data is Record<string, Array<{ english: string; translation: string }>> {
+    if (!data || typeof data !== 'object') return false;
+    
+    return Object.values(data).every(set => 
+      Array.isArray(set) && this.validateWordPairs(set)
+    );
   }
 
-  private getFallbackWordPairs(count: number): WordPair[] {
-    const fallbackPairs: WordPair[] = [
-      { english: 'hello', translation: 'ciao' },
-      { english: 'thank you', translation: 'grazie' },
-      { english: 'water', translation: 'acqua' },
-      { english: 'house', translation: 'casa' },
-      { english: 'book', translation: 'libro' },
-      { english: 'friend', translation: 'amico' },
-      { english: 'food', translation: 'cibo' },
-      { english: 'time', translation: 'tempo' }
+  // Fallback methods
+  private getFallbackVocabularyWords(
+    count: number,
+    soundType?: string,
+    targetSound?: string,
+    performanceMetrics?: {
+      completionRate: number;
+      averageAccuracy: number;
+      preferredLessonTypes: string[];
+      strugglingAreas: string[];
+    },
+    spacedRepetitionData?: {
+      vocabularyReview: string[];
+      pronunciationReview: string[];
+      difficultyAdjustment: 'increase' | 'maintain' | 'decrease';
+    }
+  ): VocabularyWord[] {
+    // Prefer sets that align with pronunciation review tokens
+    const preferredSetKeys: (keyof typeof VOCABULARY_WORD_SETS)[] = mapPronunciationTokensToSetKeys(
+      spacedRepetitionData?.pronunciationReview || []
+    );
+
+    const prioritizedKeys: (keyof typeof VOCABULARY_WORD_SETS)[] = [
+      ...preferredSetKeys,
+      ...VOCABULARY_SET_KEYS.filter((k) => !preferredSetKeys.includes(k)),
     ];
 
-    return fallbackPairs.slice(0, count);
+    // Build a pool from curated sets in prioritized order
+    const allWords: VocabularyWord[] = prioritizedKeys.flatMap((key) => VOCABULARY_WORD_SETS[key] as unknown as VocabularyWord[]);
+
+    // Filter by sound focus if provided
+    let filtered = allWords.filter((w) => {
+      const soundTypeOk = soundType ? w.soundType === soundType : true;
+      const targetSoundOk = targetSound ? w.targetSound === targetSound : true;
+      return soundTypeOk && targetSoundOk;
+    });
+
+    // If filter is too strict, fall back to the whole pool
+    if (filtered.length < count) {
+      filtered = allWords;
+    }
+
+    // Difficulty targeting based on performance/spaced repetition
+    const wantEasier = spacedRepetitionData?.difficultyAdjustment === 'decrease' ||
+      (typeof performanceMetrics?.averageAccuracy === 'number' && performanceMetrics.averageAccuracy < ACCURACY_THRESHOLD) ||
+      performanceMetrics?.strugglingAreas?.includes('vocabulary') ||
+      performanceMetrics?.strugglingAreas?.includes('pronunciation');
+
+    const wantHarder = spacedRepetitionData?.difficultyAdjustment === 'increase' && !wantEasier;
+
+    const easy = filtered.filter((w) => w.difficulty === 'easy');
+    const medium = filtered.filter((w) => w.difficulty === 'medium' || w.difficulty === 'hard');
+
+    let selection: VocabularyWord[] = [];
+    if (wantEasier) {
+      selection = [...easy, ...medium];
+    } else if (wantHarder) {
+      selection = [...medium, ...easy];
+    } else {
+      // maintain: interleave
+      const maxLen = Math.max(easy.length, medium.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (i < easy.length) selection.push(easy[i]);
+        if (i < medium.length) selection.push(medium[i]);
+      }
+    }
+
+    // Prioritize spaced-repetition review words and pronunciation-aligned words if present
+    const reviewSet = new Set(spacedRepetitionData?.vocabularyReview || []);
+    const desiredSounds = new Set<string>();
+    preferredSetKeys.forEach((k) => {
+      for (const s of desiredTargetSoundsForSetKey(k)) desiredSounds.add(s);
+    });
+    selection.sort((a, b) => {
+      const aRev = reviewSet.has(a.word) ? 1 : 0;
+      const bRev = reviewSet.has(b.word) ? 1 : 0;
+      const aPron = desiredSounds.has(a.targetSound) ? 1 : 0;
+      const bPron = desiredSounds.has(b.targetSound) ? 1 : 0;
+      // review words first, then pronunciation-aligned
+      if (bRev !== aRev) return bRev - aRev;
+      if (bPron !== aPron) return bPron - aPron;
+      return 0;
+    });
+
+    // Deduplicate by id/word, then take the requested count
+    const seen = new Set<string>();
+    const unique = selection.filter((w) => {
+      const key = `${w.id}:${w.word}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // If still not enough, top up from allWords
+    if (unique.length < count) {
+      for (const w of allWords) {
+        const key = `${w.id}:${w.word}`;
+        if (!seen.has(key)) {
+          unique.push(w);
+          seen.add(key);
+        }
+        if (unique.length >= count) break;
+      }
+    }
+
+    return unique.slice(0, count);
+  }
+
+  private getFallbackWordPairs(
+    setsCount: number,
+    pairsPerSet: number = 8,
+    performanceMetrics?: {
+      completionRate: number;
+      averageAccuracy: number;
+      preferredLessonTypes: string[];
+      strugglingAreas: string[];
+    },
+    spacedRepetitionData?: {
+      vocabularyReview: string[];
+      pronunciationReview: string[];
+      difficultyAdjustment: 'increase' | 'maintain' | 'decrease';
+    }
+  ): Record<string, Array<{ english: string; translation: string }>> {
+    const result: Record<string, Array<{ english: string; translation: string }>> = {};
+
+    // Choose set order based on difficulty adjustment: earlier sets assumed simpler
+    const keys = [...WORD_PAIRS_SET_KEYS];
+    if (spacedRepetitionData?.difficultyAdjustment === 'increase') {
+      // rotate keys so later sets come first
+      keys.reverse();
+    }
+
+    // Build a combined pool from selected sets
+    const combined: WordPair[] = keys.flatMap((k) => WORD_PAIR_SETS[k] as unknown as WordPair[]);
+
+    // Light prioritization: place review words first if present
+    const reviewSet = new Set(spacedRepetitionData?.vocabularyReview || []);
+    combined.sort((a, b) => {
+      const aRev = reviewSet.has(a.english) ? 1 : 0;
+      const bRev = reviewSet.has(b.english) ? 1 : 0;
+      return bRev - aRev;
+    });
+
+    // If user struggles with word_pairs, keep to simpler cycling order
+    const cycle = spacedRepetitionData?.difficultyAdjustment === 'decrease' ||
+      performanceMetrics?.strugglingAreas?.includes('word_pairs')
+      ? combined
+      : combined;
+
+    for (let i = 1; i <= setsCount; i++) {
+      const setPairs: WordPair[] = [];
+      const startIndex = ((i - 1) * pairsPerSet) % cycle.length;
+      for (let j = 0; j < pairsPerSet; j++) {
+        const idx = (startIndex + j) % cycle.length;
+        setPairs.push(cycle[idx]);
+      }
+      result[`set${i}`] = setPairs;
+    }
+
+    return result;
   }
 
   // Method to test API connectivity

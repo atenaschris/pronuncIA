@@ -3,6 +3,10 @@
  * Extracted from lesson-store.ts for better code organization
  */
 
+import type { DailyPlan, Lesson } from '../store/lesson-store';
+import type { VocabularyState } from '../types/vocabulary';
+import type { WordPairsState } from '../types/word-pairs';
+
 // Performance metrics calculation
 export interface PerformanceMetrics {
   completionRate: number;
@@ -11,7 +15,7 @@ export interface PerformanceMetrics {
   strugglingAreas: string[];
 }
 
-export const calculateUserPerformanceMetrics = (state: any): PerformanceMetrics => {
+export const calculateUserPerformanceMetrics = (state: { dailyPlan: DailyPlan | null }): PerformanceMetrics => {
   const { dailyPlan } = state;
   
   if (!dailyPlan || !dailyPlan.lessons.length) {
@@ -25,7 +29,7 @@ export const calculateUserPerformanceMetrics = (state: any): PerformanceMetrics 
 
   // Calculate completion rate from current daily plan
   const totalLessons = dailyPlan.lessons.length;
-  const completedLessons = dailyPlan.lessons.filter((lesson: any) => lesson.completed).length;
+  const completedLessons = dailyPlan.lessons.filter((lesson: Lesson) => lesson.completed).length;
   const completionRate = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   // Calculate average accuracy from vocabulary lessons with AI scores
@@ -33,7 +37,7 @@ export const calculateUserPerformanceMetrics = (state: any): PerformanceMetrics 
   let accuracyCount = 0;
   const lessonTypePerformance: { [key: string]: { completed: number; total: number; avgAccuracy: number } } = {};
 
-  dailyPlan.lessons.forEach((lesson: any) => {
+  dailyPlan.lessons.forEach((lesson: Lesson) => {
     const lessonType = lesson.type;
     
     if (!lessonTypePerformance[lessonType]) {
@@ -46,17 +50,20 @@ export const calculateUserPerformanceMetrics = (state: any): PerformanceMetrics 
       lessonTypePerformance[lessonType].completed++;
       
       // Calculate accuracy for vocabulary lessons
-      if (lesson.type === 'vocabulary' && lesson.sessionState?.aiScores?.length > 0) {
-        const aiScores = lesson.sessionState.aiScores;
-        const lessonAccuracy = aiScores.reduce((sum: number, score: number) => sum + score, 0) / aiScores.length;
-        totalAccuracy += lessonAccuracy;
-        accuracyCount++;
-        lessonTypePerformance[lessonType].avgAccuracy = lessonAccuracy;
+      if (lesson.type === 'vocabulary') {
+        const vs = lesson.sessionState as VocabularyState | undefined;
+        const aiScores = vs?.aiScores;
+        if (aiScores && aiScores.length > 0) {
+          const lessonAccuracy = aiScores.reduce((sum: number, score: number) => sum + score, 0) / aiScores.length;
+          totalAccuracy += lessonAccuracy;
+          accuracyCount++;
+          lessonTypePerformance[lessonType].avgAccuracy = lessonAccuracy;
+        }
       }
       
       // Calculate accuracy for word pairs lessons
-      if (lesson.type === 'word_pairs' && lesson.setBestScores?.length > 0) {
-        const setBestScores = lesson.setBestScores;
+      if (lesson.type === 'word_pairs' && Array.isArray(lesson.setBestScores) && lesson.setBestScores.length > 0) {
+        const setBestScores = lesson.setBestScores as number[];
         const lessonAccuracy = setBestScores.reduce((sum: number, score: number) => sum + score, 0) / setBestScores.length;
         totalAccuracy += lessonAccuracy;
         accuracyCount++;
@@ -76,7 +83,9 @@ export const calculateUserPerformanceMetrics = (state: any): PerformanceMetrics 
   const strugglingAreas = Object.entries(lessonTypePerformance)
     .filter(([_, performance]) => {
       const completionRate = performance.total > 0 ? performance.completed / performance.total : 0;
-      return completionRate < 0.5 || (performance.avgAccuracy > 0 && performance.avgAccuracy < 60);
+      // Use app-wide accuracy threshold to identify struggles
+      const ACCURACY_FLOOR = 60; // fallback floor if avgAccuracy is reported on different scale
+      return completionRate < 0.5 || (performance.avgAccuracy > 0 && performance.avgAccuracy < ACCURACY_FLOOR);
     })
     .map(([type, _]) => type);
 
@@ -95,7 +104,7 @@ export interface SpacedRepetitionData {
   difficultyAdjustment: 'increase' | 'maintain' | 'decrease';
 }
 
-export const calculateSpacedRepetitionNeeds = (state: any): SpacedRepetitionData => {
+export const calculateSpacedRepetitionNeeds = (state: { dailyPlan: DailyPlan | null }): SpacedRepetitionData => {
   const { dailyPlan } = state;
   
   if (!dailyPlan || !dailyPlan.lessons.length) {
@@ -112,26 +121,34 @@ export const calculateSpacedRepetitionNeeds = (state: any): SpacedRepetitionData
   let accuracyCount = 0;
 
   // Analyze completed lessons for spaced repetition needs
-  dailyPlan.lessons.forEach((lesson: any) => {
+  dailyPlan.lessons.forEach((lesson: Lesson) => {
     if (lesson.completed && lesson.sessionState) {
       // Vocabulary lessons - identify failed/skipped words for review
       if (lesson.type === 'vocabulary') {
-        const vocabState = lesson.sessionState as any;
+        const vocabState = lesson.sessionState as VocabularyState;
         
         // Add failed words to review list
         if (vocabState.failedWords?.length > 0) {
-          vocabState.words?.forEach((word: any, index: number) => {
+          vocabState.words?.forEach((word, index: number) => {
             if (vocabState.failedWords.includes(index)) {
               vocabularyReview.push(word.word || `word_${index}`);
+              // Also schedule the target sound for pronunciation practice
+              if (word.targetSound) {
+                pronunciationReview.push(`/${word.targetSound}/`);
+              }
             }
           });
         }
         
         // Add skipped words to review list
         if (vocabState.skippedWords?.length > 0) {
-          vocabState.words?.forEach((word: any, index: number) => {
+          vocabState.words?.forEach((word, index: number) => {
             if (vocabState.skippedWords.includes(index)) {
               vocabularyReview.push(word.word || `word_${index}`);
+              // Also schedule the target sound for pronunciation practice
+              if (word.targetSound) {
+                pronunciationReview.push(`/${word.targetSound}/`);
+              }
             }
           });
         }
@@ -141,22 +158,38 @@ export const calculateSpacedRepetitionNeeds = (state: any): SpacedRepetitionData
           const lessonAccuracy = vocabState.aiScores.reduce((sum: number, score: number) => sum + score, 0) / vocabState.aiScores.length;
           totalAccuracy += lessonAccuracy;
           accuracyCount++;
+
+          // Add low-scoring sounds to pronunciation review
+          vocabState.aiScores.forEach((score, idx) => {
+            if (score < 70 && vocabState.words?.[idx]?.targetSound) {
+              pronunciationReview.push(`/${vocabState.words[idx].targetSound}/`);
+            }
+          });
         }
       }
       
       // Pronunciation lessons - identify struggling sounds
       if (lesson.type === 'pronunciation') {
-        // Add common pronunciation challenges based on performance
+        // If we have specific sounds tracked for pronunciation lessons, they should be added here.
+        // Currently, we default to a common set as a safety net.
         pronunciationReview.push('/θ/', '/ð/', '/r/', '/l/');
       }
       
       // Word pairs lessons - identify incorrect matches for vocabulary review
       if (lesson.type === 'word_pairs') {
-        const wordPairsState = lesson.sessionState as any;
+        const wordPairsState = lesson.sessionState as WordPairsState;
         if (wordPairsState.errorDetails?.incorrectMatches?.length > 0) {
-          wordPairsState.errorDetails.incorrectMatches.forEach((error: any) => {
+          wordPairsState.errorDetails.incorrectMatches.forEach((error) => {
             vocabularyReview.push(error.englishWord);
           });
+        }
+
+        // Contribute word-pairs accuracy to difficulty adjustment
+        if (Array.isArray(lesson.setBestScores) && lesson.setBestScores.length > 0) {
+          const setBestScores = lesson.setBestScores as number[];
+          const wpAccuracy = setBestScores.reduce((sum: number, score: number) => sum + score, 0) / setBestScores.length;
+          totalAccuracy += wpAccuracy;
+          accuracyCount++;
         }
       }
     }
@@ -167,10 +200,11 @@ export const calculateSpacedRepetitionNeeds = (state: any): SpacedRepetitionData
   
   if (accuracyCount > 0) {
     const averageAccuracy = totalAccuracy / accuracyCount;
-    
-    if (averageAccuracy >= 85) {
+    const INCREASE_THRESHOLD = 85;
+    const DECREASE_THRESHOLD = 60;
+    if (averageAccuracy >= INCREASE_THRESHOLD) {
       difficultyAdjustment = 'increase';
-    } else if (averageAccuracy < 60) {
+    } else if (averageAccuracy < DECREASE_THRESHOLD) {
       difficultyAdjustment = 'decrease';
     }
   }

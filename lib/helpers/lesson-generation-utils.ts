@@ -28,7 +28,7 @@ export const generateIntelligentMockPlan = (
 
   // Generate lessons with intelligent prioritization
   for (let i = 0; i < lessonCount && i < lessonPriorities.length; i++) {
-    const { type, priority, reason } = lessonPriorities[i];
+    const { type, reason } = lessonPriorities[i];
     
     const lesson: import('../store/lesson-store').Lesson = {
       id: (i + 1).toString(),
@@ -36,17 +36,18 @@ export const generateIntelligentMockPlan = (
       title: generateLessonTitle(type, onboardingData.learningGoal, spacedRepetitionData, reason),
       description: generateLessonDescription(type, onboardingData.languageLevel, reason),
       xpReward: 0,
-      rewardableXP: calculateRewardableXP(type, onboardingData.languageLevel, priority),
+      rewardableXP: getRewardableXP(type),
       completed: false,
       locked: false,
     };
 
     // Add lesson-specific properties
     if (type === 'word_pairs') {
+      const DEFAULT_WORD_PAIRS_TOTAL_SETS = 10;
       const wordPairLesson = lesson as any;
-      wordPairLesson.totalSets = 3;
+      wordPairLesson.totalSets = DEFAULT_WORD_PAIRS_TOTAL_SETS;
       wordPairLesson.completedSets = 0;
-      wordPairLesson.setBestScores = Array(3).fill(0);
+      wordPairLesson.setBestScores = Array(DEFAULT_WORD_PAIRS_TOTAL_SETS).fill(0);
     }
 
     lessons.push(lesson);
@@ -180,7 +181,7 @@ export const generateLessonDescription = (type: string, languageLevel: string, r
 
 
 
-export const calculateRewardableXP = (type: string, languageLevel: string, priority?: number): number => {
+export const getRewardableXP = (type: string): number => {
   // Calculate maximum potential XP based on game mechanics analysis
   const baseRewardableXp = {
     vocabulary: 840, // 10 words × 84 XP max (50 base + 20 time bonus + hard difficulty multiplier)
@@ -192,11 +193,7 @@ export const calculateRewardableXP = (type: string, languageLevel: string, prior
     word_pairs: 850 // 10 sets × 8 pairs × 10 XP + 50 time bonus = 850 XP max
   };
   
-  const levelMultiplier = languageLevel === 'beginner' ? 0.8 : 
-                         languageLevel === 'advanced' ? 1.2 : 1.0;
-  
-  // Priority-based XP bonus (higher priority = more potential XP)
-  const priorityMultiplier = priority ? Math.min(1.5, 1 + (priority - 50) / 100) : 1.0;
-  
-  return Math.round((baseRewardableXp[type as keyof typeof baseRewardableXp] || 150) * levelMultiplier * priorityMultiplier);
+  // Return the base (hard maximum) XP for the lesson type.
+  const maxXp = baseRewardableXp[type as keyof typeof baseRewardableXp] || 150;
+  return maxXp;
 };
