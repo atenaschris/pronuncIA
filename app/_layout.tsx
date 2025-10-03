@@ -3,6 +3,8 @@ import { StatusBar } from 'expo-status-bar';
 import * as React from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppState } from 'react-native';
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 
 import { PortalProvider } from '@/components/ui/portal';
 import { RNPThemeProvider } from '@/components/ui/RNPThemeProvider';
@@ -13,6 +15,18 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
+
+// Create a single QueryClient instance for the app
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 0,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+    },
+  },
+});
 
 function RootNavigator() {
   const isComplete = useOnboardingStore((state) => state.isComplete);
@@ -49,6 +63,14 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
+  // Integrate React Native AppState with React Query's focus manager
+  React.useEffect(() => {
+    const subscription = AppState.addEventListener('change', (status) => {
+      focusManager.setFocused(status === 'active');
+    });
+    return () => subscription.remove();
+  }, []);
+
   if (!loaded) {
     return null;
   }
@@ -62,13 +84,15 @@ export default function RootLayout() {
   };
 
   return (
-    <RNPThemeProvider>
-      <SafeAreaProvider style={SafeAreaProviderStyles.container}>
-        <PortalProvider>
-          <RootNavigator />
-          <StatusBar style="auto" />
-        </PortalProvider>
-      </SafeAreaProvider>
-    </RNPThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <RNPThemeProvider>
+        <SafeAreaProvider style={SafeAreaProviderStyles.container}>
+          <PortalProvider>
+            <RootNavigator />
+            <StatusBar style="auto" />
+          </PortalProvider>
+        </SafeAreaProvider>
+      </RNPThemeProvider>
+    </QueryClientProvider>
   );
 }

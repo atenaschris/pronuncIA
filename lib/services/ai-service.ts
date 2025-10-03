@@ -6,10 +6,10 @@ import {
   WORD_PAIRS_SET_KEYS,
 } from "../constants/constants";
 import { desiredTargetSoundsForSetKey, mapPronunciationTokensToSetKeys } from "../helpers/sound-mapping-utils";
-import { getDailyPlanSystemPrompt, getVocabularyWordsSystemPrompt, getWordPairsSystemPrompt } from "./prompt-templates";
 import { DailyPlan } from "../store/lesson-store";
 import { VocabularyWord } from "../types/vocabulary";
 import { WordPair } from "../types/word-pairs";
+import { getDailyPlanSystemPrompt, getVocabularyWordsSystemPrompt, getWordPairsSystemPrompt } from "./prompt-templates";
 
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -55,9 +55,9 @@ class AIService {
         { role: 'system', content: getDailyPlanSystemPrompt() },
         { role: 'user', content: prompt }
       ];
-/*       if (messages.length) {
+      if (messages.length) {
         throw new Error('Trying the fallback intelligent fallback');
-      } */
+      }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -70,6 +70,8 @@ class AIService {
           messages,
           max_tokens: this.config.maxTokens,
           temperature: this.config.temperature,
+          // Force JSON-only response to reduce narration/formatting drift
+          response_format: { type: 'json_object' },
         }),
       });
 
@@ -378,7 +380,9 @@ class AIService {
         }
       }
 
-      if (!wordPairsData || typeof wordPairsData !== 'object' || !this.validateWordPairsSets(wordPairsData)) {
+      // Strictly validate schema shape and counts; no sanitization/mutation
+      if (!this.validateWordPairsSets(wordPairsData) ||
+          !this.validateWordPairsStructure(wordPairsData, setsCount, pairsPerSet)) {
         throw new Error('Invalid word pairs format received from AI');
       }
 
@@ -417,6 +421,41 @@ class AIService {
       Array.isArray(set) && this.validateWordPairs(set)
     );
   }
+
+  // Enforce exact keys, counts, and single-token constraints without mutating content
+  private validateWordPairsStructure(
+    data: Record<string, Array<{ english: string; translation: string }>>,
+    setsCount: number,
+    pairsPerSet: number
+  ): boolean {
+    const expectedKeys = Array.from({ length: setsCount }, (_, i) => `set${i + 1}`);
+    const keys = Object.keys(data).sort();
+    const expectedSorted = [...expectedKeys].sort();
+    // Keys must match exactly set1..setN
+    if (keys.length !== expectedSorted.length || keys.some((k, i) => k !== expectedSorted[i])) {
+      return false;
+    }
+
+    // Each set must contain exactly pairsPerSet items; each item must be single-token strings
+    const isSingleToken = (s: string) => {
+      const t = (s || '').trim();
+      return t.length > 0 && !/\s/.test(t);
+    };
+
+    for (const key of expectedKeys) {
+      const set = data[key];
+      if (!Array.isArray(set) || set.length !== pairsPerSet) return false;
+      for (const p of set) {
+        if (typeof p !== 'object' || p === null) return false;
+        if (typeof p.english !== 'string' || typeof p.translation !== 'string') return false;
+        if (!isSingleToken(p.english) || !isSingleToken(p.translation)) return false;
+      }
+    }
+
+    return true;
+  }
+
+  // (Normalization removed for strict prompting approach)
 
   // Fallback methods
   private getFallbackVocabularyWords(

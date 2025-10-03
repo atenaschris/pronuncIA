@@ -16,6 +16,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LessonType, useLessonStore } from '../../lib/store/lesson-store';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
+import { useWordPairsQuery } from '@/lib/hooks/use-word-pairs-query';
+import { ActivityIndicator, Button } from 'react-native-paper';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -46,7 +48,6 @@ export default function WordPairsScreen() {
     resumeSetTimer,
     setIsReplayingForErrors,
     setIsGoingBack,
-    generateWordPairsContent,
   } = useLessonStore();
 
   // Initialize the lesson session state if needed
@@ -85,9 +86,10 @@ export default function WordPairsScreen() {
   // Portal Modal management
   const { visible: modalVisible, content: modalContent, modalId, showModal, hideModal } = usePortalModalStore();
 
-  // State for dynamic word pairs content
-  const [dynamicWordPairs, setDynamicWordPairs] = React.useState<Record<string, Array<{ english: string; translation: string }>>>({});
-  const [isLoadingContent, setIsLoadingContent] = React.useState(false);
+  // Query dynamic word pairs content via React Query
+  const { data: dynamicWordPairs = {}, isLoading: isLoadingContent, isError, error, refetch } = useWordPairsQuery(lessonId as string | undefined);
+  // Map translation card index -> original pair index to handle duplicate words/translations
+  const translationPairIndicesRef = useRef<number[]>([]);
 
   // Calculate total sets from dynamic content
   const totalSets = useMemo(() => {
@@ -178,43 +180,32 @@ export default function WordPairsScreen() {
     return translationAnimatedStyles[index] || translationAnimatedStyles[0]; // Default to first if out of bounds
   }, [translationAnimatedStyles]);
 
+  // Note: Avoid early returns to maintain consistent hook order
+
   // Memoize current word pairs to avoid redundant calculations
   const currentWordPairs = useMemo(() => {
     // Get the current set's word pairs based on currentSetIndex
     const setKey = `set${currentSetIndex + 1}`;
-    return dynamicWordPairs[setKey] || [];
+    return dynamicWordPairs?.[setKey] ?? ([] as Array<{ english: string; translation: string }>);
   }, [dynamicWordPairs, currentSetIndex]);
 
   const initializeGame = useCallback(async () => {
     if (!lessonId) return;
-    
-    // Generate dynamic content if not already loaded
-    if (Object.keys(dynamicWordPairs).length === 0 && !isLoadingContent) {
-      setIsLoadingContent(true);
-      try {
-        const generatedPairs = await generateWordPairsContent(lessonId || 'word-pairs');
-        setDynamicWordPairs(generatedPairs);
-      } catch (error) {
-        console.error('Failed to generate word pairs content:', error);
-        // Fallback to empty object - could show error message to user
-        setDynamicWordPairs({});
-      } finally {
-        setIsLoadingContent(false);
-      }
-      return; // Exit early, useEffect will re-run when dynamicWordPairs updates
-    }
-
     if (currentWordPairs.length === 0) return; // Don't initialize if no content
 
     // Extract and shuffle words
     const english = currentWordPairs.map(pair => pair.english);
-    const translations = currentWordPairs.map(pair => pair.translation);
+    const translationsWithIndex = currentWordPairs.map((pair, idx) => ({ text: pair.translation, pairIndex: idx }));
 
-    // Shuffle the translations
-    const shuffledTranslations = [...translations].sort(() => Math.random() - 0.5);
+    // Shuffle translations while maintaining mapping to their original pair index
+    const shuffled = [...translationsWithIndex].sort(() => Math.random() - 0.5);
+    const shuffledTranslations = shuffled.map(s => s.text);
+    const shuffledPairIndices = shuffled.map(s => s.pairIndex);
 
     setEnglishWords(lessonId, english);
     setTranslationWords(lessonId, shuffledTranslations);
+    // Track which translation card corresponds to which original pair index
+    translationPairIndicesRef.current = shuffledPairIndices;
     setSelectedPair(lessonId, null);
     setMatchedPairs(lessonId, []);
     setScore(lessonId, 0);
@@ -230,14 +221,14 @@ export default function WordPairsScreen() {
 
     // Start the timer for this set
     startSetTimer(lessonId);
-  }, [lessonId, currentSetIndex, currentWordPairs, dynamicWordPairs, isLoadingContent, generateWordPairsContent, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer, pauseSetTimer, resumeSetTimer]);
+  }, [lessonId, currentSetIndex, currentWordPairs, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer]);
 
-  // Initialize the game
+  // Initialize the game when set index changes or data becomes available
   useEffect(() => {
-    if (lessonId) {
-      initializeGame();
-    }
-  }, [currentSetIndex, lessonId, initializeGame, dynamicWordPairs]); // Re-initialize when currentSetIndex, lessonId, or dynamicWordPairs changes
+    if (!lessonId) return;
+    if (currentWordPairs.length === 0) return;
+    initializeGame();
+  }, [lessonId, currentSetIndex, currentWordPairs.length, initializeGame]);
 
   // Reset replay state when set index changes (unless we're in the middle of a replay)
   useEffect(() => {
@@ -288,12 +279,10 @@ export default function WordPairsScreen() {
 
   // Helper function to check if a translation word is matched
   const isTranslationMatched = useCallback((translationIndex: number) => {
-    return matchedPairs?.some(englishIndex => {
-      const englishWord = englishWords[englishIndex];
-      const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation;
-      return correctTranslation === translationWords[translationIndex];
-    }) ?? false;
-  }, [matchedPairs, englishWords, translationWords, currentWordPairs]);
+    const pairIndex = translationPairIndicesRef.current?.[translationIndex];
+    if (pairIndex == null) return false;
+    return matchedPairs?.includes(pairIndex) ?? false;
+  }, [matchedPairs]);
 
   // Helper function to format time display
   const formatTime = useCallback((seconds: number) => {
@@ -350,14 +339,13 @@ export default function WordPairsScreen() {
     // Check if the pair matches
     const englishIndex = column === 'english' ? index : selectedPair.index;
     const translationIndex = column === 'translation' ? index : selectedPair.index;
-
     const englishWord = englishWords[englishIndex];
     const translationWord = translationWords[translationIndex];
+    const selectedTranslationPairIndex = translationPairIndicesRef.current?.[translationIndex];
+    const correctPairIndex = englishIndex; // englishWords indexes align with currentWordPairs indexes
 
-    // Find if this is a correct match
-    const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation;
-
-    if (translationWord === correctTranslation) {
+    // Match if the selected translation card corresponds to the same original pair index
+    if (selectedTranslationPairIndex === correctPairIndex) {
       // Correct match
       HapticSuccess?.();
       correctSound?.replayAsync()
@@ -624,7 +612,7 @@ export default function WordPairsScreen() {
       incorrectSound?.replayAsync()
 
       // Track detailed error information
-      const correctTranslation = currentWordPairs.find(pair => pair.english === englishWord)?.translation || '';
+      const correctTranslation = currentWordPairs[englishIndex]?.translation || '';
       addErrorDetail(lessonId, englishWord, translationWord, currentSetIndex, correctTranslation);
 
       setIncorrectPair(lessonId, {
@@ -775,135 +763,167 @@ export default function WordPairsScreen() {
   return (
     <>
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <OnboardingTitle>Match the Pairs</OnboardingTitle>
-          <OnboardingSubtitle>Tap the matching word pairs</OnboardingSubtitle>
-          <View style={styles.scoreContainer}>
-            <View style={styles.scoreWithIcon}>
-              <MaterialCommunityIcons
-                name="trophy"
-                size={30}
-                color={theme.colors.warning}
-                style={styles.scoreIcon}
-              />
-              <RNPText variant="titleLarge" style={styles.scoreText}>{score}</RNPText>
+        {isLoadingContent ? (
+          <>
+            <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+              <OnboardingTitle>Word Pairs</OnboardingTitle>
+              <OnboardingSubtitle>Getting your word pairs ready…</OnboardingSubtitle>
             </View>
-            <TouchableOpacity
-              style={styles.pauseButton}
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size={48} animating color={theme.colors.primary} />
+              <RNPText style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>
+                Generating content — this may take a moment.
+              </RNPText>
+            </View>
+          </>
+        ) : isError ? (
+          <>
+            <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+              <OnboardingTitle>Word Pairs</OnboardingTitle>
+              <OnboardingSubtitle>We couldn’t load your content</OnboardingSubtitle>
+            </View>
+            <View style={styles.loadingContainer}>
+              <RNPText style={{ marginBottom: 16, color: theme.colors.error }}>
+                {String((error as Error)?.message ?? 'Unknown error')}
+              </RNPText>
+              <Button mode="contained" onPress={() => refetch()}>
+                Retry
+              </Button>
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.header}>
+              <OnboardingTitle>Match the Pairs</OnboardingTitle>
+              <OnboardingSubtitle>Tap the matching word pairs</OnboardingSubtitle>
+              <View style={styles.scoreContainer}>
+                <View style={styles.scoreWithIcon}>
+                  <MaterialCommunityIcons
+                    name="trophy"
+                    size={30}
+                    color={theme.colors.warning}
+                    style={styles.scoreIcon}
+                  />
+                  <RNPText variant="titleLarge" style={styles.scoreText}>{score}</RNPText>
+                </View>
+                <TouchableOpacity
+                  style={styles.pauseButton}
+                  onPress={() => {
+                    if (!lessonId) return;
+                    if (isPaused) {
+                      resumeSetTimer(lessonId);
+                    } else {
+                      // Check if user has reached pause limit
+                      if (pauseCount >= 2) {
+                        showModal({
+                          title: "Pause Limit Reached",
+                          message: "You've already used your 2 pause attempts for this set! ⏸️\n\nTo prevent abuse and maintain fair gameplay, you can only pause twice per set.\n\nKeep playing to complete this set!",
+                          buttons: [
+                            {
+                              text: "Got it!",
+                              onPress: () => {
+                                hideModal();
+                              }
+                            }
+                          ]
+                        });
+                      } else {
+                        pauseSetTimer(lessonId);
+                      }
+                    }
+                  }}
+                  disabled={!currentSetStartTime}
+                >
+                  <RNPText variant="titleLarge" style={styles.pauseButtonText}>
+                    {isPaused ? '▶️ Resume' : '⏸️ Pause'}
+                  </RNPText>
+                </TouchableOpacity>
+                <View style={styles.timerWithIcon}>
+                  <MaterialCommunityIcons
+                    name={isPaused ? "pause-circle" : "timer-sand"}
+                    size={30}
+                    color={isPaused ? theme.colors.error : theme.colors.primary}
+                    style={styles.timerIcon}
+                  />
+                  <RNPText variant="titleMedium" style={[styles.timerText, ...(isPaused ? [styles.pausedTimerText] : [])]}>
+                    {isPaused ? '' : formatTime(currentSetElapsedTime)}
+                  </RNPText>
+                </View>
+              </View>
+            </View>
+            <ProgressStepper
+              totalSteps={totalSets}
+              currentStep={currentSetIndex}
+              completedSteps={completedSteps!}
+              stepsWithErrors={stepsWithErrors}
+              size="medium"
+              isReplaying={isReplayingForErrors}
+              isGoingBack={isGoingBack}
+            />
+
+            <View style={styles.gameContainer}>
+              <View style={styles.column}>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {englishWords.map((word, index) => (
+                    <AnimatedTouchable
+                      key={`english-${index}`}
+                      style={[getWordCellStyle(index, 'english'), getEnglishAnimatedStyle(index)]}
+                      onPress={() => handleWordPress(index, 'english')}
+                      disabled={isMatched(index)}
+                    >
+                      <RNPText style={getWordTextStyle(index, 'english')}>{word}</RNPText>
+                    </AnimatedTouchable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.column}>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {translationWords.map((word, index) => (
+                    <AnimatedTouchable
+                      key={`translation-${index}`}
+                      style={[getWordCellStyle(index, 'translation'), getTranslationAnimatedStyle(index)]}
+                      onPress={() => handleWordPress(index, 'translation')}
+                      disabled={isTranslationMatched(index)}
+                    >
+                      <RNPText style={getWordTextStyle(index, 'translation')}>{word}</RNPText>
+                    </AnimatedTouchable>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+            <NextButton
               onPress={() => {
-                if (!lessonId) return;
-                if (isPaused) {
-                  resumeSetTimer(lessonId);
-                } else {
-                  // Check if user has reached pause limit
-                  if (pauseCount >= 2) {
-                    showModal({
-                      title: "Pause Limit Reached",
-                      message: "You've already used your 2 pause attempts for this set! ⏸️\n\nTo prevent abuse and maintain fair gameplay, you can only pause twice per set.\n\nKeep playing to complete this set!",
-                      buttons: [
-                        {
-                          text: "Got it!",
-                          onPress: () => {
-                            hideModal();
-                          }
-                        }
-                      ]
-                    });
-                  } else {
-                    pauseSetTimer(lessonId);
-                  }
-                }
+                showModal({
+                  title: "Reset Game?",
+                  message: "Are you sure you want to reset the entire word pairs game? 🔄\n\nThis will:\n• Reset all your progress in this lesson\n• Clear your current score\n• Start from the beginning\n\nThis action cannot be undone!",
+                  buttons: [
+                    {
+                      text: "Cancel",
+                      style: "cancel" as const,
+                      onPress: () => {
+                        hideModal();
+                      }
+                    },
+                    {
+                      text: "Reset Game",
+                      onPress: () => {
+                        hideModal();
+                        setTimeout(() => {
+                          resetWordPairsLesson(lessonId!);
+                          // Force re-initialization even if currentSetIndex was already 0
+                          initializeGame();
+                        }, 100);
+                      }
+                    }
+                  ]
+                });
               }}
-              disabled={!currentSetStartTime}
             >
-              <RNPText variant="titleLarge" style={styles.pauseButtonText}>
-                {isPaused ? '▶️ Resume' : '⏸️ Pause'}
-              </RNPText>
-            </TouchableOpacity>
-            <View style={styles.timerWithIcon}>
-              <MaterialCommunityIcons
-                name={isPaused ? "pause-circle" : "timer-sand"}
-                size={30}
-                color={isPaused ? theme.colors.error : theme.colors.primary}
-                style={styles.timerIcon}
-              />
-              <RNPText variant="titleMedium" style={[styles.timerText, ...(isPaused ? [styles.pausedTimerText] : [])]}>
-                {isPaused ? '' : formatTime(currentSetElapsedTime)}
-              </RNPText>
-            </View>
-          </View>
-        </View>
-        <ProgressStepper
-          totalSteps={totalSets}
-          currentStep={currentSetIndex}
-          completedSteps={completedSteps!}
-          stepsWithErrors={stepsWithErrors}
-          size="medium"
-          isReplaying={isReplayingForErrors}
-          isGoingBack={isGoingBack}
-        />
-
-        <View style={styles.gameContainer}>
-          <View style={styles.column}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {englishWords.map((word, index) => (
-                <AnimatedTouchable
-                  key={`english-${index}`}
-                  style={[getWordCellStyle(index, 'english'), getEnglishAnimatedStyle(index)]}
-                  onPress={() => handleWordPress(index, 'english')}
-                  disabled={isMatched(index)}
-                >
-                  <RNPText style={getWordTextStyle(index, 'english')}>{word}</RNPText>
-                </AnimatedTouchable>
-              ))}
-            </ScrollView>
-          </View>
-
-          <View style={styles.column}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {translationWords.map((word, index) => (
-                <AnimatedTouchable
-                  key={`translation-${index}`}
-                  style={[getWordCellStyle(index, 'translation'), getTranslationAnimatedStyle(index)]}
-                  onPress={() => handleWordPress(index, 'translation')}
-                  disabled={isTranslationMatched(index)}
-                >
-                  <RNPText style={getWordTextStyle(index, 'translation')}>{word}</RNPText>
-                </AnimatedTouchable>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-        <NextButton
-          onPress={() => {
-            showModal({
-              title: "Reset Game?",
-              message: "Are you sure you want to reset the entire word pairs game? 🔄\n\nThis will:\n• Reset all your progress in this lesson\n• Clear your current score\n• Start from the beginning\n\nThis action cannot be undone!",
-              buttons: [
-                {
-                  text: "Cancel",
-                  style: "cancel" as const,
-                  onPress: () => {
-                    hideModal();
-                  }
-                },
-                {
-                  text: "Reset Game",
-                  onPress: () => {
-                    hideModal();
-                    setTimeout(() => {
-                      resetWordPairsLesson(lessonId!);
-                      // Force re-initialization even if currentSetIndex was already 0
-                      initializeGame();
-                    }, 100);
-                  }
-                }
-              ]
-            });
-          }}
-        >
-          <RNPText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNPText>
-        </NextButton>
+              <RNPText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNPText>
+            </NextButton>
+          </>
+        )}
       </SafeAreaView>
       <PortalModal
         visible={modalVisible}
@@ -922,6 +942,12 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     alignItems: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   scoreContainer: {
     flexDirection: 'row',

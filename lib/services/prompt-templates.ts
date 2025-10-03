@@ -148,6 +148,10 @@ CRITICAL INSTRUCTIONS:
 2. The response must start with { and end with }
 3. Do not wrap the JSON in \`\`\`json or any other formatting
 4. Respond with ONLY the JSON object - NO OTHER TEXT OR FORMATTING
+5. The top-level MUST be an object containing EXACTLY these keys: set1, set2, ..., set${setsCount}
+6. Each set MUST be an array of EXACTLY ${pairsPerSet} items
+7. Each item MUST be an object with EXACTLY two string fields: english and translation
+8. Both english and translation MUST be single tokens: NO spaces, NO hyphens, NO underscores, NO punctuation
 
 REQUIREMENTS:
 - Target language: ${targetLanguage}
@@ -173,7 +177,8 @@ SPACED REPETITION NEEDS:
 ` : ''}
 
 Create word pairs that help users learn ${targetLanguage} vocabulary relevant to their learning goal.
-Consider the user's proficiency level when selecting appropriate words and phrases.
+Consider the user's proficiency level when selecting appropriate words.
+STRICT REQUIREMENT: Use single words only for both fields. No multi-word phrases, collocations, compound words, or sentences. Absolutely no spaces, hyphens, underscores, or punctuation.
 ${performanceMetrics?.strugglingAreas.includes('word_pairs') ? 'Focus on simpler, more common word pairs as user struggles with this lesson type.' : ''}
 ${spacedRepetitionData?.difficultyAdjustment === 'increase' ? 'Include more challenging vocabulary and phrases as user is performing well.' : ''}
 ${spacedRepetitionData?.difficultyAdjustment === 'decrease' ? 'Include basic, high-frequency words to build foundation.' : ''}
@@ -182,7 +187,7 @@ ${spacedRepetitionData?.vocabularyReview.length ? `Include these words that need
 Respond with valid JSON object matching this exact structure:
 {
   "set1": [
-    {"english": "word_or_phrase_in_target_language", "translation": "translation_in_native_language"},
+    {"english": "single_word_in_target_language", "translation": "single_word_in_native_language"},
     ...
   ],
   "set2": [...],
@@ -191,5 +196,6 @@ Respond with valid JSON object matching this exact structure:
 
 Note: Despite the field name "english", use the target language (${targetLanguage}) for the first field.
 Make the pairs relevant to the user's learning goal, appropriate for their level, and adaptive to their performance.
+Do not include sentences, phrases, or examples — only single-word pairs.
 
 RESPOND WITH ONLY THE JSON OBJECT - NO OTHER TEXT OR FORMATTING.`;

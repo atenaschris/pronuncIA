@@ -352,6 +352,8 @@ export const useLessonStore = create<LessonState>()(persist(
       try {
         const { languageLevel, nativeLanguage, targetLanguage, learningGoal, timeCommitment, learningStyle } = useOnboardingStore.getState();
         const { currentStreak, totalXp, lastActivityDate } = get();
+         // Centralized orchestration via Planning Service
+        const onboardingPayload = { languageLevel, nativeLanguage, learningGoal, timeCommitment, learningStyle, targetLanguage };
         const stateForMetrics = get();
         
         // Calculate user performance metrics for AI context
@@ -375,8 +377,6 @@ export const useLessonStore = create<LessonState>()(persist(
 
         console.log('Sending enhanced prompt to AI Service:', prompt);
         
-        // Centralized orchestration via Planning Service
-        const onboardingPayload = { languageLevel, nativeLanguage, learningGoal, timeCommitment, learningStyle, targetLanguage };
         const plan = await generateDailyPlanWithFallback(
           prompt,
           onboardingPayload,
