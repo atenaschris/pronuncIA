@@ -246,6 +246,480 @@ export const WORD_PAIR_SETS = {
 
 export const WORD_PAIRS_SET_KEYS = Object.keys(WORD_PAIR_SETS) as (keyof typeof WORD_PAIR_SETS)[];
 
+// Curated multilingual fallback pools for common single-token words.
+// Keys use pattern `${targetLanguage}-${nativeLanguage}`.
+// The `english` field carries the TARGET language word per app convention.
+export const FALLBACK_WORD_PAIRS_POOLS_LEGACY: Record<string, Array<{ english: string; translation: string }>> = {
+  // Spanish → Italian
+  'es-it': [
+    { english: 'hola', translation: 'ciao' },
+    { english: 'adiós', translation: 'arrivederci' },
+    { english: 'sí', translation: 'sì' },
+    { english: 'no', translation: 'no' },
+    { english: 'gracias', translation: 'grazie' },
+    { english: 'agua', translation: 'acqua' },
+    { english: 'casa', translation: 'casa' },
+    { english: 'libro', translation: 'libro' },
+    { english: 'sol', translation: 'sole' },
+    { english: 'luna', translation: 'luna' },
+    { english: 'amigo', translation: 'amico' },
+    { english: 'familia', translation: 'famiglia' },
+    { english: 'comida', translation: 'cibo' },
+    { english: 'bebida', translation: 'bevanda' },
+    { english: 'tiempo', translation: 'tempo' },
+    { english: 'trabajo', translation: 'lavoro' },
+    { english: 'día', translation: 'giorno' },
+    { english: 'noche', translation: 'notte' },
+    { english: 'mañana', translation: 'mattina' },
+    { english: 'tarde', translation: 'pomeriggio' },
+    { english: 'año', translation: 'anno' },
+    { english: 'semana', translation: 'settimana' },
+    { english: 'rápido', translation: 'veloce' },
+    { english: 'lento', translation: 'lento' },
+  ],
+
+  // Italian → Spanish
+  'it-es': [
+    { english: 'ciao', translation: 'hola' },
+    { english: 'arrivederci', translation: 'adiós' },
+    { english: 'sì', translation: 'sí' },
+    { english: 'no', translation: 'no' },
+    { english: 'grazie', translation: 'gracias' },
+    { english: 'acqua', translation: 'agua' },
+    { english: 'casa', translation: 'casa' },
+    { english: 'libro', translation: 'libro' },
+    { english: 'sole', translation: 'sol' },
+    { english: 'luna', translation: 'luna' },
+    { english: 'amico', translation: 'amigo' },
+    { english: 'famiglia', translation: 'familia' },
+    { english: 'cibo', translation: 'comida' },
+    { english: 'bevanda', translation: 'bebida' },
+    { english: 'tempo', translation: 'tiempo' },
+    { english: 'lavoro', translation: 'trabajo' },
+    { english: 'giorno', translation: 'día' },
+    { english: 'notte', translation: 'noche' },
+    { english: 'mattina', translation: 'mañana' },
+    { english: 'pomeriggio', translation: 'tarde' },
+    { english: 'anno', translation: 'año' },
+    { english: 'settimana', translation: 'semana' },
+    { english: 'veloce', translation: 'rápido' },
+    { english: 'lento', translation: 'lento' },
+  ],
+
+  // English → Spanish
+  'en-es': [
+    { english: 'hello', translation: 'hola' },
+    { english: 'goodbye', translation: 'adiós' },
+    { english: 'yes', translation: 'sí' },
+    { english: 'no', translation: 'no' },
+    { english: 'thanks', translation: 'gracias' },
+    { english: 'water', translation: 'agua' },
+    { english: 'house', translation: 'casa' },
+    { english: 'book', translation: 'libro' },
+    { english: 'sun', translation: 'sol' },
+    { english: 'moon', translation: 'luna' },
+    { english: 'friend', translation: 'amigo' },
+    { english: 'family', translation: 'familia' },
+    { english: 'food', translation: 'comida' },
+    { english: 'drink', translation: 'bebida' },
+    { english: 'time', translation: 'tiempo' },
+    { english: 'work', translation: 'trabajo' },
+    { english: 'day', translation: 'día' },
+    { english: 'night', translation: 'noche' },
+    { english: 'morning', translation: 'mañana' },
+    { english: 'afternoon', translation: 'tarde' },
+    { english: 'year', translation: 'año' },
+    { english: 'week', translation: 'semana' },
+    { english: 'fast', translation: 'rápido' },
+    { english: 'slow', translation: 'lento' },
+  ],
+
+  // Spanish → English
+  'es-en': [
+    { english: 'hola', translation: 'hello' },
+    { english: 'adiós', translation: 'goodbye' },
+    { english: 'sí', translation: 'yes' },
+    { english: 'no', translation: 'no' },
+    { english: 'gracias', translation: 'thanks' },
+    { english: 'agua', translation: 'water' },
+    { english: 'casa', translation: 'house' },
+    { english: 'libro', translation: 'book' },
+    { english: 'sol', translation: 'sun' },
+    { english: 'luna', translation: 'moon' },
+    { english: 'amigo', translation: 'friend' },
+    { english: 'familia', translation: 'family' },
+    { english: 'comida', translation: 'food' },
+    { english: 'bebida', translation: 'drink' },
+    { english: 'tiempo', translation: 'time' },
+    { english: 'trabajo', translation: 'work' },
+    { english: 'día', translation: 'day' },
+    { english: 'noche', translation: 'night' },
+    { english: 'mañana', translation: 'morning' },
+    { english: 'tarde', translation: 'afternoon' },
+    { english: 'año', translation: 'year' },
+    { english: 'semana', translation: 'week' },
+    { english: 'rápido', translation: 'fast' },
+    { english: 'lento', translation: 'slow' },
+  ],
+
+  // English → Italian
+  'en-it': [
+    { english: 'hello', translation: 'ciao' },
+    { english: 'goodbye', translation: 'arrivederci' },
+    { english: 'yes', translation: 'sì' },
+    { english: 'no', translation: 'no' },
+    { english: 'thanks', translation: 'grazie' },
+    { english: 'water', translation: 'acqua' },
+    { english: 'house', translation: 'casa' },
+    { english: 'book', translation: 'libro' },
+    { english: 'sun', translation: 'sole' },
+    { english: 'moon', translation: 'luna' },
+    { english: 'friend', translation: 'amico' },
+    { english: 'family', translation: 'famiglia' },
+    { english: 'food', translation: 'cibo' },
+    { english: 'drink', translation: 'bevanda' },
+    { english: 'time', translation: 'tempo' },
+    { english: 'work', translation: 'lavoro' },
+    { english: 'day', translation: 'giorno' },
+    { english: 'night', translation: 'notte' },
+    { english: 'morning', translation: 'mattina' },
+    { english: 'afternoon', translation: 'pomeriggio' },
+    { english: 'year', translation: 'anno' },
+    { english: 'week', translation: 'settimana' },
+    { english: 'fast', translation: 'veloce' },
+    { english: 'slow', translation: 'lento' },
+  ],
+
+  // Italian → English
+  'it-en': [
+    { english: 'ciao', translation: 'hello' },
+    { english: 'arrivederci', translation: 'goodbye' },
+    { english: 'sì', translation: 'yes' },
+    { english: 'no', translation: 'no' },
+    { english: 'grazie', translation: 'thanks' },
+    { english: 'acqua', translation: 'water' },
+    { english: 'casa', translation: 'house' },
+    { english: 'libro', translation: 'book' },
+    { english: 'sole', translation: 'sun' },
+    { english: 'luna', translation: 'moon' },
+    { english: 'amico', translation: 'friend' },
+    { english: 'famiglia', translation: 'family' },
+    { english: 'cibo', translation: 'food' },
+    { english: 'bevanda', translation: 'drink' },
+    { english: 'tempo', translation: 'time' },
+    { english: 'lavoro', translation: 'work' },
+    { english: 'giorno', translation: 'day' },
+    { english: 'notte', translation: 'night' },
+    { english: 'mattina', translation: 'morning' },
+    { english: 'pomeriggio', translation: 'afternoon' },
+    { english: 'anno', translation: 'year' },
+    { english: 'settimana', translation: 'week' },
+    { english: 'veloce', translation: 'fast' },
+    { english: 'lento', translation: 'slow' },
+  ],
+};
+
+// Unified lexicon of common single-token words across languages, aligned by concept.
+const FALLBACK_LEXICON: Record<string, string[]> = {
+  en: [
+    'hello','goodbye','yes','no','thanks','water','house','book','sun','moon','friend','family','food','drink','time','work','day','night','morning','afternoon','year','week','fast','slow','cat','dog','big','small','hot','cold','good','bad',
+    // numbers 1-20
+    'one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty',
+    // colors
+    'black','white','red','blue','green','yellow','orange','purple','brown','pink','gray',
+    // animals
+    'bird','fish','cow','horse','pig','sheep','lion','tiger','bear','wolf',
+    // verbs
+    'run','walk','eat','drink','sleep','read','write','speak','listen','look'
+    ,
+    // travel domain
+    'hotel','airport','ticket','train','bus','passport','visa','map','city','taxi','station','luggage',
+    // work domain
+    'meeting','email','project','report','boss','client','contract','salary','office','phone','deadline','task',
+    // exam domain
+    'essay','grammar','topic','score','test','listening','reading','writing','speaking','exam',
+    // school domain
+    'school','student','teacher','class','subject','grade','desk','pen','paper','library','university',
+    // health domain
+    'doctor','hospital','medicine','pill','clinic','pain','fever','cough','injury','blood','health','nurse',
+    // shopping domain
+    'shop','market','store','price','money','cash','card','receipt','discount','sale','buy','sell'
+  ],
+  es: [
+    'hola','adiós','sí','no','gracias','agua','casa','libro','sol','luna','amigo','familia','comida','bebida','tiempo','trabajo','día','noche','mañana','tarde','año','semana','rápido','lento','gato','perro','grande','pequeño','caliente','frío','bueno','malo',
+    // numbers 1-20
+    'uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte',
+    // colors
+    'negro','blanco','rojo','azul','verde','amarillo','naranja','morado','marrón','rosa','gris',
+    // animals
+    'pájaro','pez','vaca','caballo','cerdo','oveja','león','tigre','oso','lobo',
+    // verbs
+    'correr','caminar','comer','beber','dormir','leer','escribir','hablar','escuchar','mirar'
+    ,
+    // travel domain
+    'hotel','aeropuerto','billete','tren','autobús','pasaporte','visado','mapa','ciudad','taxi','estación','equipaje',
+    // work domain
+    'reunión','correo','proyecto','informe','jefe','cliente','contrato','salario','oficina','teléfono','plazo','tarea',
+    // exam domain
+    'ensayo','gramática','tema','puntuación','prueba','escucha','lectura','escritura','habla','examen',
+    // school domain
+    'escuela','estudiante','profesor','clase','asignatura','nota','escritorio','bolígrafo','papel','biblioteca','universidad',
+    // health domain
+    'doctor','hospital','medicina','píldora','clínica','dolor','fiebre','tos','lesión','sangre','salud','enfermera',
+    // shopping domain
+    'tienda','mercado','supermercado','precio','dinero','efectivo','tarjeta','recibo','descuento','oferta','comprar','vender'
+  ],
+  fr: [
+    'bonjour','aurevoir','oui','non','merci','eau','maison','livre','soleil','lune','ami','famille','nourriture','boisson','temps','travail','jour','nuit','matin','apresmidi','année','semaine','rapide','lent','chat','chien','grand','petit','chaud','froid','bon','mauvais',
+    // numbers 1-20 (single-token variants)
+    'un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dixsept','dixhuit','dixneuf','vingt',
+    // colors
+    'noir','blanc','rouge','bleu','vert','jaune','orange','violet','marron','rose','gris',
+    // animals
+    'oiseau','poisson','vache','cheval','cochon','mouton','lion','tigre','ours','loup',
+    // verbs
+    'courir','marcher','manger','boire','dormir','lire','écrire','parler','écouter','regarder'
+    ,
+    // travel domain
+    'hôtel','aéroport','billet','train','bus','passeport','visa','carte','ville','taxi','gare','bagage',
+    // work domain
+    'réunion','courriel','projet','rapport','chef','client','contrat','salaire','bureau','téléphone','délai','tâche',
+    // exam domain
+    'essai','grammaire','sujet','score','test','écoute','lecture','écriture','parler','examen',
+    // school domain
+    'école','étudiant','professeur','classe','matière','note','bureau','stylo','papier','bibliothèque','université',
+    // health domain
+    'docteur','hôpital','médecine','pilule','clinique','douleur','fièvre','toux','blessure','sang','santé','infirmière',
+    // shopping domain
+    'magasin','marché','supermarché','prix','argent','espèces','carte','reçu','remise','solde','acheter','vendre'
+  ],
+  de: [
+    'hallo','aufwiedersehen','ja','nein','danke','wasser','haus','buch','sonne','mond','freund','familie','essen','getränk','zeit','arbeit','tag','nacht','morgen','nachmittag','jahr','woche','schnell','langsam','katze','hund','groß','klein','heiß','kalt','gut','schlecht',
+    // numbers 1-20
+    'eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn','elf','zwölf','dreizehn','vierzehn','fünfzehn','sechzehn','siebzehn','achtzehn','neunzehn','zwanzig',
+    // colors
+    'schwarz','weiß','rot','blau','grün','gelb','orange','violett','braun','rosa','grau',
+    // animals
+    'vogel','fisch','kuh','pferd','schwein','schaf','löwe','tiger','bär','wolf',
+    // verbs
+    'laufen','gehen','essen','trinken','schlafen','lesen','schreiben','sprechen','hören','schauen'
+    ,
+    // travel domain
+    'hotel','flughafen','ticket','zug','bus','reisepass','visum','karte','stadt','taxi','bahnhof','gepäck',
+    // work domain
+    'besprechung','email','projekt','bericht','chef','kunde','vertrag','gehalt','büro','telefon','frist','aufgabe',
+    // exam domain
+    'aufsatz','grammatik','thema','punktzahl','test','hören','lesen','schreiben','sprechen','prüfung',
+    // school domain
+    'schule','student','lehrer','klasse','fach','note','schreibtisch','stift','papier','bibliothek','universität',
+    // health domain
+    'arzt','krankenhaus','medizin','pille','klinik','schmerz','fieber','husten','verletzung','blut','gesundheit','krankenschwester',
+    // shopping domain
+    'laden','markt','supermarkt','preis','geld','bar','karte','quittung','rabatt','verkauf','kaufen','verkaufen'
+  ],
+  it: [
+    'ciao','arrivederci','sì','no','grazie','acqua','casa','libro','sole','luna','amico','famiglia','cibo','bevanda','tempo','lavoro','giorno','notte','mattina','pomeriggio','anno','settimana','veloce','lento','gatto','cane','grande','piccolo','caldo','freddo','buono','cattivo',
+    // numbers 1-20
+    'uno','due','tre','quattro','cinque','sei','sette','otto','nove','dieci','undici','dodici','tredici','quattordici','quindici','sedici','diciassette','diciotto','diciannove','venti',
+    // colors
+    'nero','bianco','rosso','blu','verde','giallo','arancione','viola','marrone','rosa','grigio',
+    // animals
+    'uccello','pesce','mucca','cavallo','maiale','pecora','leone','tigre','orso','lupo',
+    // verbs
+    'correre','camminare','mangiare','bere','dormire','leggere','scrivere','parlare','ascoltare','guardare'
+    ,
+    // travel domain
+    'albergo','aeroporto','biglietto','treno','autobus','passaporto','visto','mappa','città','taxi','stazione','bagaglio',
+    // work domain
+    'riunione','email','progetto','rapporto','capo','cliente','contratto','stipendio','ufficio','telefono','scadenza','compito',
+    // exam domain
+    'saggio','grammatica','argomento','punteggio','test','ascolto','lettura','scrittura','parlato','esame',
+    // school domain
+    'scuola','studente','insegnante','classe','materia','voto','scrivania','penna','foglio','biblioteca','università',
+    // health domain
+    'dottore','ospedale','medicina','pillola','clinica','dolore','febbre','tosse','ferita','sangue','salute','infermiere',
+    // shopping domain
+    'negozio','mercato','supermercato','prezzo','denaro','contanti','carta','scontrino','sconto','saldi','comprare','vendere'
+  ],
+  pt: [
+    'olá','adeus','sim','não','obrigado','água','casa','livro','sol','lua','amigo','família','comida','bebida','tempo','trabalho','dia','noite','manhã','tarde','ano','semana','rápido','lento','gato','cão','grande','pequeno','quente','frio','bom','mau',
+    // numbers 1-20
+    'um','dois','três','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove','vinte',
+    // colors
+    'preto','branco','vermelho','azul','verde','amarelo','laranja','roxo','marrom','rosa','cinza',
+    // animals
+    'pássaro','peixe','vaca','cavalo','porco','ovelha','leão','tigre','urso','lobo',
+    // verbs
+    'correr','andar','comer','beber','dormir','ler','escrever','falar','ouvir','olhar'
+    ,
+    // travel domain
+    'hotel','aeroporto','bilhete','trem','ônibus','passaporte','visto','mapa','cidade','táxi','estação','bagagem',
+    // work domain
+    'reunião','email','projeto','relatório','chefe','cliente','contrato','salário','escritório','telefone','prazo','tarefa',
+    // exam domain
+    'redação','gramática','tema','pontuação','teste','escuta','leitura','escrita','fala','exame',
+    // school domain
+    'escola','estudante','professor','classe','disciplina','nota','escrivaninha','caneta','papel','biblioteca','universidade',
+    // health domain
+    'médico','hospital','medicina','pílula','clínica','dor','febre','tosse','lesão','sangue','saúde','enfermeira',
+    // shopping domain
+    'loja','mercado','supermercado','preço','dinheiro','numerário','cartão','recibo','desconto','promoção','comprar','vender'
+  ],
+  zh: [
+    '你好','再见','是','不','谢谢','水','家','书','太阳','月亮','朋友','家庭','食物','饮料','时间','工作','日','夜','早上','下午','年','周','快','慢','猫','狗','大','小','热','冷','好','坏',
+    // numbers 1-20
+    '一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+    // colors
+    '黑色','白色','红色','蓝色','绿色','黄色','橙色','紫色','棕色','粉色','灰色',
+    // animals
+    '鸟','鱼','牛','马','猪','羊','狮子','老虎','熊','狼',
+    // verbs
+    '跑','走','吃','喝','睡','读','写','说','听','看'
+    ,
+    // travel domain
+    '酒店','机场','车票','火车','公交','护照','签证','地图','城市','出租车','车站','行李',
+    // work domain
+    '会议','邮件','项目','报告','老板','客户','合同','工资','办公室','电话','截止','任务',
+    // exam domain
+    '作文','语法','话题','分数','测验','听力','阅读','写作','口语','考试',
+    // school domain
+    '学校','学生','老师','班','科目','成绩','桌子','笔','纸','图书馆','大学',
+    // health domain
+    '医生','医院','药','药丸','诊所','疼痛','发烧','咳嗽','受伤','血','健康','护士',
+    // shopping domain
+    '商店','市场','超市','价格','钱','现金','卡','收据','折扣','促销','买','卖'
+  ],
+  ja: [
+    'こんにちは','さようなら','はい','いいえ','ありがとう','水','家','本','太陽','月','友達','家族','食べ物','飲み物','時間','仕事','日','夜','朝','午後','年','週','速い','遅い','猫','犬','大きい','小さい','暑い','寒い','良い','悪い',
+    // numbers 1-20
+    '一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+    // colors
+    '黒','白','赤','青','緑','黄','橙','紫','茶','桃','灰',
+    // animals
+    '鳥','魚','牛','馬','豚','羊','ライオン','虎','熊','狼',
+    // verbs
+    '走る','歩く','食べる','飲む','寝る','読む','書く','話す','聞く','見る'
+    ,
+    // travel domain
+    'ホテル','空港','切符','電車','バス','パスポート','ビザ','地図','都市','タクシー','駅','荷物',
+    // work domain
+    '会議','メール','プロジェクト','レポート','上司','顧客','契約','給料','オフィス','電話','締切','課題',
+    // exam domain
+    '作文','文法','テーマ','スコア','テスト','リスニング','リーディング','ライティング','スピーキング','試験',
+    // school domain
+    '学校','学生','先生','クラス','科目','成績','机','ペン','紙','図書館','大学',
+    // health domain
+    '医者','病院','薬','錠剤','クリニック','痛み','熱','咳','けが','血','健康','看護師',
+    // shopping domain
+    '店','市場','スーパー','価格','金','現金','カード','領収書','割引','セール','買う','売る'
+  ],
+  ko: [
+    '안녕하세요','안녕','예','아니오','감사합니다','물','집','책','태양','달','친구','가족','음식','음료','시간','일','낮','밤','아침','오후','년','주','빠른','느린','고양이','개','큰','작은','뜨거운','차가운','좋은','나쁜',
+    // numbers 1-20 (Sino-Korean)
+    '일','이','삼','사','오','육','칠','팔','구','십','십일','십이','십삼','십사','십오','십육','십칠','십팔','십구','이십',
+    // colors
+    '검정','하양','빨강','파랑','초록','노랑','주황','보라','갈색','분홍','회색',
+    // animals
+    '새','물고기','소','말','돼지','양','사자','호랑이','곰','늑대',
+    // verbs
+    '달리다','걷다','먹다','마시다','자다','읽다','쓰다','말하다','듣다','보다'
+    ,
+    // travel domain
+    '호텔','공항','표','기차','버스','여권','비자','지도','도시','택시','역','짐',
+    // work domain
+    '회의','이메일','프로젝트','보고서','상사','고객','계약','급여','사무실','전화','마감','작업',
+    // exam domain
+    '작문','문법','주제','점수','시험','듣기','읽기','쓰기','말하기','시험',
+    // school domain
+    '학교','학생','선생','반','과목','성적','책상','펜','종이','도서관','대학',
+    // health domain
+    '의사','병원','약','알약','클리닉','통증','열','기침','부상','피','건강','간호사',
+    // shopping domain
+    '가게','시장','마트','가격','돈','현금','카드','영수증','할인','세일','사다','팔다'
+  ],
+  ru: [
+    'привет','пока','да','нет','спасибо','вода','дом','книга','солнце','луна','друг','семья','еда','напиток','время','работа','день','ночь','утро','полдень','год','неделя','быстрый','медленный','кот','собака','большой','маленький','горячий','холодный','хороший','плохой',
+    // numbers 1-20
+    'один','два','три','четыре','пять','шесть','семь','восемь','девять','десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать','двадцать',
+    // colors
+    'чёрный','белый','красный','синий','зелёный','жёлтый','оранжевый','фиолетовый','коричневый','розовый','серый',
+    // animals
+    'птица','рыба','корова','лошадь','свинья','овца','лев','тигр','медведь','волк',
+    // verbs
+    'бегать','идти','есть','пить','спать','читать','писать','говорить','слушать','смотреть'
+    ,
+    // travel domain
+    'отель','аэропорт','билет','поезд','автобус','паспорт','виза','карта','город','такси','станция','багаж',
+    // work domain
+    'встреча','почта','проект','отчёт','босс','клиент','контракт','зарплата','офис','телефон','срок','задача',
+    // exam domain
+    'эссе','грамматика','тема','балл','тест','аудирование','чтение','письмо','говорение','экзамен',
+    // school domain
+    'школа','студент','учитель','класс','предмет','оценка','стол','ручка','бумага','библиотека','университет',
+    // health domain
+    'врач','больница','медицина','таблетка','клиника','боль','лихорадка','кашель','травма','кровь','здоровье','медсестра',
+    // shopping domain
+    'магазин','рынок','супермаркет','цена','деньги','наличные','карта','чек','скидка','распродажа','покупать','продавать'
+  ],
+  ar: [
+    'مرحبا','وداعا','نعم','لا','شكرا','ماء','بيت','كتاب','شمس','قمر','صديق','عائلة','طعام','شراب','وقت','عمل','نهار','ليل','صباح','مساء','سنة','أسبوع','سريع','بطيء','قط','كلب','كبير','صغير','حار','بارد','جيد','سيئ',
+    // numbers 1-20 (single-token variants for 11–19)
+    'واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة','أحدعشر','اثناعشر','ثلاثةعشر','أربعةعشر','خمسةعشر','ستةعشر','سبعةعشر','ثمانيةعشر','تسعةعشر','عشرون',
+    // colors
+    'أسود','أبيض','أحمر','أزرق','أخضر','أصفر','برتقالي','أرجواني','بني','وردي','رمادي',
+    // animals
+    'طائر','سمك','بقرة','حصان','خنزير','خروف','أسد','نمر','دب','ذئب',
+    // verbs
+    'يركض','يمشي','يأكل','يشرب','ينام','يقرأ','يكتب','يتكلم','يستمع','ينظر'
+    ,
+    // travel domain
+    'فندق','مطار','تذكرة','قطار','حافلة','جواز','تأشيرة','خريطة','مدينة','تاكسي','محطة','أمتعة',
+    // work domain
+    'اجتماع','بريد','مشروع','تقرير','رئيس','عميل','عقد','راتب','مكتب','هاتف','موعد','مهمة',
+    // exam domain
+    'مقال','قواعد','موضوع','نتيجة','اختبار','استماع','قراءة','كتابة','تحدث','امتحان',
+    // school domain
+    'مدرسة','طالب','معلم','صف','موضوع','علامة','مكتب','قلم','ورق','مكتبة','جامعة',
+    // health domain
+    'طبيب','مستشفى','دواء','حبوب','عيادة','ألم','حمى','سعال','إصابة','دم','صحة','ممرضة',
+    // shopping domain
+    'متجر','سوق','سوبرماركت','سعر','مال','نقد','بطاقة','إيصال','خصم','تخفيض','شراء','بيع'
+  ],
+};
+
+// Programmatically build pools for all supported `${targetLanguage}-${nativeLanguage}` combinations.
+export const FALLBACK_WORD_PAIRS_POOLS: Record<string, Array<{ english: string; translation: string }>> = (() => {
+  const pools: Record<string, Array<{ english: string; translation: string }>> = {};
+  const targetCodes = Object.keys(TARGET_LANGUAGE_LABELS);
+  const nativeCodes = Object.keys(NATIVE_LANGUAGE_LABELS);
+
+  for (const t of targetCodes) {
+    for (const n of nativeCodes) {
+      const tLex = FALLBACK_LEXICON[t];
+      const nLex = FALLBACK_LEXICON[n];
+      if (!tLex || !nLex) continue;
+      const len = Math.min(tLex.length, nLex.length);
+      pools[`${t}-${n}`] = Array.from({ length: len }, (_, i) => ({ english: tLex[i], translation: nLex[i] }));
+    }
+  }
+  return pools;
+})();
+
+// Category ranges for unified lexicon slices (inclusive indices)
+export const FALLBACK_LEXICON_CATEGORY_RANGES = {
+  core: { start: 0, end: 31 },
+  numbers: { start: 32, end: 51 },
+  colors: { start: 52, end: 62 },
+  animals: { start: 63, end: 72 },
+  verbs: { start: 73, end: 82 },
+  travel: { start: 83, end: 94 },
+  work: { start: 95, end: 106 },
+  exam: { start: 107, end: 116 },
+  school: { start: 117, end: 127 },
+  health: { start: 128, end: 139 },
+  shopping: { start: 140, end: 151 },
+} as const;
+
 // Vocabulary words for pronunciation practice
 export const VOCABULARY_WORD_SETS = {
   consonants_th: [

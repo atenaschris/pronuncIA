@@ -4,6 +4,7 @@ import {
   VOCABULARY_WORD_SETS,
   WORD_PAIR_SETS,
   WORD_PAIRS_SET_KEYS,
+  FALLBACK_WORD_PAIRS_POOLS,
 } from "../constants/constants";
 import { desiredTargetSoundsForSetKey, mapPronunciationTokensToSetKeys } from "../helpers/sound-mapping-utils";
 import { DailyPlan } from "../store/lesson-store";
@@ -389,7 +390,16 @@ class AIService {
       return wordPairsData;
     } catch (error) {
       console.error('Error generating word pairs:', error);
-      return this.getFallbackWordPairs(setsCount, pairsPerSet, performanceMetrics, spacedRepetitionData);
+      return this.getFallbackWordPairs(
+        setsCount,
+        pairsPerSet,
+        targetLanguage,
+        nativeLanguage,
+        languageLevel,
+        learningGoal,
+        performanceMetrics,
+        spacedRepetitionData
+      );
     }
   }
 
@@ -568,6 +578,10 @@ class AIService {
   private getFallbackWordPairs(
     setsCount: number,
     pairsPerSet: number = 8,
+    targetLanguage?: string,
+    nativeLanguage?: string,
+    languageLevel?: string,
+    learningGoal?: string,
     performanceMetrics?: {
       completionRate: number;
       averageAccuracy: number;
@@ -582,15 +596,76 @@ class AIService {
   ): Record<string, Array<{ english: string; translation: string }>> {
     const result: Record<string, Array<{ english: string; translation: string }>> = {};
 
-    // Choose set order based on difficulty adjustment: earlier sets assumed simpler
-    const keys = [...WORD_PAIRS_SET_KEYS];
-    if (spacedRepetitionData?.difficultyAdjustment === 'increase') {
-      // rotate keys so later sets come first
-      keys.reverse();
-    }
+    // 1) Try language-specific pool keyed by `${target}-${native}`; fallback to 'en-it'.
+    const poolKey = targetLanguage && nativeLanguage ? `${targetLanguage}-${nativeLanguage}` : undefined;
+    const languagePool = (poolKey && FALLBACK_WORD_PAIRS_POOLS[poolKey]) || FALLBACK_WORD_PAIRS_POOLS['en-it'] || [];
 
-    // Build a combined pool from selected sets
-    const combined: WordPair[] = keys.flatMap((k) => WORD_PAIR_SETS[k] as unknown as WordPair[]);
+    // 2) If pool is somehow empty, fallback to legacy WORD_PAIR_SETS combined.
+    let combined: WordPair[];
+    if (languagePool.length > 0) {
+      combined = languagePool as unknown as WordPair[];
+      // If we have onboarding signals, slice by category ranges to prioritize relevance
+      if (languageLevel || learningGoal) {
+        try {
+          // Defer import to avoid cyclic deps; constants are static
+          const { FALLBACK_LEXICON_CATEGORY_RANGES } = require('../constants/constants');
+          const ranges = FALLBACK_LEXICON_CATEGORY_RANGES;
+
+          const pickRangesForOnboarding = (level?: string, goal?: string): Array<keyof typeof ranges> => {
+            const lvl = (level || '').toUpperCase();
+            const gl = (goal || '').toLowerCase();
+            const base: Array<keyof typeof ranges> = ['core', 'verbs'];
+
+            // Level tuning
+            if (lvl === 'A1') {
+              base.push('numbers', 'colors');
+            } else if (lvl === 'A2') {
+              base.push('numbers', 'colors', 'animals');
+            } else if (lvl === 'B1') {
+              base.push('colors', 'numbers', 'animals');
+            } else if (lvl === 'B2' || lvl === 'C1' || lvl === 'C2') {
+              base.push('animals', 'colors', 'numbers');
+            }
+
+            // Goal tuning with expanded domains
+            if (gl === 'travel') {
+              // favor travel, include shopping for real-life scenarios, plus numbers/colors
+              return ['core', 'verbs', 'travel', 'shopping', 'numbers', 'colors'];
+            } else if (gl === 'work') {
+              // favor work, include numbers to reach coverage without diluting relevance
+              return ['core', 'verbs', 'work', 'numbers', 'colors'];
+            } else if (gl === 'exam') {
+              // focus on exam domain, plus core/verbs and numbers/colors; include school
+              return ['core', 'verbs', 'exam', 'school', 'numbers', 'colors'];
+            } else if (gl === 'fluency') {
+              // broad vocabulary expansion
+              return ['core', 'verbs', 'numbers', 'colors', 'animals', 'school', 'health', 'shopping'];
+            }
+
+            return base;
+          };
+
+          const desired = pickRangesForOnboarding(languageLevel, learningGoal);
+          const desiredIndices = new Set<number>();
+          for (const key of desired) {
+            const { start, end } = ranges[key];
+            for (let i = start; i <= end; i++) desiredIndices.add(i);
+          }
+
+          // Remap combined to only desired indices; maintain original alignment
+          combined = combined.filter((_, idx) => desiredIndices.has(idx));
+        } catch (e) {
+          // If categorization is unavailable, proceed with full pool
+          console.warn('Category slicing unavailable, proceeding without onboarding filter:', e);
+        }
+      }
+    } else {
+      const keys = [...WORD_PAIRS_SET_KEYS];
+      if (spacedRepetitionData?.difficultyAdjustment === 'increase') {
+        keys.reverse();
+      }
+      combined = keys.flatMap((k) => WORD_PAIR_SETS[k] as unknown as WordPair[]);
+    }
 
     // Light prioritization: place review words first if present
     const reviewSet = new Set(spacedRepetitionData?.vocabularyReview || []);
@@ -600,19 +675,43 @@ class AIService {
       return bRev - aRev;
     });
 
-    // If user struggles with word_pairs, keep to simpler cycling order
-    const cycle = spacedRepetitionData?.difficultyAdjustment === 'decrease' ||
-      performanceMetrics?.strugglingAreas?.includes('word_pairs')
-      ? combined
-      : combined;
+    // Build a session-wide unique list to avoid repetition across sets.
+    const seenSession = new Set<string>();
+    const uniqueSession: WordPair[] = [];
+    for (const wp of combined) {
+      const key = `${wp.english}|||${wp.translation}`;
+      if (!seenSession.has(key)) {
+        uniqueSession.push(wp);
+        seenSession.add(key);
+      }
+    }
 
+    // If we still don't have enough unique pairs to fill the whole session,
+    // we will top up from the original combined list but will keep sets free of intra-set duplicates.
+    const totalNeeded = setsCount * pairsPerSet;
+    const supply = uniqueSession.length >= totalNeeded ? uniqueSession : combined;
+
+    let cursor = 0;
     for (let i = 1; i <= setsCount; i++) {
       const setPairs: WordPair[] = [];
-      const startIndex = ((i - 1) * pairsPerSet) % cycle.length;
-      for (let j = 0; j < pairsPerSet; j++) {
-        const idx = (startIndex + j) % cycle.length;
-        setPairs.push(cycle[idx]);
+      const setSeen = new Set<string>();
+
+      while (setPairs.length < pairsPerSet) {
+        // Wrap-around cursor over supply
+        const item = supply[cursor % supply.length];
+        cursor++;
+        const key = `${item.english}|||${item.translation}`;
+        if (!setSeen.has(key)) {
+          setSeen.add(key);
+          setPairs.push(item);
+        }
+
+        // Safety: if supply is extremely small, break potential infinite loop
+        if (setSeen.size < pairsPerSet && setSeen.size >= supply.length) {
+          break;
+        }
       }
+
       result[`set${i}`] = setPairs;
     }
 
