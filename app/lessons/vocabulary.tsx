@@ -38,7 +38,6 @@ export default function VocabularyScreen() {
     updateCurrentWordElapsedTime,
     pauseWordTimer,
     resumeWordTimer,
-    resetVocabularyLesson,
     calculateWordXP,
     addVocabularyWordXP,
 
@@ -545,50 +544,7 @@ export default function VocabularyScreen() {
     handleNextWord();
   }, [handleNextWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, vocabularyState?.isRetryingWord, vocabularyState?.skippedWords, vocabularyState?.failedWords]);
 
-  const handleRestartLesson = useCallback(() => {
-    // Store the timer state before pausing
-    const wasTimerRunning = vocabularyState?.currentWordStartTime && !vocabularyState?.isPaused;
-
-    // Pause the timer when modal opens
-    if (wasTimerRunning) {
-      pauseWordTimer(lessonId!);
-    }
-
-    showModal({
-      title: "Restart Vocabulary Lesson?",
-      message: "This will reset ALL progress for this lesson. Your global XP and streak will be adjusted accordingly. Are you sure?",
-      buttons: [
-        {
-          text: "Cancel",
-          style: "cancel" as const,
-          onPress: () => {
-            hideModal();
-            // Resume the timer if it was running before the modal
-            if (wasTimerRunning) {
-              resumeWordTimer(lessonId!);
-            }
-          }
-        },
-        {
-          text: "Restart Lesson",
-          style: "destructive" as const,
-          onPress: () => {
-            hideModal();
-            setTimeout(() => {
-              // Clear recording state before resetting lesson
-              setRecordingUri(null);
-              cleanup();
-              resetVocabularyLesson(lessonId!);
-              // Reinitialize the lesson after reset
-              setTimeout(() => {
-                initializeLesson();
-              }, 100);
-            }, 100);
-          }
-        }
-      ]
-    });
-  }, [showModal, hideModal, resetVocabularyLesson, lessonId, initializeLesson, vocabularyState?.currentWordStartTime, vocabularyState?.isPaused, pauseWordTimer, resumeWordTimer]);
+  // Removed destructive restart flow to avoid store resets; replays/retries remain available.
 
   const handleWordCardPress = useCallback(async () => {
     if (!currentWord?.word) {
@@ -668,7 +624,6 @@ export default function VocabularyScreen() {
         isProcessing={isProcessing}
         isRecording={isRecording}
         scaleAnim={scaleAnim}
-        handleRestartLesson={handleRestartLesson}
         handleRetryWord={handleRetryWord}
       />
     );

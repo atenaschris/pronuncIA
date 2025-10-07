@@ -1,5 +1,4 @@
 import { ProgressStepper } from '@/app/lessons/components/wordpairs/ProgressStepper';
-import { NextButton } from '@/components/ui/NextButton';
 import { PortalModal } from '@/components/ui/portal';
 
 import { RNPText } from '@/components/ui/RNPText';
@@ -38,7 +37,6 @@ export default function WordPairsScreen() {
     setCurrentSetIndex,
     addErrorDetail,
     clearCurrentSetErrors,
-    resetWordPairsLesson,
     startSetTimer,
     stopSetTimer,
     updateCurrentSetElapsedTime,
@@ -504,46 +502,7 @@ const translationWord = translationWords[translationIndex];
           });
         }
 
-        // Only show "Start From Scratch" if all sets are completed
-        if (allSetsAttempted) {
-          alertButtons.push({
-            text: "🔄 Start From Scratch",
-            onPress: () => {
-              // Close current modal first, then show the reset confirmation modal
-              hideModal();
-              setTimeout(() => {
-                showModal({
-                  title: "Start From Scratch?",
-                  message: "This will reset ALL progress for this lesson. Your global XP and streak will be adjusted accordingly. Are you sure?",
-                  buttons: [
-                    {
-                      text: "Cancel and Go to the lessons page",
-                      style: "cancel" as const,
-                      onPress: () => {
-                        clearCurrentSetErrors(lessonId, currentSetIndex);
-                        setIsGoingBack(lessonId, true);
-                        hideModal();
-                        setTimeout(() => {
-                          router.replace("/(tabs)");
-                        }, 100);
-                      }
-                    },
-                    {
-                      text: "Reset Lesson",
-                      style: "destructive" as const,
-                      onPress: () => {
-                        hideModal();
-                        setTimeout(() => {
-                          resetWordPairsLesson(lessonId);
-                        }, 100);
-                      }
-                    }
-                  ]
-                });
-              }, 150); // Small delay to ensure first modal is fully closed
-            }
-          });
-        }
+        // Removed destructive reset UI: users can replay sets or navigate back.
 
         // Only show "Go Back" with save progress modal if there are still errors or not all sets completed
         if (!allSetsAttempted) {
@@ -667,7 +626,6 @@ const translationWord = translationWords[translationIndex];
     hideModal,
     showModal,
     router,
-    resetWordPairsLesson,
     winningSound,
     HapticError,
     incorrectSound
@@ -892,36 +850,7 @@ const translationWord = translationWords[translationIndex];
                 </ScrollView>
               </View>
             </View>
-            <NextButton
-              onPress={() => {
-                showModal({
-                  title: "Reset Game?",
-                  message: "Are you sure you want to reset the entire word pairs game? 🔄\n\nThis will:\n• Reset all your progress in this lesson\n• Clear your current score\n• Start from the beginning\n\nThis action cannot be undone!",
-                  buttons: [
-                    {
-                      text: "Cancel",
-                      style: "cancel" as const,
-                      onPress: () => {
-                        hideModal();
-                      }
-                    },
-                    {
-                      text: "Reset Game",
-                      onPress: () => {
-                        hideModal();
-                        setTimeout(() => {
-                          resetWordPairsLesson(lessonId!);
-                          // Force re-initialization even if currentSetIndex was already 0
-                          initializeGame();
-                        }, 100);
-                      }
-                    }
-                  ]
-                });
-              }}
-            >
-              <RNPText style={[styles.resetButtonText, themeStyles.resetButtonText]}>Reset Game</RNPText>
-            </NextButton>
+            {/* Removed "Reset Game" button to prevent store data resets */}
           </>
         )}
       </SafeAreaView>
