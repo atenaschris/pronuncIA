@@ -6,15 +6,15 @@ type WordPairSet = typeof WORD_PAIR_SETS[keyof typeof WORD_PAIR_SETS];
 
 // Define a flexible WordPair type that allows any string values
 export interface WordPair {
-  english: string;
+  native: string;
   translation: string;
 }
 
 // Keep the original constrained types for when we need them
 export type PredefinedWordPair = WordPairSet[number];
-export type EnglishWord = string;
+export type NativeWord = string;
 export type TranslationWord = string;
-export type ColumnType = 'english' | 'translation';
+export type ColumnType = 'native' | 'translation';
 
 export type FeedbackType =
   | "light"
@@ -27,18 +27,18 @@ export type FeedbackType =
 
   // Word-pairs specific state
 export interface WordPairsState {
-  englishWords: EnglishWord[];
+  nativeWords: NativeWord[];
   translationWords: TranslationWord[];
-  selectedPair: { index: number, column: 'english' | 'translation' } | null;
+  selectedPair: { index: number, column: 'native' | 'translation' } | null;
   matchedPairs: number[];
   score: number;
-  incorrectPair: { english: number; translation: number } | null;
+  incorrectPair: { native: number; translation: number } | null;
   lessonCompleted: boolean;
   currentSetIndex: number;
   isReplayingForErrors: boolean; // Tracks when replay button is clicked for error fixing
   errorDetails: {
     incorrectMatches: Array<{
-      englishWord: EnglishWord;
+      nativeWord: NativeWord;
       attemptedTranslation: TranslationWord;
       correctTranslation: TranslationWord;
       timestamp: number;

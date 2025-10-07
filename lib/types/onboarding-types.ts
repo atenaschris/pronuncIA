@@ -7,6 +7,15 @@ export type LearningGoal = typeof LEARNING_GOALS[number]['id'];
 export type LearningStyle = typeof LEARNING_STYLES[number]['id'];
 export type TimeCommitment = typeof TIME_OPTIONS[number]['id'];
 
+export interface OnboardingData {
+  nativeLanguage: NativeLanguageCode;
+  targetLanguage: TargetLanguageCode;
+  languageLevel: LanguageLevel;
+  learningGoal: LearningGoal;
+  learningStyle: LearningStyle;
+  timeCommitment: TimeCommitment;
+} 
+
 export interface OnboardingState {
   currentStep: number;
   languageLevel: LanguageLevel;

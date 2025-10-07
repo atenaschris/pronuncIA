@@ -54,6 +54,7 @@ export const getNativeLanguageDescription = (languageId: NativeLanguageCode): st
   
   // Enhanced descriptions with pronunciation challenges for AI context
   const challenges: Record<NativeLanguageCode, string> = {
+    'en': 'English baseline – tailor focus to target language pronunciation',
     'es': 'Focus on English sounds not present in Spanish (th, v/b distinction)',
     'fr': 'Work on English rhythm and stress patterns, silent letters',
     'de': 'Practice English word order and th/w sounds',

@@ -3,6 +3,7 @@
  * Extracted from lesson-store.ts for better code organization
  */
 
+import { OnboardingData } from '../types/onboarding-types';
 import { calculateLessonCount } from './date-streak-utils';
 import { PerformanceMetrics, SpacedRepetitionData } from './performance-utils';
 
@@ -11,7 +12,7 @@ export type { DailyPlan, Lesson, LessonType } from '../store/lesson-store';
 
 // Intelligent mock plan generator with spaced repetition
 export const generateIntelligentMockPlan = (
-  onboardingData: any,
+  onboardingData: OnboardingData,
   performanceMetrics: PerformanceMetrics,
   spacedRepetitionData: SpacedRepetitionData,
   date: string
@@ -66,10 +67,10 @@ export const generateIntelligentMockPlan = (
 export const calculateLessonPriorities = (
   performanceMetrics: PerformanceMetrics,
   spacedRepetitionData: SpacedRepetitionData,
-  onboardingData: any
+  onboardingData: OnboardingData
 ) => {
-  const allLessonTypes = ['vocabulary', 'listening', 'pronunciation', 'roleplay', 'shadowing', 'voice_journaling', 'word_pairs'];
-  const priorities: Array<{ type: string; priority: number; reason: string }> = [];
+  const allLessonTypes = ['vocabulary', 'listening', 'pronunciation', 'roleplay', 'shadowing', 'voice_journaling', 'word_pairs'] as const;
+  const priorities: Array<{ type: (typeof allLessonTypes)[number]; priority: number; reason: string }> = [];
 
   allLessonTypes.forEach(type => {
     let priority = 50; // Base priority
@@ -111,12 +112,12 @@ export const calculateLessonPriorities = (
     const learningStyle = onboardingData.learningStyle;
     if (learningStyle === 'visual' && ['vocabulary', 'word_pairs'].includes(type)) {
       priority += 10;
-    } else if (learningStyle === 'auditory' && ['listening', 'pronunciation', 'shadowing'].includes(type)) {
+    } else if (learningStyle === 'audio' && ['listening', 'pronunciation', 'shadowing'].includes(type)) {
       priority += 10;
-    } else if (learningStyle === 'kinesthetic' && ['roleplay', 'voice_journaling'].includes(type)) {
+    } else if (learningStyle === 'conversational' && ['roleplay', 'voice_journaling'].includes(type)) {
       priority += 10;
     }
-
+ 
     priorities.push({ type, priority, reason });
   });
 
@@ -145,7 +146,7 @@ export const generateLessonTitle = (type: string, learningGoal: string, spacedRe
     shadowing: 'Native Speech Patterns',
     voice_journaling: 'Voice Reflection',
     word_pairs: `${learningGoal.charAt(0).toUpperCase() + learningGoal.slice(1)} Word Matching`
-  };
+  } as const;
   return titles[type as keyof typeof titles] || 'Practice Session';
 };
 
@@ -175,7 +176,7 @@ export const generateLessonDescription = (type: string, languageLevel: string, r
     shadowing: `Mirror native speaker patterns at ${difficulty} level`,
     voice_journaling: `Record thoughts using ${difficulty} vocabulary`,
     word_pairs: `Match related vocabulary at ${difficulty} level`
-  };
+  } as const;
   return descriptions[type as keyof typeof descriptions] || 'Practice session';
 };
 
@@ -191,7 +192,7 @@ export const getRewardableXP = (type: string): number => {
     shadowing: 180, // Same as base XP (no complex scoring mechanics)
     voice_journaling: 160, // Same as base XP (no complex scoring mechanics)
     word_pairs: 850 // 10 sets × 8 pairs × 10 XP + 50 time bonus = 850 XP max
-  };
+  } as const;
   
   // Return the base (hard maximum) XP for the lesson type.
   const maxXp = baseRewardableXp[type as keyof typeof baseRewardableXp] || 150;

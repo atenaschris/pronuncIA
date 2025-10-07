@@ -5,17 +5,19 @@ import { useHaptic } from '@/lib/hooks/use-haptic';
 import { usePlayback } from '@/lib/hooks/use-playback';
 import { useRecording } from '@/lib/hooks/use-recording';
 import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
+import { ActivityIndicator, Button, Card, IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
+// Removed onboarding/performance imports from this screen; handled in hook
 import { usePortalModalStore } from '@/lib/store/portal-modal-store';
 
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Button, Card, IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { VocabularyCompletionScreen } from './components/vocabulary/VocabularyCompletionScreen';
 
 import { ACCURACY_THRESHOLD } from '@/lib/constants/constants';
+import { useVocabularyQuery } from '@/lib/hooks/use-vocabulary-query';
 
 export default function VocabularyScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
@@ -23,7 +25,6 @@ export default function VocabularyScreen() {
   const { playCorrect, playIncorrect, playWin, playWordAudio } = useAudio();
   const {
     getVocabularyState,
-    getLesson,
     setVocabularyWords,
     setCurrentWordIndex,
     incrementVocabularyAttempts,
@@ -31,14 +32,12 @@ export default function VocabularyScreen() {
     setVocabularyCompleted,
     addAIScore,
     initializeLessonSessionState,
-    generateVocabularyContent,
     // Timer methods
     startWordTimer,
     stopWordTimer,
     updateCurrentWordElapsedTime,
     pauseWordTimer,
     resumeWordTimer,
-    resetVocabularyTimers,
     resetVocabularyLesson,
     calculateWordXP,
     addVocabularyWordXP,
@@ -127,25 +126,9 @@ export default function VocabularyScreen() {
 
   const initializeLesson = async () => {
     initializeLessonSessionState(lessonId!, 'vocabulary');
-    
-    try {
-      // Generate dynamic vocabulary content based on user preferences
-      const words = await generateVocabularyContent(lessonId!, 'consonant', 'θ');
-      setVocabularyWords(lessonId!, words);
-    } catch (error) {
-      console.error('Failed to generate vocabulary content:', error);
-      // Fallback to empty array - the component will handle this gracefully
-      setVocabularyWords(lessonId!, []);
-    }
-    
     // Reset retry XP delta for new lesson
     retryXpDeltaRef.current = 0;
-
-    // Start timer for the first word
-    setTimeout(() => {
-      startWordTimer(lessonId!);
-    }, 200);
-
+    // Start timer will be handled when query data arrives
     // Animate progress bar
     Animated.timing(progressAnim, {
       toValue: 0,
@@ -153,6 +136,26 @@ export default function VocabularyScreen() {
       useNativeDriver: false,
     }).start();
   };
+
+  // Use dedicated hook for vocabulary content (aligned with word-pairs)
+  const { data: vocabData, isLoading: isVocabLoading, isError: isVocabError } = useVocabularyQuery(
+    lessonId!,
+    'consonant',
+    'θ'
+  );
+
+  // When query resolves, populate store and start timer
+  useEffect(() => {
+    if (!lessonId) return;
+    if (isVocabError) {
+      setVocabularyWords(lessonId!, []);
+      return;
+    }
+    if (vocabData && vocabData.length > 0) {
+      setVocabularyWords(lessonId!, vocabData);
+      startWordTimer(lessonId!);
+    }
+  }, [lessonId, vocabData, isVocabError, setVocabularyWords, startWordTimer]);
 
   // Memoized calculations for performance
   const currentWord = useMemo(() => {
@@ -671,13 +674,13 @@ export default function VocabularyScreen() {
     );
   }
 
-  // Handle loading state
-  if (!currentWord) {
+  // Handle loading state: suspend until query resolves
+  if (isVocabLoading || !currentWord) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.centerContent}>
           <Text style={[styles.loadingText, { color: theme.colors.onSurface }]}>Loading Lesson...</Text>
-          <ProgressBar indeterminate style={styles.loadingProgress} color={theme.colors.primary} />
+          <ActivityIndicator size={48} animating color={theme.colors.primary} />
         </View>
       </SafeAreaView>
     );

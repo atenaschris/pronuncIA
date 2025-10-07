@@ -3,17 +3,17 @@
  * Extracted from lesson-store.ts for better code organization
  */
 
-import type { DailyPlan, Lesson } from '../store/lesson-store';
+import { VOCABULARY_WORD_SETS } from '../constants/constants';
+import type { DailyPlan, Lesson, LessonType } from '../store/lesson-store';
 import type { VocabularyState } from '../types/vocabulary';
 import type { WordPairsState } from '../types/word-pairs';
-import { VOCABULARY_WORD_SETS } from '../constants/constants';
 
 // Performance metrics calculation
 export interface PerformanceMetrics {
   completionRate: number;
   averageAccuracy: number;
-  preferredLessonTypes: string[];
-  strugglingAreas: string[];
+  preferredLessonTypes: LessonType[];
+  strugglingAreas: LessonType[];
 }
 
 export const calculateUserPerformanceMetrics = (state: { dailyPlan: DailyPlan | null }): PerformanceMetrics => {
@@ -36,7 +36,7 @@ export const calculateUserPerformanceMetrics = (state: { dailyPlan: DailyPlan | 
   // Calculate average accuracy from vocabulary lessons with AI scores
   let totalAccuracy = 0;
   let accuracyCount = 0;
-  const lessonTypePerformance: { [key: string]: { completed: number; total: number; avgAccuracy: number } } = {};
+  const lessonTypePerformance: Record<LessonType, { completed: number; total: number; avgAccuracy: number }> = {} as any;
 
   dailyPlan.lessons.forEach((lesson: Lesson) => {
     const lessonType = lesson.type;
@@ -78,7 +78,7 @@ export const calculateUserPerformanceMetrics = (state: { dailyPlan: DailyPlan | 
   // Identify preferred lesson types (high completion rate)
   const preferredLessonTypes = Object.entries(lessonTypePerformance)
     .filter(([_, performance]) => performance.total > 0 && (performance.completed / performance.total) >= 0.7)
-    .map(([type, _]) => type);
+    .map(([type, _]) => type as LessonType);
 
   // Identify struggling areas (low completion rate or low accuracy)
   const strugglingAreas = Object.entries(lessonTypePerformance)
@@ -88,7 +88,7 @@ export const calculateUserPerformanceMetrics = (state: { dailyPlan: DailyPlan | 
       const ACCURACY_FLOOR = 60; // fallback floor if avgAccuracy is reported on different scale
       return completionRate < 0.5 || (performance.avgAccuracy > 0 && performance.avgAccuracy < ACCURACY_FLOOR);
     })
-    .map(([type, _]) => type);
+    .map(([type, _]) => type as LessonType);
 
   return {
     completionRate,
@@ -181,11 +181,11 @@ export const calculateSpacedRepetitionNeeds = (state: { dailyPlan: DailyPlan | n
         const wordPairsState = lesson.sessionState as WordPairsState;
         if (wordPairsState.errorDetails?.incorrectMatches?.length > 0) {
           wordPairsState.errorDetails.incorrectMatches.forEach((error) => {
-            // From word-pairs errors, schedule the English word for vocabulary review.
-            vocabularyReview.push(error.englishWord);
+            // From word-pairs errors, schedule the English translation for vocabulary review.
+            vocabularyReview.push(error.correctTranslation);
 
             // Also derive a pronunciation target if this word exists in our vocabulary sets.
-            const lower = error.englishWord.toLowerCase();
+            const lower = error.correctTranslation.toLowerCase();
             const matchingEntry = Object.values(VOCABULARY_WORD_SETS)
               .flat()
               .find((v) => v.word.toLowerCase() === lower);

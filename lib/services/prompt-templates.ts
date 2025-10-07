@@ -1,5 +1,8 @@
 // Centralized prompt templates for AI services
 
+import { LanguageLevel, LearningGoal, NativeLanguageCode, TargetLanguageCode } from "../types/onboarding-types";
+import type { LessonType } from "../store/lesson-store";
+
 export const getDailyPlanSystemPrompt = (): string => `You are an expert language pronunciation coach and learning specialist. Your task is to generate personalized daily lesson plans that help users improve their pronunciation and speaking skills in their target language.
 
 CRITICAL INSTRUCTIONS:
@@ -62,8 +65,8 @@ export const getVocabularyWordsSystemPrompt = (
   performanceMetrics?: {
     completionRate: number;
     averageAccuracy: number;
-    preferredLessonTypes: string[];
-    strugglingAreas: string[];
+    preferredLessonTypes: LessonType[];
+    strugglingAreas: LessonType[];
   },
   spacedRepetitionData?: {
     vocabularyReview: string[];
@@ -86,6 +89,12 @@ REQUIREMENTS:
 ${soundType ? `- Focus on sound type: ${soundType}` : ''}
 ${targetSound ? `- Target specific sound: ${targetSound}` : ''}
 
+STRICT UNIQUENESS AND DIVERSITY RULES:
+- All items MUST be distinct: do not repeat any "word" or "id" anywhere in the array.
+- Diversify across difficulty and sounds: balance easy|medium|hard and consonant|vowel|mixed based on level.
+- Vary semantic domains relevant to ${learningGoal}: prefer travel, work, exam/school, health, shopping where applicable.
+- If review signals are present, include at most 30% items clearly related to review words; the rest MUST be novel.
+
 ${performanceMetrics ? `
 PERFORMANCE CONTEXT:
 - User's completion rate: ${performanceMetrics.completionRate}%
@@ -107,6 +116,10 @@ ${spacedRepetitionData?.difficultyAdjustment === 'increase' ? 'Include more chal
 ${spacedRepetitionData?.difficultyAdjustment === 'decrease' ? 'Include simpler, more common words to build foundation.' : ''}
 ${spacedRepetitionData?.vocabularyReview.length ? `Prioritize words similar to these review words: ${spacedRepetitionData.vocabularyReview.slice(0, 3).join(', ')}` : ''}
 
+STRICTLY AVOID DUPLICATES:
+- Do not repeat any word token in the array (case-insensitive).
+- Do not recycle the same example or definition text across different items.
+
 Respond with valid JSON array matching this exact structure:
 [{
   "id": "unique_id",
@@ -124,17 +137,17 @@ Make words relevant to the user's learning goal and appropriate for their level 
 RESPOND WITH ONLY THE JSON ARRAY - NO OTHER TEXT OR FORMATTING.`;
 
 export const getWordPairsSystemPrompt = (
-  targetLanguage: string,
-  nativeLanguage: string,
-  languageLevel: string,
-  learningGoal: string,
+  targetLanguage: TargetLanguageCode,
+  nativeLanguage: NativeLanguageCode,
+  languageLevel: LanguageLevel,
+  learningGoal: LearningGoal,
   setsCount: number,
   pairsPerSet: number,
   performanceMetrics?: {
     completionRate: number;
     averageAccuracy: number;
-    preferredLessonTypes: string[];
-    strugglingAreas: string[];
+    preferredLessonTypes: LessonType[];
+    strugglingAreas: LessonType[];
   },
   spacedRepetitionData?: {
     vocabularyReview: string[];
@@ -150,8 +163,8 @@ CRITICAL INSTRUCTIONS:
 4. Respond with ONLY the JSON object - NO OTHER TEXT OR FORMATTING
 5. The top-level MUST be an object containing EXACTLY these keys: set1, set2, ..., set${setsCount}
 6. Each set MUST be an array of EXACTLY ${pairsPerSet} items
-7. Each item MUST be an object with EXACTLY two string fields: english and translation
-8. Both english and translation MUST be single tokens: NO spaces, NO hyphens, NO underscores, NO punctuation
+ 7. Each item MUST be an object with EXACTLY two string fields: native and translation
+ 8. Both native and translation MUST be single tokens: NO spaces, NO hyphens, NO underscores, NO punctuation
 
 REQUIREMENTS:
 - Target language: ${targetLanguage}
@@ -160,6 +173,12 @@ REQUIREMENTS:
 - Learning goal: ${learningGoal}
 - Generate exactly ${setsCount} sets
 - Each set should contain exactly ${pairsPerSet} word pairs
+
+STRICT UNIQUENESS RULES (MANDATORY):
+- Do NOT repeat any "native" token anywhere across the entire response.
+- Do NOT repeat any "translation" token anywhere across the entire response.
+- Each pair is unique by the combination native+translation; do not reuse the same pair in any set.
+- Within each set, all pairs must be distinct and obey the single-token requirement below.
 
 ${performanceMetrics ? `
 PERFORMANCE CONTEXT:
@@ -184,17 +203,22 @@ ${spacedRepetitionData?.difficultyAdjustment === 'increase' ? 'Include more chal
 ${spacedRepetitionData?.difficultyAdjustment === 'decrease' ? 'Include basic, high-frequency words to build foundation.' : ''}
 ${spacedRepetitionData?.vocabularyReview.length ? `Include these words that need review: ${spacedRepetitionData.vocabularyReview.slice(0, 4).join(', ')}` : ''}
 
+DOMAIN DIVERSITY:
+- Vary semantic domains aligned to ${learningGoal} (e.g., travel, work, school, health, shopping) to avoid semantic repetition.
+
 Respond with valid JSON object matching this exact structure:
 {
   "set1": [
-    {"english": "single_word_in_target_language", "translation": "single_word_in_native_language"},
+  {"native": "single_word_in_target_language", "translation": "single_word_in_native_language"},
     ...
   ],
   "set2": [...],
   ...
 }
 
-Note: Despite the field name "english", use the target language (${targetLanguage}) for the first field.
+Field semantics:
+- "native": word in the target language (${targetLanguage})
+- "translation": corresponding word in the user's native language (${nativeLanguage})
 Make the pairs relevant to the user's learning goal, appropriate for their level, and adaptive to their performance.
 Do not include sentences, phrases, or examples — only single-word pairs.
 

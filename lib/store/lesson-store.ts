@@ -15,7 +15,7 @@ import { buildDailyPlanPrompt } from '../services/plan-prompt-builder';
 import { generateDailyPlanWithFallback } from '../services/planning-service';
 import { createMMKVStorage, userDataStorage } from '../storage/storage-utils';
 import { VocabularyState, VocabularyWord } from '../types/vocabulary';
-import { EnglishWord, TranslationWord, WordPairsState } from '../types/word-pairs';
+import { NativeWord, TranslationWord, WordPairsState } from '../types/word-pairs';
 import { useOnboardingStore } from './onboarding-store'; // Import onboarding store
 
 export type LessonType = 'vocabulary' | 'listening' | 'pronunciation' | 'roleplay' | 'shadowing' | 'voice_journaling' | 'word_pairs';
@@ -83,11 +83,7 @@ interface LessonState {
   dateOverride: string | null; // For time travel debugging
   isLoading: boolean;
   error: string | null;
-  // Content caching
-  cachedVocabularyContent: { [key: string]: VocabularyWord[] }; // Cache by user preferences hash
-  cachedWordPairsContent: { [key: string]: Record<string, Array<{ english: string; translation: string }>> }; // Cache by user preferences hash
-  contentCacheTimestamp: { [key: string]: number }; // Track when content was cached
-  contentCacheExpiry: number; // Cache expiry time in milliseconds (24 hours)
+  // Content caching removed; React Query owns caching for content generation
 
   // Actions
   setDailyPlan: (plan: DailyPlan) => void;
@@ -97,22 +93,19 @@ interface LessonState {
 
   // Content generation methods
   generateVocabularyContent: (lessonId: string, soundType?: 'consonant' | 'vowel' | 'mixed', targetSound?: string) => Promise<VocabularyWord[]>;
-  generateWordPairsContent: (lessonId: string) => Promise<Record<string, Array<{ english: string; translation: string }>>>;
-  getCachedContent: (cacheKey: string, contentType: 'vocabulary' | 'wordPairs') => VocabularyWord[] | Record<string, Array<{ english: string; translation: string }>> | null;
-  setCachedContent: (cacheKey: string, content: VocabularyWord[] | Record<string, Array<{ english: string; translation: string }>>, contentType: 'vocabulary' | 'wordPairs') => void;
-  generateContentCacheKey: (contentType: 'vocabulary' | 'wordPairs', additionalParams?: Record<string, any>) => string;
+  generateWordPairsContent: (lessonId: string) => Promise<Record<string, Array<{ native: string; translation: string }>>>;
 
   // WordPairs-specific actions
-  setEnglishWords: (lessonId: string, words: EnglishWord[]) => void;
+  setNativeWords: (lessonId: string, words: NativeWord[]) => void;
   setTranslationWords: (lessonId: string, words: TranslationWord[]) => void;
-  setSelectedPair: (lessonId: string, pair: { index: number, column: 'english' | 'translation' } | null) => void;
+  setSelectedPair: (lessonId: string, pair: { index: number, column: 'native' | 'translation' } | null) => void;
   setMatchedPairs: (lessonId: string, pairs: number[]) => void;
   setScore: (lessonId: string, score: number) => void;
-  setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => void;
+  setIncorrectPair: (lessonId: string, pair: { native: number; translation: number } | null) => void;
   setCurrentSetCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
   setIsReplayingForErrors: (lessonId: string, isReplaying: boolean) => void;
-  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string) => void;
+  addErrorDetail: (lessonId: string, nativeWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string) => void;
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
   getWordPairsState: (lessonId: string) => WordPairsState | null;
@@ -197,10 +190,7 @@ export const useLessonStore = create<LessonState>()(persist(
     error: null,
     
     // Content caching
-    cachedVocabularyContent: {},
-    cachedWordPairsContent: {},
-    contentCacheTimestamp: {},
-    contentCacheExpiry: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+      // Removed cache state; handled by React Query
     setDailyPlan: (plan) => set({ dailyPlan: plan }),
     setDateOverride: (date) => set({ dateOverride: date }), // For time travel debugging
     completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
@@ -407,7 +397,7 @@ export const useLessonStore = create<LessonState>()(persist(
             switch (lessonType) {
               case 'word_pairs':
                 sessionState = {
-                  englishWords: [],
+                  nativeWords: [],
                   translationWords: [],
                   selectedPair: null,
                   matchedPairs: [],
@@ -543,7 +533,7 @@ export const useLessonStore = create<LessonState>()(persist(
             setBestScores: [],
             currentTimeBonusXP: 0,
             sessionState: {
-              englishWords: [],
+              nativeWords: [],
               translationWords: [],
               currentSetIndex: 0,
               selectedPair: null,
@@ -590,7 +580,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    setEnglishWords: (lessonId: string, words: EnglishWord[]) => set((state) => {
+    setNativeWords: (lessonId: string, words: NativeWord[]) => set((state) => {
       if (!state.dailyPlan) return state;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -599,7 +589,7 @@ export const useLessonStore = create<LessonState>()(persist(
             ...lesson,
             sessionState: {
               ...lesson.sessionState,
-              englishWords: words,
+              nativeWords: words,
             } as WordPairsState,
           };
         }
@@ -690,7 +680,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    setSelectedPair: (lessonId: string, pair: { index: number, column: 'english' | 'translation' } | null) => set((state) => {
+    setSelectedPair: (lessonId: string, pair: { index: number, column: 'native' | 'translation' } | null) => set((state) => {
       if (!state.dailyPlan) return state;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -765,7 +755,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => set((state) => {
+    setIncorrectPair: (lessonId: string, pair: { native: number; translation: number } | null) => set((state) => {
       if (!state.dailyPlan) return state;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -790,7 +780,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string) => set((state) => {
+    addErrorDetail: (lessonId: string, nativeWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string) => set((state) => {
       if (!state.dailyPlan) return state;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -804,7 +794,7 @@ export const useLessonStore = create<LessonState>()(persist(
                 incorrectMatches: [
                   ...currentState.errorDetails.incorrectMatches,
                   {
-                    englishWord,
+                    nativeWord,
                     attemptedTranslation,
                     timestamp: Date.now(),
                     setIndex,
@@ -2256,34 +2246,14 @@ export const useLessonStore = create<LessonState>()(persist(
 
     // Content generation methods
     generateVocabularyContent: async (
-      lessonId: string, 
-      soundType?: 'consonant' | 'vowel' | 'mixed', 
+      lessonId: string,
+      soundType?: 'consonant' | 'vowel' | 'mixed',
       targetSound?: string
     ): Promise<VocabularyWord[]> => {
-      // Compute performance metrics and spaced-repetition needs first to form a robust cache key
+      // Compute performance metrics and spaced-repetition needs; caching is handled by React Query
       const stateForMetrics = get();
       const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
       const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
-
-      // Create a lightweight signature of review items to avoid overly long keys
-      const reviewSignature = (spacedRepetitionData?.vocabularyReview || [])
-        .slice(0, 10)
-        .sort()
-        .join('|');
-
-      const cacheKey = get().generateContentCacheKey('vocabulary', {
-        lessonId,
-        soundType,
-        targetSound,
-        difficultyAdjustment: spacedRepetitionData?.difficultyAdjustment,
-        reviewSignature,
-      });
-      
-      // Check cache first
-      const cachedContent = get().getCachedContent(cacheKey, 'vocabulary') as VocabularyWord[] | null;
-      if (cachedContent) {
-        return cachedContent;
-      }
 
       try {
         // Get user onboarding data for personalization
@@ -2302,9 +2272,7 @@ export const useLessonStore = create<LessonState>()(persist(
           spacedRepetitionData
         );
 
-        // Cache the generated content
-        get().setCachedContent(cacheKey, generatedContent, 'vocabulary');
-        
+        // Return directly; React Query caches based on its queryKey
         return generatedContent;
       } catch (error) {
         console.error('Failed to generate vocabulary content:', error);
@@ -2312,28 +2280,11 @@ export const useLessonStore = create<LessonState>()(persist(
       }
     },
 
-    generateWordPairsContent: async (): Promise<Record<string, Array<{ english: string; translation: string }>>> => {
-      // Compute performance metrics and spaced-repetition needs first to form a robust cache key
+    generateWordPairsContent: async (): Promise<Record<string, Array<{ native: string; translation: string }>>> => {
+      // Compute performance metrics and spaced-repetition needs; caching is handled by React Query
       const stateForMetrics = get();
       const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
       const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
-
-      // Create a lightweight signature of review items to avoid overly long keys
-      const reviewSignature = (spacedRepetitionData?.vocabularyReview || [])
-        .slice(0, 10)
-        .sort()
-        .join('|');
-
-      const cacheKey = get().generateContentCacheKey('wordPairs', {
-        difficultyAdjustment: spacedRepetitionData?.difficultyAdjustment,
-        reviewSignature,
-      });
-      
-      // Check cache first
-      const cachedContent = get().getCachedContent(cacheKey, 'wordPairs') as Record<string, Array<{ english: string; translation: string }>> | null;
-      if (cachedContent) {
-        return cachedContent;
-      }
 
       try {
         // Get user onboarding data for personalization
@@ -2351,9 +2302,7 @@ export const useLessonStore = create<LessonState>()(persist(
           spacedRepetitionData
         );
 
-        // Cache the generated content
-        get().setCachedContent(cacheKey, generatedContent, 'wordPairs');
-        
+        // Return directly; React Query caches based on its queryKey
         return generatedContent;
       } catch (error) {
         console.error('Failed to generate word pairs content:', error);
@@ -2361,61 +2310,7 @@ export const useLessonStore = create<LessonState>()(persist(
       }
     },
 
-    getCachedContent: (cacheKey: string, contentType: 'vocabulary' | 'wordPairs'): VocabularyWord[] | Record<string, Array<{ english: string; translation: string }>> | null => {
-      const { cachedVocabularyContent, cachedWordPairsContent, contentCacheTimestamp, contentCacheExpiry } = get();
-      
-      // Check if cache has expired
-      const cacheTime = contentCacheTimestamp[cacheKey];
-      if (!cacheTime || Date.now() - cacheTime > contentCacheExpiry) {
-        return null;
-      }
-
-      if (contentType === 'vocabulary') {
-        return cachedVocabularyContent[cacheKey] || null;
-      } else {
-        return cachedWordPairsContent[cacheKey] || null;
-      }
-    },
-
-    setCachedContent: (cacheKey: string, content: VocabularyWord[] | Record<string, Array<{ english: string; translation: string }>>, contentType: 'vocabulary' | 'wordPairs'): void => {
-      const currentState = get();
-      
-      if (contentType === 'vocabulary') {
-        set({
-          cachedVocabularyContent: {
-            ...currentState.cachedVocabularyContent,
-            [cacheKey]: content as VocabularyWord[],
-          },
-          contentCacheTimestamp: {
-            ...currentState.contentCacheTimestamp,
-            [cacheKey]: Date.now(),
-          },
-        });
-      } else {
-        set({
-          cachedWordPairsContent: {
-            ...currentState.cachedWordPairsContent,
-            [cacheKey]: content as Record<string, Array<{ english: string; translation: string }>>,
-          },
-          contentCacheTimestamp: {
-            ...currentState.contentCacheTimestamp,
-            [cacheKey]: Date.now(),
-          },
-        });
-      }
-    },
-
-    generateContentCacheKey: (contentType: 'vocabulary' | 'wordPairs', additionalParams?: Record<string, any>): string => {
-      const onboardingData = useOnboardingStore.getState();
-      const keyData = {
-        contentType,
-        targetLanguage: onboardingData.targetLanguage,
-        nativeLanguage: onboardingData.nativeLanguage,
-        languageLevel: onboardingData.languageLevel,
-        ...(additionalParams || {}),
-      };
-      return JSON.stringify(keyData);
-    },
+    // Removed legacy store-level caching helpers; React Query persists and indexes content
   }),
   {
     name: 'lesson-storage',

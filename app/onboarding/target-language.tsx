@@ -12,7 +12,7 @@ import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypo
 export default function TargetLanguageScreen() {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
-  const { setTargetLanguage, targetLanguage } = useOnboardingStore();
+  const { setTargetLanguage, targetLanguage, nativeLanguage } = useOnboardingStore();
 
   useEffect(() => {
     opacity.value = withTiming(1, { duration: 800 });
@@ -24,6 +24,9 @@ export default function TargetLanguageScreen() {
     transform: [{ translateY: translateY.value }],
   }));
 
+  // Exclude the user's native language from target language options
+  const filteredTargetLanguages = TARGET_LANGUAGES.filter(lang => lang.id !== nativeLanguage);
+
   return (
     <SafeAreaView style={[styles.container]}>
       <View>
@@ -33,7 +36,7 @@ export default function TargetLanguageScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[animatedStyle]}>
           <OnboardingList
-            options={TARGET_LANGUAGES}
+            options={filteredTargetLanguages}
             selectedValue={targetLanguage}
             onSelect={setTargetLanguage}
             containerStyle={styles.languagesContainer}

@@ -1,13 +1,14 @@
 import {
   ACCURACY_THRESHOLD,
+  FALLBACK_WORD_PAIRS_POOLS,
   VOCABULARY_SET_KEYS,
   VOCABULARY_WORD_SETS,
   WORD_PAIR_SETS,
   WORD_PAIRS_SET_KEYS,
-  FALLBACK_WORD_PAIRS_POOLS,
 } from "../constants/constants";
 import { desiredTargetSoundsForSetKey, mapPronunciationTokensToSetKeys } from "../helpers/sound-mapping-utils";
-import { DailyPlan } from "../store/lesson-store";
+import { DailyPlan, LessonType } from "../store/lesson-store";
+import { LanguageLevel, LearningGoal, NativeLanguageCode, TargetLanguageCode } from "../types/onboarding-types";
 import { VocabularyWord } from "../types/vocabulary";
 import { WordPair } from "../types/word-pairs";
 import { getDailyPlanSystemPrompt, getVocabularyWordsSystemPrompt, getWordPairsSystemPrompt } from "./prompt-templates";
@@ -164,18 +165,18 @@ class AIService {
 
   // Generate personalized vocabulary words based on user preferences and performance data
   async generateVocabularyWords(
-    targetLanguage: string,
-    nativeLanguage: string,
-    languageLevel: string,
-    learningGoal: string,
+    targetLanguage: TargetLanguageCode,
+    nativeLanguage: NativeLanguageCode,
+    languageLevel: LanguageLevel,
+    learningGoal: LearningGoal,
     count: number = 5,
     soundType?: 'consonant' | 'vowel' | 'mixed',
     targetSound?: string,
     performanceMetrics?: {
       completionRate: number;
       averageAccuracy: number;
-      preferredLessonTypes: string[];
-      strugglingAreas: string[];
+      preferredLessonTypes: LessonType[];
+      strugglingAreas: LessonType[];
     },
     spacedRepetitionData?: {
       vocabularyReview: string[];
@@ -271,30 +272,40 @@ class AIService {
       return vocabularyWords;
     } catch (error) {
       console.error('Error generating vocabulary words:', error);
-      return this.getFallbackVocabularyWords(count, soundType, targetSound, performanceMetrics, spacedRepetitionData);
+      return this.getFallbackVocabularyWords(
+        count,
+        soundType,
+        targetSound,
+        performanceMetrics,
+        spacedRepetitionData,
+        languageLevel,
+        learningGoal,
+        targetLanguage,
+        nativeLanguage
+      );
     }
   }
 
   // Generate personalized word pairs based on user preferences and performance data
   async generateWordPairs(
-    targetLanguage: string,
-    nativeLanguage: string,
-    languageLevel: string,
-    learningGoal: string,
+    targetLanguage: TargetLanguageCode,
+    nativeLanguage: NativeLanguageCode,
+    languageLevel: LanguageLevel,
+    learningGoal: LearningGoal,
     setsCount: number = 10,
     pairsPerSet: number = 8,
     performanceMetrics?: {
       completionRate: number;
       averageAccuracy: number;
-      preferredLessonTypes: string[];
-      strugglingAreas: string[];
+      preferredLessonTypes: LessonType[];
+      strugglingAreas: LessonType[];
     },
     spacedRepetitionData?: {
       vocabularyReview: string[];
       pronunciationReview: string[];
       difficultyAdjustment: 'increase' | 'maintain' | 'decrease';
     }
-  ): Promise<Record<string, Array<{ english: string; translation: string }>>> {
+  ): Promise<Record<string, WordPair[]>> {
     try {
       const messages: OpenAIMessage[] = [
         {
@@ -316,9 +327,9 @@ class AIService {
         }
       ];
 
-      /* if (messages.length) {
+      if (messages.length) {
         throw new Error('testing fallback generatiing vocabulary')
-      } */
+      }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -419,12 +430,12 @@ class AIService {
 
   private validateWordPairs(pairs: any[]): pairs is WordPair[] {
     return pairs.every(pair =>
-      typeof pair.english === 'string' &&
+      typeof pair.native === 'string' &&
       typeof pair.translation === 'string'
     );
   }
 
-  private validateWordPairsSets(data: any): data is Record<string, Array<{ english: string; translation: string }>> {
+  private validateWordPairsSets(data: any): data is Record<string, WordPair[]> {
     if (!data || typeof data !== 'object') return false;
 
     return Object.values(data).every(set =>
@@ -434,7 +445,7 @@ class AIService {
 
   // Enforce exact keys, counts, and single-token constraints without mutating content
   private validateWordPairsStructure(
-    data: Record<string, Array<{ english: string; translation: string }>>,
+    data: Record<string, WordPair[]>,
     setsCount: number,
     pairsPerSet: number
   ): boolean {
@@ -457,8 +468,8 @@ class AIService {
       if (!Array.isArray(set) || set.length !== pairsPerSet) return false;
       for (const p of set) {
         if (typeof p !== 'object' || p === null) return false;
-        if (typeof p.english !== 'string' || typeof p.translation !== 'string') return false;
-        if (!isSingleToken(p.english) || !isSingleToken(p.translation)) return false;
+        if (typeof p.native !== 'string' || typeof p.translation !== 'string') return false;
+        if (!isSingleToken(p.native) || !isSingleToken(p.translation)) return false;
       }
     }
 
@@ -475,27 +486,137 @@ class AIService {
     performanceMetrics?: {
       completionRate: number;
       averageAccuracy: number;
-      preferredLessonTypes: string[];
-      strugglingAreas: string[];
+      preferredLessonTypes: LessonType[];
+      strugglingAreas: LessonType[];
     },
     spacedRepetitionData?: {
       vocabularyReview: string[];
       pronunciationReview: string[];
       difficultyAdjustment: 'increase' | 'maintain' | 'decrease';
-    }
+    },
+    languageLevel?: LanguageLevel,
+    learningGoal?: LearningGoal,
+    targetLanguage?: TargetLanguageCode,
+    nativeLanguage?: NativeLanguageCode
   ): VocabularyWord[] {
-    // Prefer sets that align with pronunciation review tokens
-    const preferredSetKeys: (keyof typeof VOCABULARY_WORD_SETS)[] = mapPronunciationTokensToSetKeys(
-      spacedRepetitionData?.pronunciationReview || []
-    );
+    // Build target-language words from language-specific pools when available
+    const poolKey = targetLanguage && nativeLanguage ? `${targetLanguage}-${nativeLanguage}` : undefined;
+    const languagePool = (poolKey && FALLBACK_WORD_PAIRS_POOLS[poolKey]) || FALLBACK_WORD_PAIRS_POOLS['en-it'] || [];
 
-    const prioritizedKeys: (keyof typeof VOCABULARY_WORD_SETS)[] = [
-      ...preferredSetKeys,
-      ...VOCABULARY_SET_KEYS.filter((k) => !preferredSetKeys.includes(k)),
-    ];
+    // Onboarding-aware category indices (expanded to numeric indices)
+    const pickIndicesForOnboarding = (lvl?: string, goal?: string): number[] => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { FALLBACK_LEXICON_CATEGORY_RANGES: ranges } = require('../constants/constants');
 
-    // Build a pool from curated sets in prioritized order
-    const allWords: VocabularyWord[] = prioritizedKeys.flatMap((key) => VOCABULARY_WORD_SETS[key] as unknown as VocabularyWord[]);
+        const level = (lvl || '').toUpperCase();
+        const base: (keyof typeof ranges)[] = [];
+        if (level === 'A1') {
+          base.push('core', 'numbers', 'colors');
+        } else if (level === 'A2') {
+          base.push('core', 'numbers', 'colors', 'animals', 'school');
+        } else if (level === 'B1') {
+          base.push('animals', 'school', 'health', 'shopping', 'travel');
+        } else if (level === 'B2') {
+          base.push('health', 'shopping', 'travel', 'work');
+        } else if (level === 'C1' || level === 'C2') {
+          base.push('travel', 'work', 'exam');
+        } else {
+          base.push('core', 'numbers', 'colors', 'animals');
+        }
+
+        const gl = (goal || '').toLowerCase();
+        let goalExtras: (keyof typeof ranges)[] = [];
+        if (gl === 'travel') {
+          goalExtras = ['travel', 'shopping', 'health'];
+        } else if (gl === 'work') {
+          goalExtras = ['work', 'school'];
+        } else if (gl === 'exam') {
+          goalExtras = ['exam', 'school'];
+        } else if (gl === 'fluency') {
+          goalExtras = ['numbers', 'colors', 'animals', 'school', 'health', 'shopping'];
+        }
+
+        const mergedKeys = Array.from(new Set<keyof typeof ranges>([...base, ...goalExtras]));
+        const indices: number[] = [];
+        mergedKeys.forEach((k) => {
+          const { start, end } = ranges[k];
+          for (let i = start; i <= end; i++) indices.push(i);
+        });
+        return indices;
+      } catch {
+        return [];
+      }
+    };
+
+    const selectedIndices = pickIndicesForOnboarding(languageLevel, learningGoal);
+    const levelUpper = (languageLevel || '').toUpperCase();
+
+    let allWords: VocabularyWord[] = [];
+    if (languagePool.length > 0) {
+      const targetTokens = languagePool.map((p: WordPair) => p.native);
+      const indicesToUse: number[] = selectedIndices.length > 0 ? selectedIndices : targetTokens.map((_, i) => i);
+
+      const assignDifficulty = (index: number): 'easy' | 'medium' | 'hard' => {
+        if (levelUpper === 'A1') return 'easy';
+        if (levelUpper === 'A2') return index % 2 === 0 ? 'easy' : 'medium';
+        if (levelUpper === 'B1') return 'medium';
+        if (levelUpper === 'B2') return index % 3 === 0 ? 'hard' : 'medium';
+        if (levelUpper === 'C1' || levelUpper === 'C2') return index % 2 === 0 ? 'hard' : 'medium';
+        return 'medium';
+      };
+
+      allWords = indicesToUse
+        .filter((i) => i >= 0 && i < targetTokens.length)
+        .map((i) => {
+          const w = targetTokens[i];
+          const id = `fb-${targetLanguage || 'en'}-${w}-${i}`;
+          const diff = assignDifficulty(i);
+          return {
+            id,
+            word: w,
+            phonetic: '[n/a]',
+            definition: `Common ${targetLanguage || 'target'} word`,
+            example: `${w} — basic usage`,
+            difficulty: diff,
+            soundType: (soundType as 'consonant' | 'vowel' | 'mixed') || 'mixed',
+            targetSound: targetSound || 'general',
+          } as VocabularyWord;
+        });
+    }
+
+    // If pools are unavailable, fallback to curated English-centric sets
+    if (allWords.length === 0) {
+      const preferredSetKeys: (keyof typeof VOCABULARY_WORD_SETS)[] = mapPronunciationTokensToSetKeys(
+        spacedRepetitionData?.pronunciationReview || []
+      );
+
+      const pickGoalPreferredSetKeys = (goal?: string): (keyof typeof VOCABULARY_WORD_SETS)[] => {
+        const gl = (goal || '').toLowerCase();
+        if (gl === 'travel') {
+          return ['mixed_sounds', 'vowels_short', 'vowels_long'];
+        } else if (gl === 'work') {
+          return ['consonants_r', 'consonants_th', 'mixed_sounds'];
+        } else if (gl === 'exam') {
+          return ['consonants_th', 'consonants_r', 'mixed_sounds'];
+        } else if (gl === 'fluency') {
+          return ['mixed_sounds', 'consonants_th', 'consonants_r', 'vowels_short', 'vowels_long'];
+        }
+        return [];
+      };
+
+      const goalSetKeys = pickGoalPreferredSetKeys(learningGoal);
+      const basePriority: (keyof typeof VOCABULARY_WORD_SETS)[] = [
+        ...preferredSetKeys,
+        ...goalSetKeys,
+      ];
+      const prioritizedKeys: (keyof typeof VOCABULARY_WORD_SETS)[] = [
+        ...basePriority,
+        ...VOCABULARY_SET_KEYS.filter((k) => !basePriority.includes(k)),
+      ];
+
+      allWords = prioritizedKeys.flatMap((key) => VOCABULARY_WORD_SETS[key] as unknown as VocabularyWord[]);
+    }
 
     // Filter by sound focus if provided
     let filtered = allWords.filter((w) => {
@@ -504,9 +625,30 @@ class AIService {
       return soundTypeOk && targetSoundOk;
     });
 
+    // Difficulty targeting based on onboarding language level
+    const allowedDifficulties = new Set<'easy' | 'medium' | 'hard'>();
+    if (levelUpper === 'A1') {
+      allowedDifficulties.add('easy');
+    } else if (levelUpper === 'A2') {
+      allowedDifficulties.add('easy');
+      allowedDifficulties.add('medium');
+    } else if (levelUpper === 'B1') {
+      allowedDifficulties.add('medium');
+    } else if (levelUpper === 'B2') {
+      allowedDifficulties.add('medium');
+      allowedDifficulties.add('hard');
+    } else if (levelUpper === 'C1' || levelUpper === 'C2') {
+      allowedDifficulties.add('hard');
+      allowedDifficulties.add('medium');
+    }
+
+    let filteredByLevel = allowedDifficulties.size > 0
+      ? filtered.filter((w) => allowedDifficulties.has(w.difficulty))
+      : filtered;
+
     // If filter is too strict, fall back to the whole pool
-    if (filtered.length < count) {
-      filtered = allWords;
+    if (filteredByLevel.length < count) {
+      filteredByLevel = filtered;
     }
 
     // Difficulty targeting based on performance/spaced repetition
@@ -517,8 +659,8 @@ class AIService {
 
     const wantHarder = spacedRepetitionData?.difficultyAdjustment === 'increase' && !wantEasier;
 
-    const easy = filtered.filter((w) => w.difficulty === 'easy');
-    const medium = filtered.filter((w) => w.difficulty === 'medium' || w.difficulty === 'hard');
+    const easy = filteredByLevel.filter((w) => w.difficulty === 'easy');
+    const medium = filteredByLevel.filter((w) => w.difficulty === 'medium' || w.difficulty === 'hard');
 
     let selection: VocabularyWord[] = [];
     if (wantEasier) {
@@ -537,9 +679,11 @@ class AIService {
     // Prioritize spaced-repetition review words and pronunciation-aligned words if present
     const reviewSet = new Set(spacedRepetitionData?.vocabularyReview || []);
     const desiredSounds = new Set<string>();
-    preferredSetKeys.forEach((k) => {
-      for (const s of desiredTargetSoundsForSetKey(k)) desiredSounds.add(s);
+    const pronSetKeys = mapPronunciationTokensToSetKeys(spacedRepetitionData?.pronunciationReview || []);
+    pronSetKeys.forEach((k) => {
+      desiredTargetSoundsForSetKey(k).forEach((s) => desiredSounds.add(s));
     });
+    // Do not add lesson-type labels to desiredSounds; rely on pronunciationReview-derived sounds only
     selection.sort((a, b) => {
       const aRev = reviewSet.has(a.word) ? 1 : 0;
       const bRev = reviewSet.has(b.word) ? 1 : 0;
@@ -585,16 +729,16 @@ class AIService {
     performanceMetrics?: {
       completionRate: number;
       averageAccuracy: number;
-      preferredLessonTypes: string[];
-      strugglingAreas: string[];
+      preferredLessonTypes: LessonType[];
+      strugglingAreas: LessonType[];
     },
     spacedRepetitionData?: {
       vocabularyReview: string[];
       pronunciationReview: string[];
       difficultyAdjustment: 'increase' | 'maintain' | 'decrease';
     }
-  ): Record<string, Array<{ english: string; translation: string }>> {
-    const result: Record<string, Array<{ english: string; translation: string }>> = {};
+  ): Record<string, WordPair[]> {
+    const result: Record<string, WordPair[]> = {};
 
     // 1) Try language-specific pool keyed by `${target}-${native}`; fallback to 'en-it'.
     const poolKey = targetLanguage && nativeLanguage ? `${targetLanguage}-${nativeLanguage}` : undefined;
@@ -603,7 +747,8 @@ class AIService {
     // 2) If pool is somehow empty, fallback to legacy WORD_PAIR_SETS combined.
     let combined: WordPair[];
     if (languagePool.length > 0) {
-      combined = languagePool as unknown as WordPair[];
+      // Already shaped as { native, translation } per `${target}-${native}` pools
+      combined = languagePool
       // If we have onboarding signals, slice by category ranges to prioritize relevance
       if (languageLevel || learningGoal) {
         try {
@@ -627,22 +772,25 @@ class AIService {
               base.push('animals', 'colors', 'numbers');
             }
 
-            // Goal tuning with expanded domains
+            // Goal tuning with expanded domains (merged with level base)
+            let goalExtras: Array<keyof typeof ranges> = [];
             if (gl === 'travel') {
               // favor travel, include shopping for real-life scenarios, plus numbers/colors
-              return ['core', 'verbs', 'travel', 'shopping', 'numbers', 'colors'];
+              goalExtras = ['travel', 'shopping', 'numbers', 'colors'];
             } else if (gl === 'work') {
               // favor work, include numbers to reach coverage without diluting relevance
-              return ['core', 'verbs', 'work', 'numbers', 'colors'];
+              goalExtras = ['work', 'numbers', 'colors'];
             } else if (gl === 'exam') {
               // focus on exam domain, plus core/verbs and numbers/colors; include school
-              return ['core', 'verbs', 'exam', 'school', 'numbers', 'colors'];
+              goalExtras = ['exam', 'school', 'numbers', 'colors'];
             } else if (gl === 'fluency') {
               // broad vocabulary expansion
-              return ['core', 'verbs', 'numbers', 'colors', 'animals', 'school', 'health', 'shopping'];
+              goalExtras = ['numbers', 'colors', 'animals', 'school', 'health', 'shopping'];
             }
 
-            return base;
+            // Merge base + goal extras, preserving order and removing duplicates
+            const merged = Array.from(new Set<keyof typeof ranges>([...base, ...goalExtras]));
+            return merged;
           };
 
           const desired = pickRangesForOnboarding(languageLevel, learningGoal);
@@ -670,8 +818,8 @@ class AIService {
     // Light prioritization: place review words first if present
     const reviewSet = new Set(spacedRepetitionData?.vocabularyReview || []);
     combined.sort((a, b) => {
-      const aRev = reviewSet.has(a.english) ? 1 : 0;
-      const bRev = reviewSet.has(b.english) ? 1 : 0;
+      const aRev = reviewSet.has(a.translation) ? 1 : 0;
+      const bRev = reviewSet.has(b.translation) ? 1 : 0;
       return bRev - aRev;
     });
 
@@ -679,7 +827,7 @@ class AIService {
     const seenSession = new Set<string>();
     const uniqueSession: WordPair[] = [];
     for (const wp of combined) {
-      const key = `${wp.english}|||${wp.translation}`;
+      const key = `${wp.translation}|||${wp.native}`;
       if (!seenSession.has(key)) {
         uniqueSession.push(wp);
         seenSession.add(key);
@@ -700,7 +848,7 @@ class AIService {
         // Wrap-around cursor over supply
         const item = supply[cursor % supply.length];
         cursor++;
-        const key = `${item.english}|||${item.translation}`;
+        const key = `${item.translation}|||${item.native}`;
         if (!setSeen.has(key)) {
           setSeen.add(key);
           setPairs.push(item);

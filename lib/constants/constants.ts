@@ -1,3 +1,4 @@
+import { WordPair } from "../types/word-pairs";
 
 export const LANGUAGE_LEVELS = [
   { id: 'A1', label: 'Beginner (A1)', description: 'Basic phrases and expressions' },
@@ -28,6 +29,7 @@ export const NATIVE_LANGUAGES = [
   { id: 'ja', label: 'Japanese', description: 'Pitch-accent language with simple phonetic structure' },
   { id: 'ko', label: 'Korean', description: 'Agglutinative language with unique alphabet and pronunciation rules' },
   { id: 'ar', label: 'Arabic', description: 'Semitic language with rich phonetic system and distinctive sounds' },
+  { id: 'en', label: 'English', description: 'Global language with varied pronunciation and stress patterns' },
 ] as const;
 
 export const NATIVE_LANGUAGE_LABELS = {
@@ -41,6 +43,7 @@ export const NATIVE_LANGUAGE_LABELS = {
   ja: 'Japanese',
   ko: 'Korean',
   ar: 'Arabic',
+  en: 'English',
 } as const;
 
 export const TARGET_LANGUAGES = [
@@ -54,6 +57,7 @@ export const TARGET_LANGUAGES = [
   { id: 'ja', label: 'Japanese', description: 'Learn Japanese pronunciation and speaking skills' },
   { id: 'ko', label: 'Korean', description: 'Learn Korean pronunciation and speaking skills' },
   { id: 'ru', label: 'Russian', description: 'Learn Russian pronunciation and speaking skills' },
+  { id: 'ar', label: 'Arabic', description: 'Learn Arabic pronunciation and speaking skills' },
 ] as const;
 
 export const TARGET_LANGUAGE_LABELS = {
@@ -67,6 +71,7 @@ export const TARGET_LANGUAGE_LABELS = {
   ja: 'Japanese',
   ko: 'Korean',
   ru: 'Russian',
+  ar: 'Arabic',
 } as const;
 
 export const LEARNING_GOALS = [
@@ -143,36 +148,36 @@ export const DAILY_PRACTICE_TIME_LABELS = TIME_OPTIONS.reduce((acc, option) => {
 // Sample word pairs for the game
 export const WORD_PAIR_SETS = {
   set1: [
-    { english: 'of the', translation: 'dello' },
-    { english: 'me at', translation: 'mi a' },
-    { english: 'after', translation: 'dopo' },
-    { english: 'since', translation: 'da' },
-    { english: 'which', translation: 'quale' },
-    { english: 'this', translation: 'questo' },
-    { english: 'that', translation: 'quello' },
-    { english: 'here', translation: 'qui' },
+  { native: 'of the', translation: 'dello' },
+  { native: 'me at', translation: 'mi a' },
+  { native: 'after', translation: 'dopo' },
+  { native: 'since', translation: 'da' },
+  { native: 'which', translation: 'quale' },
+  { native: 'this', translation: 'questo' },
+  { native: 'that', translation: 'quello' },
+  { native: 'here', translation: 'qui' },
   ],
   set2: [
-    { english: 'hello', translation: 'ciao' },
-    { english: 'goodbye', translation: 'arrivederci' },
-    { english: 'yes', translation: 'sì' },
-    { english: 'no', translation: 'no' },
-    { english: 'please', translation: 'per favore' },
-    { english: 'thank you', translation: 'grazie' },
-    { english: 'apple', translation: 'mela' },
-    { english: 'water', translation: 'acqua' },
+  { native: 'hello', translation: 'ciao' },
+  { native: 'goodbye', translation: 'arrivederci' },
+  { native: 'yes', translation: 'sì' },
+  { native: 'no', translation: 'no' },
+  { native: 'please', translation: 'per favore' },
+  { native: 'thank you', translation: 'grazie' },
+  { native: 'apple', translation: 'mela' },
+  { native: 'water', translation: 'acqua' },
   ],
    set3: [
-    { english: 'house', translation: 'casa' },
-    { english: 'car', translation: 'macchina' },
-    { english: 'book', translation: 'libro' },
-    { english: 'tree', translation: 'albero' },
-    { english: 'sun', translation: 'sole' },
-    { english: 'moon', translation: 'luna' },
-    { english: 'friend', translation: 'amico' },
-    { english: 'family', translation: 'famiglia' },
+  { native: 'house', translation: 'casa' },
+  { native: 'car', translation: 'macchina' },
+  { native: 'book', translation: 'libro' },
+  { native: 'tree', translation: 'albero' },
+  { native: 'sun', translation: 'sole' },
+  { native: 'moon', translation: 'luna' },
+  { native: 'friend', translation: 'amico' },
+  { native: 'family', translation: 'famiglia' },
   ],
-/*   set4: [
+  set4: [
     { english: 'eat', translation: 'mangiare' },
     { english: 'drink', translation: 'bere' },
     { english: 'sleep', translation: 'dormire' },
@@ -241,186 +246,14 @@ export const WORD_PAIR_SETS = {
     { english: 'evening', translation: 'sera' },
     { english: 'night', translation: 'notte' },
     { english: 'week', translation: 'settimana' },
-  ],  */
+  ], 
 } as const;
 
 export const WORD_PAIRS_SET_KEYS = Object.keys(WORD_PAIR_SETS) as (keyof typeof WORD_PAIR_SETS)[];
 
-// Curated multilingual fallback pools for common single-token words.
-// Keys use pattern `${targetLanguage}-${nativeLanguage}`.
-// The `english` field carries the TARGET language word per app convention.
-export const FALLBACK_WORD_PAIRS_POOLS_LEGACY: Record<string, Array<{ english: string; translation: string }>> = {
-  // Spanish → Italian
-  'es-it': [
-    { english: 'hola', translation: 'ciao' },
-    { english: 'adiós', translation: 'arrivederci' },
-    { english: 'sí', translation: 'sì' },
-    { english: 'no', translation: 'no' },
-    { english: 'gracias', translation: 'grazie' },
-    { english: 'agua', translation: 'acqua' },
-    { english: 'casa', translation: 'casa' },
-    { english: 'libro', translation: 'libro' },
-    { english: 'sol', translation: 'sole' },
-    { english: 'luna', translation: 'luna' },
-    { english: 'amigo', translation: 'amico' },
-    { english: 'familia', translation: 'famiglia' },
-    { english: 'comida', translation: 'cibo' },
-    { english: 'bebida', translation: 'bevanda' },
-    { english: 'tiempo', translation: 'tempo' },
-    { english: 'trabajo', translation: 'lavoro' },
-    { english: 'día', translation: 'giorno' },
-    { english: 'noche', translation: 'notte' },
-    { english: 'mañana', translation: 'mattina' },
-    { english: 'tarde', translation: 'pomeriggio' },
-    { english: 'año', translation: 'anno' },
-    { english: 'semana', translation: 'settimana' },
-    { english: 'rápido', translation: 'veloce' },
-    { english: 'lento', translation: 'lento' },
-  ],
-
-  // Italian → Spanish
-  'it-es': [
-    { english: 'ciao', translation: 'hola' },
-    { english: 'arrivederci', translation: 'adiós' },
-    { english: 'sì', translation: 'sí' },
-    { english: 'no', translation: 'no' },
-    { english: 'grazie', translation: 'gracias' },
-    { english: 'acqua', translation: 'agua' },
-    { english: 'casa', translation: 'casa' },
-    { english: 'libro', translation: 'libro' },
-    { english: 'sole', translation: 'sol' },
-    { english: 'luna', translation: 'luna' },
-    { english: 'amico', translation: 'amigo' },
-    { english: 'famiglia', translation: 'familia' },
-    { english: 'cibo', translation: 'comida' },
-    { english: 'bevanda', translation: 'bebida' },
-    { english: 'tempo', translation: 'tiempo' },
-    { english: 'lavoro', translation: 'trabajo' },
-    { english: 'giorno', translation: 'día' },
-    { english: 'notte', translation: 'noche' },
-    { english: 'mattina', translation: 'mañana' },
-    { english: 'pomeriggio', translation: 'tarde' },
-    { english: 'anno', translation: 'año' },
-    { english: 'settimana', translation: 'semana' },
-    { english: 'veloce', translation: 'rápido' },
-    { english: 'lento', translation: 'lento' },
-  ],
-
-  // English → Spanish
-  'en-es': [
-    { english: 'hello', translation: 'hola' },
-    { english: 'goodbye', translation: 'adiós' },
-    { english: 'yes', translation: 'sí' },
-    { english: 'no', translation: 'no' },
-    { english: 'thanks', translation: 'gracias' },
-    { english: 'water', translation: 'agua' },
-    { english: 'house', translation: 'casa' },
-    { english: 'book', translation: 'libro' },
-    { english: 'sun', translation: 'sol' },
-    { english: 'moon', translation: 'luna' },
-    { english: 'friend', translation: 'amigo' },
-    { english: 'family', translation: 'familia' },
-    { english: 'food', translation: 'comida' },
-    { english: 'drink', translation: 'bebida' },
-    { english: 'time', translation: 'tiempo' },
-    { english: 'work', translation: 'trabajo' },
-    { english: 'day', translation: 'día' },
-    { english: 'night', translation: 'noche' },
-    { english: 'morning', translation: 'mañana' },
-    { english: 'afternoon', translation: 'tarde' },
-    { english: 'year', translation: 'año' },
-    { english: 'week', translation: 'semana' },
-    { english: 'fast', translation: 'rápido' },
-    { english: 'slow', translation: 'lento' },
-  ],
-
-  // Spanish → English
-  'es-en': [
-    { english: 'hola', translation: 'hello' },
-    { english: 'adiós', translation: 'goodbye' },
-    { english: 'sí', translation: 'yes' },
-    { english: 'no', translation: 'no' },
-    { english: 'gracias', translation: 'thanks' },
-    { english: 'agua', translation: 'water' },
-    { english: 'casa', translation: 'house' },
-    { english: 'libro', translation: 'book' },
-    { english: 'sol', translation: 'sun' },
-    { english: 'luna', translation: 'moon' },
-    { english: 'amigo', translation: 'friend' },
-    { english: 'familia', translation: 'family' },
-    { english: 'comida', translation: 'food' },
-    { english: 'bebida', translation: 'drink' },
-    { english: 'tiempo', translation: 'time' },
-    { english: 'trabajo', translation: 'work' },
-    { english: 'día', translation: 'day' },
-    { english: 'noche', translation: 'night' },
-    { english: 'mañana', translation: 'morning' },
-    { english: 'tarde', translation: 'afternoon' },
-    { english: 'año', translation: 'year' },
-    { english: 'semana', translation: 'week' },
-    { english: 'rápido', translation: 'fast' },
-    { english: 'lento', translation: 'slow' },
-  ],
-
-  // English → Italian
-  'en-it': [
-    { english: 'hello', translation: 'ciao' },
-    { english: 'goodbye', translation: 'arrivederci' },
-    { english: 'yes', translation: 'sì' },
-    { english: 'no', translation: 'no' },
-    { english: 'thanks', translation: 'grazie' },
-    { english: 'water', translation: 'acqua' },
-    { english: 'house', translation: 'casa' },
-    { english: 'book', translation: 'libro' },
-    { english: 'sun', translation: 'sole' },
-    { english: 'moon', translation: 'luna' },
-    { english: 'friend', translation: 'amico' },
-    { english: 'family', translation: 'famiglia' },
-    { english: 'food', translation: 'cibo' },
-    { english: 'drink', translation: 'bevanda' },
-    { english: 'time', translation: 'tempo' },
-    { english: 'work', translation: 'lavoro' },
-    { english: 'day', translation: 'giorno' },
-    { english: 'night', translation: 'notte' },
-    { english: 'morning', translation: 'mattina' },
-    { english: 'afternoon', translation: 'pomeriggio' },
-    { english: 'year', translation: 'anno' },
-    { english: 'week', translation: 'settimana' },
-    { english: 'fast', translation: 'veloce' },
-    { english: 'slow', translation: 'lento' },
-  ],
-
-  // Italian → English
-  'it-en': [
-    { english: 'ciao', translation: 'hello' },
-    { english: 'arrivederci', translation: 'goodbye' },
-    { english: 'sì', translation: 'yes' },
-    { english: 'no', translation: 'no' },
-    { english: 'grazie', translation: 'thanks' },
-    { english: 'acqua', translation: 'water' },
-    { english: 'casa', translation: 'house' },
-    { english: 'libro', translation: 'book' },
-    { english: 'sole', translation: 'sun' },
-    { english: 'luna', translation: 'moon' },
-    { english: 'amico', translation: 'friend' },
-    { english: 'famiglia', translation: 'family' },
-    { english: 'cibo', translation: 'food' },
-    { english: 'bevanda', translation: 'drink' },
-    { english: 'tempo', translation: 'time' },
-    { english: 'lavoro', translation: 'work' },
-    { english: 'giorno', translation: 'day' },
-    { english: 'notte', translation: 'night' },
-    { english: 'mattina', translation: 'morning' },
-    { english: 'pomeriggio', translation: 'afternoon' },
-    { english: 'anno', translation: 'year' },
-    { english: 'settimana', translation: 'week' },
-    { english: 'veloce', translation: 'fast' },
-    { english: 'lento', translation: 'slow' },
-  ],
-};
 
 // Unified lexicon of common single-token words across languages, aligned by concept.
-const FALLBACK_LEXICON: Record<string, string[]> = {
+const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = {
   en: [
     'hello','goodbye','yes','no','thanks','water','house','book','sun','moon','friend','family','food','drink','time','work','day','night','morning','afternoon','year','week','fast','slow','cat','dog','big','small','hot','cold','good','bad',
     // numbers 1-20
@@ -688,10 +521,10 @@ const FALLBACK_LEXICON: Record<string, string[]> = {
 };
 
 // Programmatically build pools for all supported `${targetLanguage}-${nativeLanguage}` combinations.
-export const FALLBACK_WORD_PAIRS_POOLS: Record<string, Array<{ english: string; translation: string }>> = (() => {
-  const pools: Record<string, Array<{ english: string; translation: string }>> = {};
-  const targetCodes = Object.keys(TARGET_LANGUAGE_LABELS);
-  const nativeCodes = Object.keys(NATIVE_LANGUAGE_LABELS);
+export const FALLBACK_WORD_PAIRS_POOLS: Record<string, WordPair[]> = (() => {
+  const pools: Record<string, WordPair[]> = {};
+  const targetCodes = Object.keys(TARGET_LANGUAGE_LABELS) as (keyof typeof TARGET_LANGUAGE_LABELS)[];
+  const nativeCodes = Object.keys(NATIVE_LANGUAGE_LABELS) as (keyof typeof NATIVE_LANGUAGE_LABELS)[];
 
   for (const t of targetCodes) {
     for (const n of nativeCodes) {
@@ -699,7 +532,7 @@ export const FALLBACK_WORD_PAIRS_POOLS: Record<string, Array<{ english: string; 
       const nLex = FALLBACK_LEXICON[n];
       if (!tLex || !nLex) continue;
       const len = Math.min(tLex.length, nLex.length);
-      pools[`${t}-${n}`] = Array.from({ length: len }, (_, i) => ({ english: tLex[i], translation: nLex[i] }));
+      pools[`${t}-${n}`] = Array.from({ length: len }, (_, i) => ({ native: tLex[i], translation: nLex[i] }));
     }
   }
   return pools;

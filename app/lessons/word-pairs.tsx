@@ -6,18 +6,18 @@ import { RNPText } from '@/components/ui/RNPText';
 import { useAppTheme } from '@/components/ui/theme';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
+import { useWordPairsQuery } from '@/lib/hooks/use-word-pairs-query';
 import { usePortalModalStore } from '@/lib/store/portal-modal-store';
-import { ColumnType, WordPairsState } from '@/lib/types/word-pairs';
+import { ColumnType, WordPair, WordPairsState } from '@/lib/types/word-pairs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Button } from 'react-native-paper';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LessonType, useLessonStore } from '../../lib/store/lesson-store';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
-import { useWordPairsQuery } from '@/lib/hooks/use-word-pairs-query';
-import { ActivityIndicator, Button } from 'react-native-paper';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -28,7 +28,7 @@ export default function WordPairsScreen() {
   const {
     completeLesson,
     initializeLessonSessionState,
-    setEnglishWords,
+    setNativeWords,
     setTranslationWords,
     setSelectedPair,
     setMatchedPairs,
@@ -64,7 +64,7 @@ export default function WordPairsScreen() {
 
   // Destructure word-pairs state for easier access
   const {
-    englishWords = [],
+    nativeWords = [],
     translationWords = [],
     selectedPair = null,
     matchedPairs = [],
@@ -103,7 +103,7 @@ export default function WordPairsScreen() {
   const { correctSound, incorrectSound, winningSound } = useAudio();
 
   // Animation values - individual scale values for each word pair 
-  const englishScaleValues = [
+  const nativeScaleValues = [
     useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1),
     useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1),
   ];
@@ -140,14 +140,14 @@ export default function WordPairsScreen() {
   }, [matchedPairs]);
 
   // Create individual animated styles for each item (fixed number of hooks)
-  const englishAnimatedStyle0 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[0].value }] }));
-  const englishAnimatedStyle1 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[1].value }] }));
-  const englishAnimatedStyle2 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[2].value }] }));
-  const englishAnimatedStyle3 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[3].value }] }));
-  const englishAnimatedStyle4 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[4].value }] }));
-  const englishAnimatedStyle5 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[5].value }] }));
-  const englishAnimatedStyle6 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[6].value }] }));
-  const englishAnimatedStyle7 = useAnimatedStyle(() => ({ transform: [{ scale: englishScaleValues[7].value }] }));
+  const nativeAnimatedStyle0 = useAnimatedStyle(() => ({ transform: [{ scale: nativeScaleValues[0].value }] }));
+  const nativeAnimatedStyle1 = useAnimatedStyle(() => ({ transform: [{ scale: nativeScaleValues[1].value }] }));
+  const nativeAnimatedStyle2 = useAnimatedStyle(() => ({ transform: [{ scale: nativeScaleValues[2].value }] }));
+  const nativeAnimatedStyle3 = useAnimatedStyle(() => ({ transform: [{ scale: nativeScaleValues[3].value }] }));
+  const nativeAnimatedStyle4 = useAnimatedStyle(() => ({ transform: [{ scale: nativeScaleValues[4].value }] }));
+  const nativeAnimatedStyle5 = useAnimatedStyle(() => ({ transform: [{ scale: nativeScaleValues[5].value }] }));
+  const nativeAnimatedStyle6 = useAnimatedStyle(() => ({ transform: [{ scale: nativeScaleValues[6].value }] }));
+  const nativeAnimatedStyle7 = useAnimatedStyle(() => ({ transform: [{ scale: nativeScaleValues[7].value }] }));
 
   const translationAnimatedStyle0 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[0].value }] }));
   const translationAnimatedStyle1 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[1].value }] }));
@@ -159,11 +159,11 @@ export default function WordPairsScreen() {
   const translationAnimatedStyle7 = useAnimatedStyle(() => ({ transform: [{ scale: translationScaleValues[7].value }] }));
 
   // Memoize arrays of animated styles for easier access
-  const englishAnimatedStyles = useMemo(() => [
-    englishAnimatedStyle0, englishAnimatedStyle1, englishAnimatedStyle2, englishAnimatedStyle3,
-    englishAnimatedStyle4, englishAnimatedStyle5, englishAnimatedStyle6, englishAnimatedStyle7,
-  ], [englishAnimatedStyle0, englishAnimatedStyle1, englishAnimatedStyle2, englishAnimatedStyle3,
-    englishAnimatedStyle4, englishAnimatedStyle5, englishAnimatedStyle6, englishAnimatedStyle7]);
+  const nativeAnimatedStyles = useMemo(() => [
+    nativeAnimatedStyle0, nativeAnimatedStyle1, nativeAnimatedStyle2, nativeAnimatedStyle3,
+    nativeAnimatedStyle4, nativeAnimatedStyle5, nativeAnimatedStyle6, nativeAnimatedStyle7,
+  ], [nativeAnimatedStyle0, nativeAnimatedStyle1, nativeAnimatedStyle2, nativeAnimatedStyle3,
+    nativeAnimatedStyle4, nativeAnimatedStyle5, nativeAnimatedStyle6, nativeAnimatedStyle7]);
 
   const translationAnimatedStyles = useMemo(() => [
     translationAnimatedStyle0, translationAnimatedStyle1, translationAnimatedStyle2, translationAnimatedStyle3,
@@ -172,9 +172,9 @@ export default function WordPairsScreen() {
     translationAnimatedStyle4, translationAnimatedStyle5, translationAnimatedStyle6, translationAnimatedStyle7]);
 
   // Memoize helper functions to get the correct animated style
-  const getEnglishAnimatedStyle = useCallback((index: number) => {
-    return englishAnimatedStyles[index] || englishAnimatedStyles[0]; // Default to first if out of bounds
-  }, [englishAnimatedStyles]);
+  const getNativeAnimatedStyle = useCallback((index: number) => {
+    return nativeAnimatedStyles[index] || nativeAnimatedStyles[0]; // Default to first if out of bounds
+  }, [nativeAnimatedStyles]);
 
   const getTranslationAnimatedStyle = useCallback((index: number) => {
     return translationAnimatedStyles[index] || translationAnimatedStyles[0]; // Default to first if out of bounds
@@ -186,7 +186,7 @@ export default function WordPairsScreen() {
   const currentWordPairs = useMemo(() => {
     // Get the current set's word pairs based on currentSetIndex
     const setKey = `set${currentSetIndex + 1}`;
-    return dynamicWordPairs?.[setKey] ?? ([] as Array<{ english: string; translation: string }>);
+    return dynamicWordPairs?.[setKey] ?? ([] as WordPair[]);
   }, [dynamicWordPairs, currentSetIndex]);
 
   const initializeGame = useCallback(async () => {
@@ -194,7 +194,7 @@ export default function WordPairsScreen() {
     if (currentWordPairs.length === 0) return; // Don't initialize if no content
 
     // Extract and shuffle words
-    const english = currentWordPairs.map(pair => pair.english);
+    const native = currentWordPairs.map(pair => pair.native);
     const translationsWithIndex = currentWordPairs.map((pair, idx) => ({ text: pair.translation, pairIndex: idx }));
 
     // Shuffle translations while maintaining mapping to their original pair index
@@ -202,7 +202,7 @@ export default function WordPairsScreen() {
     const shuffledTranslations = shuffled.map(s => s.text);
     const shuffledPairIndices = shuffled.map(s => s.pairIndex);
 
-    setEnglishWords(lessonId, english);
+    setNativeWords(lessonId, native);
     setTranslationWords(lessonId, shuffledTranslations);
     // Track which translation card corresponds to which original pair index
     translationPairIndicesRef.current = shuffledPairIndices;
@@ -221,7 +221,7 @@ export default function WordPairsScreen() {
 
     // Start the timer for this set
     startSetTimer(lessonId);
-  }, [lessonId, currentSetIndex, currentWordPairs, setEnglishWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer]);
+  }, [lessonId, currentSetIndex, currentWordPairs, setNativeWords, setTranslationWords, setSelectedPair, setMatchedPairs, setScore, setIncorrectPair, setCurrentSetCompleted, clearSetTimer, startSetTimer]);
 
   // Initialize the game when set index changes or data becomes available
   useEffect(() => {
@@ -292,7 +292,7 @@ export default function WordPairsScreen() {
   }, []);
 
 
-  const handleWordPress = useCallback((index: number, column: 'english' | 'translation') => {
+  const handleWordPress = useCallback((index: number, column: 'native' | 'translation') => {
     console.log('calculated')
     if (!lessonId) return;
 
@@ -302,7 +302,7 @@ export default function WordPairsScreen() {
     }
 
     // If the word is already matched, do nothing (including animations)
-    if ((matchedPairs?.includes(index) && column === 'english') ||
+    if ((matchedPairs?.includes(index) && column === 'native') ||
       (column === 'translation' && isTranslationMatched(index))) {
       return;
     }
@@ -314,7 +314,7 @@ export default function WordPairsScreen() {
     }
 
     // Get the appropriate scale value for this specific item
-    const scaleValue = column === 'english' ? englishScaleValues[index] : translationScaleValues[index];
+    const scaleValue = column === 'native' ? nativeScaleValues[index] : translationScaleValues[index];
 
     // Trigger a small scale animation for this specific item
     scaleValue.value = withSpring(1.10, { damping: 10 });
@@ -337,12 +337,12 @@ export default function WordPairsScreen() {
     }
 
     // Check if the pair matches
-    const englishIndex = column === 'english' ? index : selectedPair.index;
+    const nativeIndex = column === 'native' ? index : selectedPair.index;
     const translationIndex = column === 'translation' ? index : selectedPair.index;
-    const englishWord = englishWords[englishIndex];
-    const translationWord = translationWords[translationIndex];
+    const nativeWord = nativeWords[nativeIndex];
+const translationWord = translationWords[translationIndex];
     const selectedTranslationPairIndex = translationPairIndicesRef.current?.[translationIndex];
-    const correctPairIndex = englishIndex; // englishWords indexes align with currentWordPairs indexes
+    const correctPairIndex = nativeIndex; // nativeWords indexes align with currentWordPairs indexes
 
     // Match if the selected translation card corresponds to the same original pair index
     if (selectedTranslationPairIndex === correctPairIndex) {
@@ -350,7 +350,7 @@ export default function WordPairsScreen() {
       HapticSuccess?.();
       correctSound?.replayAsync()
 
-      setMatchedPairs(lessonId, [...(matchedPairs ?? []), englishIndex]);
+      setMatchedPairs(lessonId, [...(matchedPairs ?? []), nativeIndex]);
       setScore(lessonId, score + 10);
 
       // Check if all pairs are matched
@@ -420,7 +420,7 @@ export default function WordPairsScreen() {
             Object.entries(errorsBySet).forEach(([setIdx, errors]) => {
               alertMessage += `\n\n📍 Set ${parseInt(setIdx) + 1} (${errors.length} error${errors.length > 1 ? 's' : ''}):`;;
               errors.forEach(error => {
-                alertMessage += `\n• "${error.englishWord}" ≠ "${error.attemptedTranslation}"`;
+      alertMessage += `\n• "${error.nativeWord}" ≠ "${error.attemptedTranslation}"`;
               });
             });
 
@@ -439,7 +439,7 @@ export default function WordPairsScreen() {
             if (currentSetErrors.length > 0) {
               alertMessage += `\n\n❌ Errors in this set:`;
               currentSetErrors.forEach(error => {
-                alertMessage += `\n• "${error.englishWord}" ≠ "${error.attemptedTranslation}"`;
+      alertMessage += `\n• "${error.nativeWord}" ≠ "${error.attemptedTranslation}"`;
               });
               alertMessage += `\n\nTry this set again for a perfect score, or move to the next one.`;
             }
@@ -612,11 +612,11 @@ export default function WordPairsScreen() {
       incorrectSound?.replayAsync()
 
       // Track detailed error information
-      const correctTranslation = currentWordPairs[englishIndex]?.translation || '';
-      addErrorDetail(lessonId, englishWord, translationWord, currentSetIndex, correctTranslation);
+      const correctTranslation = currentWordPairs[nativeIndex]?.translation || '';
+      addErrorDetail(lessonId, nativeWord, translationWord, currentSetIndex, correctTranslation);
 
       setIncorrectPair(lessonId, {
-        english: column === 'english' ? index : selectedPair.index,
+        native: column === 'native' ? index : selectedPair.index,
         translation: column === 'translation' ? index : selectedPair.index
       });
       setScore(lessonId, score - 10);
@@ -629,14 +629,14 @@ export default function WordPairsScreen() {
     lessonId,
     isPaused,
     resumeSetTimer,
-    englishScaleValues,
+    nativeScaleValues,
     translationScaleValues,
     matchedPairs,
     isTranslationMatched,
     selectedPair,
     setSelectedPair,
     setIncorrectPair,
-    englishWords,
+    nativeWords,
     translationWords,
     currentWordPairs,
     HapticSuccess,
@@ -717,7 +717,7 @@ export default function WordPairsScreen() {
   // Memoize style functions to ensure consistent hook calls
   const getWordCellStyle = useCallback((index: number, column: ColumnType) => {
     const isWordMatched =
-      (column === 'english' && isMatched(index)) ||
+      (column === 'native' && isMatched(index)) ||
       (column === 'translation' && isTranslationMatched(index));
 
     if (isWordMatched) {
@@ -725,7 +725,7 @@ export default function WordPairsScreen() {
     }
 
     if (incorrectPair &&
-      ((column === 'english' && incorrectPair.english === index) ||
+      ((column === 'native' && incorrectPair.native === index) ||
         (column === 'translation' && incorrectPair.translation === index))) {
       return [styles.wordCell, styles.incorrectCell, themeStyles.wordCell, themeStyles.incorrectCell];
     }
@@ -739,7 +739,7 @@ export default function WordPairsScreen() {
 
   const getWordTextStyle = useCallback((index: number, column: ColumnType) => {
     const isWordMatched =
-      (column === 'english' && isMatched(index)) ||
+      (column === 'native' && isMatched(index)) ||
       (column === 'translation' && isTranslationMatched(index));
 
     if (isWordMatched) {
@@ -747,7 +747,7 @@ export default function WordPairsScreen() {
     }
 
     if (incorrectPair &&
-      ((column === 'english' && incorrectPair.english === index) ||
+      ((column === 'native' && incorrectPair.native === index) ||
         (column === 'translation' && incorrectPair.translation === index))) {
       return [styles.wordText, themeStyles.incorrectText];
     }
@@ -864,21 +864,6 @@ export default function WordPairsScreen() {
             <View style={styles.gameContainer}>
               <View style={styles.column}>
                 <ScrollView showsVerticalScrollIndicator={false}>
-                  {englishWords.map((word, index) => (
-                    <AnimatedTouchable
-                      key={`english-${index}`}
-                      style={[getWordCellStyle(index, 'english'), getEnglishAnimatedStyle(index)]}
-                      onPress={() => handleWordPress(index, 'english')}
-                      disabled={isMatched(index)}
-                    >
-                      <RNPText style={getWordTextStyle(index, 'english')}>{word}</RNPText>
-                    </AnimatedTouchable>
-                  ))}
-                </ScrollView>
-              </View>
-
-              <View style={styles.column}>
-                <ScrollView showsVerticalScrollIndicator={false}>
                   {translationWords.map((word, index) => (
                     <AnimatedTouchable
                       key={`translation-${index}`}
@@ -887,6 +872,21 @@ export default function WordPairsScreen() {
                       disabled={isTranslationMatched(index)}
                     >
                       <RNPText style={getWordTextStyle(index, 'translation')}>{word}</RNPText>
+                    </AnimatedTouchable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.column}>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {nativeWords.map((word, index) => (
+                    <AnimatedTouchable
+                      key={`native-${index}`}
+                      style={[getWordCellStyle(index, 'native'), getNativeAnimatedStyle(index)]}
+                      onPress={() => handleWordPress(index, 'native')}
+                      disabled={isMatched(index)}
+                    >
+                      <RNPText style={getWordTextStyle(index, 'native')}>{word}</RNPText>
                     </AnimatedTouchable>
                   ))}
                 </ScrollView>
