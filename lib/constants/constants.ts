@@ -277,6 +277,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     'doctor','hospital','medicine','pill','clinic','pain','fever','cough','injury','blood','health','nurse',
     // shopping domain
     'shop','market','store','price','money','cash','card','receipt','discount','sale','buy','sell'
+    ,
+    // advanced domain
+    'hypothesis','methodology','infrastructure','negotiate','collaborate','sustainable','innovation','efficient','significant','feasible','coherent','ambiguous',
+    'paradigm','synergy','granular','iterative','robust','empirical','heuristic','algorithm','framework','protocol','compliance','audit','liability','equity','derivative','quantitative','qualitative','optimization','approximation','abstraction','aggregation','decomposition','correlation','causality','variance','stochastic','deterministic','inference'
   ],
   es: [
     'hola','adiós','sí','no','gracias','agua','casa','libro','sol','luna','amigo','familia','comida','bebida','tiempo','trabajo','día','noche','mañana','tarde','año','semana','rápido','lento','gato','perro','grande','pequeño','caliente','frío','bueno','malo',
@@ -301,6 +305,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     'doctor','hospital','medicina','píldora','clínica','dolor','fiebre','tos','lesión','sangre','salud','enfermera',
     // shopping domain
     'tienda','mercado','supermercado','precio','dinero','efectivo','tarjeta','recibo','descuento','oferta','comprar','vender'
+    ,
+    // advanced domain
+    'hipótesis','metodología','infraestructura','negociar','colaborar','sostenible','innovación','eficiente','significativo','viable','coherente','ambiguo',
+    'paradigma','sinergia','granularidad','iterativo','robusto','empírico','heurístico','algoritmo','marco','protocolo','cumplimiento','auditoría','responsabilidad','equidad','derivado','cuantitativo','cualitativo','optimización','aproximación','abstracción','agregación','descomposición','correlación','causalidad','varianza','estocástico','determinista','inferencia'
   ],
   fr: [
     'bonjour','aurevoir','oui','non','merci','eau','maison','livre','soleil','lune','ami','famille','nourriture','boisson','temps','travail','jour','nuit','matin','apresmidi','année','semaine','rapide','lent','chat','chien','grand','petit','chaud','froid','bon','mauvais',
@@ -325,6 +333,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     'docteur','hôpital','médecine','pilule','clinique','douleur','fièvre','toux','blessure','sang','santé','infirmière',
     // shopping domain
     'magasin','marché','supermarché','prix','argent','espèces','carte','reçu','remise','solde','acheter','vendre'
+    ,
+    // advanced domain
+    'hypothèse','méthodologie','infrastructure','négocier','collaborer','durable','innovation','efficace','significatif','viable','cohérent','ambigu',
+    'paradigme','synergie','granularité','itératif','robuste','empirique','heuristique','algorithme','cadre','protocole','conformité','audit','responsabilité','équité','dérivé','quantitatif','qualitatif','optimisation','approximation','abstraction','agrégation','décomposition','corrélation','causalité','variance','stochastique','déterministe','inférence'
   ],
   de: [
     'hallo','aufwiedersehen','ja','nein','danke','wasser','haus','buch','sonne','mond','freund','familie','essen','getränk','zeit','arbeit','tag','nacht','morgen','nachmittag','jahr','woche','schnell','langsam','katze','hund','groß','klein','heiß','kalt','gut','schlecht',
@@ -349,6 +361,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     'arzt','krankenhaus','medizin','pille','klinik','schmerz','fieber','husten','verletzung','blut','gesundheit','krankenschwester',
     // shopping domain
     'laden','markt','supermarkt','preis','geld','bar','karte','quittung','rabatt','verkauf','kaufen','verkaufen'
+    ,
+    // advanced domain
+    'Hypothese','Methodik','Infrastruktur','verhandeln','kooperieren','nachhaltig','Innovation','effizient','bedeutend','machbar','kohärent','mehrdeutig',
+    'Paradigma','Synergie','Granularität','iterativ','robust','empirisch','heuristisch','Algorithmus','Rahmenwerk','Protokoll','Compliance','Audit','Haftung','Eigenkapital','Derivat','quantitativ','qualitativ','Optimierung','Approximation','Abstraktion','Aggregation','Dekomposition','Korrelation','Kausalität','Varianz','stochastisch','deterministisch','Inferenz'
   ],
   it: [
     'ciao','arrivederci','sì','no','grazie','acqua','casa','libro','sole','luna','amico','famiglia','cibo','bevanda','tempo','lavoro','giorno','notte','mattina','pomeriggio','anno','settimana','veloce','lento','gatto','cane','grande','piccolo','caldo','freddo','buono','cattivo',
@@ -373,6 +389,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     'dottore','ospedale','medicina','pillola','clinica','dolore','febbre','tosse','ferita','sangue','salute','infermiere',
     // shopping domain
     'negozio','mercato','supermercato','prezzo','denaro','contanti','carta','scontrino','sconto','saldi','comprare','vendere'
+    ,
+    // advanced domain
+    'ipotesi','metodologia','infrastruttura','negoziare','collaborare','sostenibile','innovazione','efficiente','significativo','fattibile','coerente','ambiguo',
+    'paradigma','sinergia','granularità','iterativo','robusto','empirico','euristico','algoritmo','framework','protocollo','conformità','audit','responsabilità','equità','derivato','quantitativo','qualitativo','ottimizzazione','approssimazione','astrazione','aggregazione','decomposizione','correlazione','causalità','varianza','stocastico','deterministico','inferenza'
   ],
   pt: [
     'olá','adeus','sim','não','obrigado','água','casa','livro','sol','lua','amigo','família','comida','bebida','tempo','trabalho','dia','noite','manhã','tarde','ano','semana','rápido','lento','gato','cão','grande','pequeno','quente','frio','bom','mau',
@@ -397,6 +417,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     'médico','hospital','medicina','pílula','clínica','dor','febre','tosse','lesão','sangue','saúde','enfermeira',
     // shopping domain
     'loja','mercado','supermercado','preço','dinheiro','numerário','cartão','recibo','desconto','promoção','comprar','vender'
+    ,
+    // advanced domain
+    'hipótese','metodologia','infraestrutura','negociar','colaborar','sustentável','inovação','eficiente','significativo','viável','coerente','ambíguo',
+    'paradigma','sinergia','granularidade','iterativo','robusto','empírico','heurístico','algoritmo','framework','protocolo','conformidade','auditoria','responsabilidade','equidade','derivativo','quantitativo','qualitativo','otimização','aproximação','abstração','agregação','decomposição','correlação','causalidade','variância','estocástico','determinístico','inferência'
   ],
   zh: [
     '你好','再见','是','不','谢谢','水','家','书','太阳','月亮','朋友','家庭','食物','饮料','时间','工作','日','夜','早上','下午','年','周','快','慢','猫','狗','大','小','热','冷','好','坏',
@@ -421,6 +445,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     '医生','医院','药','药丸','诊所','疼痛','发烧','咳嗽','受伤','血','健康','护士',
     // shopping domain
     '商店','市场','超市','价格','钱','现金','卡','收据','折扣','促销','买','卖'
+    ,
+    // advanced domain
+    '假设','方法论','基础设施','谈判','合作','可持续','创新','高效','重要','可行','连贯','含糊',
+    '范式','协同','颗粒度','迭代','鲁棒','实证','启发式','算法','框架','协议','合规','审计','责任','权益','衍生品','量化','定性','优化','近似','抽象','聚合','分解','相关性','因果','方差','随机','确定性','推断'
   ],
   ja: [
     'こんにちは','さようなら','はい','いいえ','ありがとう','水','家','本','太陽','月','友達','家族','食べ物','飲み物','時間','仕事','日','夜','朝','午後','年','週','速い','遅い','猫','犬','大きい','小さい','暑い','寒い','良い','悪い',
@@ -445,6 +473,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     '医者','病院','薬','錠剤','クリニック','痛み','熱','咳','けが','血','健康','看護師',
     // shopping domain
     '店','市場','スーパー','価格','金','現金','カード','領収書','割引','セール','買う','売る'
+    ,
+    // advanced domain
+    '仮説','方法論','インフラ','交渉','協力','持続可能','革新','効率的','重要','実現可能','一貫性','曖昧',
+    'パラダイム','シナジー','粒度','反復的','ロバスト','経験的','ヒューリスティック','アルゴリズム','フレームワーク','プロトコル','コンプライアンス','監査','責任','株式','デリバティブ','定量','定性','最適化','近似','抽象','集約','分解','相関','因果','分散','確率的','決定的','推論'
   ],
   ko: [
     '안녕하세요','안녕','예','아니오','감사합니다','물','집','책','태양','달','친구','가족','음식','음료','시간','일','낮','밤','아침','오후','년','주','빠른','느린','고양이','개','큰','작은','뜨거운','차가운','좋은','나쁜',
@@ -469,6 +501,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     '의사','병원','약','알약','클리닉','통증','열','기침','부상','피','건강','간호사',
     // shopping domain
     '가게','시장','마트','가격','돈','현금','카드','영수증','할인','세일','사다','팔다'
+    ,
+    // advanced domain
+    '가설','방법론','인프라','협상','협력','지속가능','혁신','효율적','중요','실현가능','일관성','모호',
+    '패러다임','시너지','세분화','반복적','견고한','경험적','휴리스틱','알고리즘','프레임워크','프로토콜','컴플라이언스','감사','책임','지분','파생상품','정량','정성','최적화','근사','추상','집계','분해','상관','인과','분산','확률적','결정적','추론'
   ],
   ru: [
     'привет','пока','да','нет','спасибо','вода','дом','книга','солнце','луна','друг','семья','еда','напиток','время','работа','день','ночь','утро','полдень','год','неделя','быстрый','медленный','кот','собака','большой','маленький','горячий','холодный','хороший','плохой',
@@ -493,6 +529,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     'врач','больница','медицина','таблетка','клиника','боль','лихорадка','кашель','травма','кровь','здоровье','медсестра',
     // shopping domain
     'магазин','рынок','супермаркет','цена','деньги','наличные','карта','чек','скидка','распродажа','покупать','продавать'
+    ,
+    // advanced domain
+    'гипотеза','методология','инфраструктура','переговоры','сотрудничать','устойчивый','инновация','эффективный','значительный','осуществимый','последовательный','двусмысленный',
+    'парадигма','синергия','гранулярность','итеративный','робастный','эмпирический','эвристический','алгоритм','фреймворк','протокол','комплаенс','аудит','ответственность','капитал','дериватив','количественный','качественный','оптимизация','аппроксимация','абстракция','агрегация','декомпозиция','корреляция','каузальность','дисперсия','стохастический','детерминистический','инференция'
   ],
   ar: [
     'مرحبا','وداعا','نعم','لا','شكرا','ماء','بيت','كتاب','شمس','قمر','صديق','عائلة','طعام','شراب','وقت','عمل','نهار','ليل','صباح','مساء','سنة','أسبوع','سريع','بطيء','قط','كلب','كبير','صغير','حار','بارد','جيد','سيئ',
@@ -517,6 +557,10 @@ const FALLBACK_LEXICON: Record<keyof typeof TARGET_LANGUAGE_LABELS, string[]> = 
     'طبيب','مستشفى','دواء','حبوب','عيادة','ألم','حمى','سعال','إصابة','دم','صحة','ممرضة',
     // shopping domain
     'متجر','سوق','سوبرماركت','سعر','مال','نقد','بطاقة','إيصال','خصم','تخفيض','شراء','بيع'
+    ,
+    // advanced domain
+    'فرضية','منهجية','بنيةتحتية','تفاوض','تعاون','مستدام','ابتكار','فعّال','هام','قابلللتنفيذ','متسق','غامض',
+    'نموذج','تآزر','حبيبية','تكراري','متين','تجريبي','استكشافي','خوارزمية','إطار','بروتوكول','امتثال','تدقيق','مسؤولية','إنصاف','مشتق','كمّي','نوعي','تحسين','تقريب','تجريد','تجميع','تفكيك','ارتباط','سببية','تباين','عشوائي','حتمي','استدلال'
   ],
 };
 
@@ -551,6 +595,7 @@ export const FALLBACK_LEXICON_CATEGORY_RANGES = {
   school: { start: 117, end: 127 },
   health: { start: 128, end: 139 },
   shopping: { start: 140, end: 151 },
+  advanced: { start: 152, end: 191 },
 } as const;
 
 // Vocabulary words for pronunciation practice

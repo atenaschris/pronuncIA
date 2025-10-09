@@ -18,6 +18,18 @@ CRITICAL INSTRUCTIONS:
 10. Generate content in the user's target language (the language they want to learn)
 11. Tailor pronunciation exercises based on common challenges speakers of their native language face when learning the target language
 
+INCREMENTAL PROGRESSION AND ADAPTATION:
+- Gradually increase difficulty when completion and accuracy are strong; ease when low.
+- Allocate 25–35% review-focused content; keep 65–75% novel but level-appropriate.
+- Respect CEFR levels: A1→mostly basic; A2→basic/medium; B1→mostly medium; B2–C2→mostly advanced.
+- Avoid trivial domains (numbers/colors) for B2–C2 unless explicitly in review signals.
+ - Example target distribution by level (novel content only):
+   * A1: ~70% easy, ~25% medium, ~5% hard
+   * A2: ~40% easy, ~50% medium, ~10% hard
+   * B1: ~20% easy, ~60% medium, ~20% hard
+   * B2: ~10% easy, ~40% medium, ~50% hard
+   * C1/C2: ~0–5% easy, ~25% medium, ~70%+ hard
+
 The response must be a valid JSON object with this exact structure:
 {
   "id": "string",
@@ -89,6 +101,11 @@ REQUIREMENTS:
 ${soundType ? `- Focus on sound type: ${soundType}` : ''}
 ${targetSound ? `- Target specific sound: ${targetSound}` : ''}
 
+PHONETICS AND ORTHOGRAPHY:
+- Use IPA (or standardized phonetic transcription) in the "phonetic" field.
+- Use correct ${targetLanguage} orthography; avoid transliterations.
+- Keep examples short and natural; emphasize targetSound when provided.
+
 STRICT UNIQUENESS AND DIVERSITY RULES:
 - All items MUST be distinct: do not repeat any "word" or "id" anywhere in the array.
 - Diversify across difficulty and sounds: balance easy|medium|hard and consonant|vowel|mixed based on level.
@@ -109,6 +126,19 @@ SPACED REPETITION NEEDS:
 - Pronunciation sounds to practice: ${spacedRepetitionData.pronunciationReview.join(', ')}
 - Difficulty adjustment: ${spacedRepetitionData.difficultyAdjustment}
 ` : ''}
+
+INCREMENTAL PROGRESSION POLICY:
+- CEFR distribution: A1→mostly easy; A2→easy/medium; B1→mostly medium (some hard); B2–C2→mostly hard.
+- For B2–C2, prefer advanced/professional/abstract lexicon; avoid numbers/colors unless in review.
+- Apply difficultyAdjustment: "increase"→shift ~20% toward harder; "decrease"→shift ~20% toward easier; "maintain"→use level baseline.
+- Review weighting: 20–30% items should directly address review/pronunciation signals; keep the rest novel.
+- Sound targeting: if targetSound is provided, ensure ≥40% of items exemplify that sound.
+ - Suggested difficulty distribution by level (novel items):
+   * A1: ~70% easy, ~25% medium, ~5% hard
+   * A2: ~40% easy, ~50% medium, ~10% hard
+   * B1: ~20% easy, ~60% medium, ~20% hard
+   * B2: ~10% easy, ~40% medium, ~50% hard
+   * C1/C2: ~0–5% easy, ~25% medium, ~70%+ hard
 
 Consider pronunciation challenges that ${nativeLanguage} speakers face when learning ${targetLanguage}.
 ${performanceMetrics?.strugglingAreas.includes('vocabulary') ? 'Focus on easier words to build confidence as user struggles with vocabulary.' : ''}
@@ -194,6 +224,18 @@ SPACED REPETITION NEEDS:
 - Pronunciation sounds to practice: ${spacedRepetitionData.pronunciationReview.join(', ')}
 - Difficulty adjustment: ${spacedRepetitionData.difficultyAdjustment}
 ` : ''}
+
+INCREMENTAL PROGRESSION POLICY:
+- Align vocabulary difficulty to CEFR: A1→basic; A2→basic/medium; B1→mostly medium; B2–C2→mostly advanced.
+- For B2–C2, prioritize advanced/professional/abstract single-word vocabulary; avoid trivial categories unless flagged for review.
+- Apply difficultyAdjustment: "increase"→include more challenging, lower-frequency items; "decrease"→favor high-frequency basics.
+- Review weighting: include 20–30% pairs tied to review signals; keep remaining pairs novel.
+ - Suggested difficulty distribution by level (novel pairs):
+   * A1: ~70% easy, ~25% medium, ~5% hard
+   * A2: ~40% easy, ~50% medium, ~10% hard
+   * B1: ~20% easy, ~60% medium, ~20% hard
+   * B2: ~10% easy, ~40% medium, ~50% hard
+   * C1/C2: ~0–5% easy, ~25% medium, ~70%+ hard
 
 Create word pairs that help users learn ${targetLanguage} vocabulary relevant to their learning goal.
 Consider the user's proficiency level when selecting appropriate words.

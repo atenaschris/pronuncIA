@@ -518,9 +518,9 @@ class AIService {
         } else if (level === 'B1') {
           base.push('animals', 'school', 'health', 'shopping', 'travel');
         } else if (level === 'B2') {
-          base.push('health', 'shopping', 'travel', 'work');
+          base.push('health', 'shopping', 'travel', 'work', 'exam', 'advanced');
         } else if (level === 'C1' || level === 'C2') {
-          base.push('travel', 'work', 'exam');
+          base.push('work', 'exam', 'travel', 'advanced');
         } else {
           base.push('core', 'numbers', 'colors', 'animals');
         }
@@ -557,12 +557,37 @@ class AIService {
       const targetTokens = languagePool.map((p: WordPair) => p.native);
       const indicesToUse: number[] = selectedIndices.length > 0 ? selectedIndices : targetTokens.map((_, i) => i);
 
+      // CEFR-aware lexical difficulty from category ranges
       const assignDifficulty = (index: number): 'easy' | 'medium' | 'hard' => {
-        if (levelUpper === 'A1') return 'easy';
-        if (levelUpper === 'A2') return index % 2 === 0 ? 'easy' : 'medium';
-        if (levelUpper === 'B1') return 'medium';
-        if (levelUpper === 'B2') return index % 3 === 0 ? 'hard' : 'medium';
-        if (levelUpper === 'C1' || levelUpper === 'C2') return index % 2 === 0 ? 'hard' : 'medium';
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const { FALLBACK_LEXICON_CATEGORY_RANGES: ranges } = require('../constants/constants');
+          const getCategoryForIndex = (i: number): keyof typeof ranges | 'unknown' => {
+            for (const key of Object.keys(ranges) as (keyof typeof ranges)[]) {
+              const { start, end } = ranges[key];
+              if (i >= start && i <= end) return key;
+            }
+            return 'unknown';
+          };
+
+          const category = getCategoryForIndex(index);
+          const easyCats: Array<keyof typeof ranges> = ['core', 'numbers', 'colors', 'animals'];
+          const mediumCats: Array<keyof typeof ranges> = ['school', 'shopping', 'health', 'verbs', 'travel'];
+          const hardCats: Array<keyof typeof ranges> = ['work', 'exam', 'advanced'];
+
+          if (category !== 'unknown') {
+            if (easyCats.includes(category)) return 'easy';
+            if (mediumCats.includes(category)) return 'medium';
+            if (hardCats.includes(category)) return 'hard';
+          }
+        } catch {
+          // Fallback heuristic if ranges unavailable
+          if (levelUpper === 'A1') return 'easy';
+          if (levelUpper === 'A2') return index % 2 === 0 ? 'easy' : 'medium';
+          if (levelUpper === 'B1') return 'medium';
+          if (levelUpper === 'B2') return index % 3 === 0 ? 'hard' : 'medium';
+          if (levelUpper === 'C1' || levelUpper === 'C2') return index % 2 === 0 ? 'hard' : 'medium';
+        }
         return 'medium';
       };
 
@@ -759,30 +784,33 @@ class AIService {
           const pickRangesForOnboarding = (level?: string, goal?: string): Array<keyof typeof ranges> => {
             const lvl = (level || '').toUpperCase();
             const gl = (goal || '').toLowerCase();
-            const base: Array<keyof typeof ranges> = ['core', 'verbs'];
+            const base: Array<keyof typeof ranges> = ['verbs'];
 
             // Level tuning
             if (lvl === 'A1') {
-              base.push('numbers', 'colors');
+              base.push('core', 'numbers', 'colors', 'animals');
             } else if (lvl === 'A2') {
-              base.push('numbers', 'colors', 'animals');
+              base.push('core', 'numbers', 'colors', 'animals', 'school');
             } else if (lvl === 'B1') {
-              base.push('colors', 'numbers', 'animals');
+              base.push('school', 'shopping', 'health', 'travel');
             } else if (lvl === 'B2' || lvl === 'C1' || lvl === 'C2') {
-              base.push('animals', 'colors', 'numbers');
+              base.push('work', 'exam', 'travel', 'health', 'shopping', 'advanced');
             }
 
             // Goal tuning with expanded domains (merged with level base)
             let goalExtras: Array<keyof typeof ranges> = [];
             if (gl === 'travel') {
-              // favor travel, include shopping for real-life scenarios, plus numbers/colors
-              goalExtras = ['travel', 'shopping', 'numbers', 'colors'];
+              // favor travel and real-life scenarios; add numbers/colors only for A-levels
+              goalExtras = ['travel', 'shopping', 'health'];
+              if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
             } else if (gl === 'work') {
-              // favor work, include numbers to reach coverage without diluting relevance
-              goalExtras = ['work', 'numbers', 'colors'];
+              // professional vocabulary; add numbers/colors only for A-levels
+              goalExtras = ['work', 'school'];
+              if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
             } else if (gl === 'exam') {
-              // focus on exam domain, plus core/verbs and numbers/colors; include school
-              goalExtras = ['exam', 'school', 'numbers', 'colors'];
+              // academic vocabulary; add numbers/colors only for A-levels
+              goalExtras = ['exam', 'school'];
+              if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
             } else if (gl === 'fluency') {
               // broad vocabulary expansion
               goalExtras = ['numbers', 'colors', 'animals', 'school', 'health', 'shopping'];
@@ -802,6 +830,76 @@ class AIService {
 
           // Remap combined to only desired indices; maintain original alignment
           combined = combined.filter((_, idx) => desiredIndices.has(idx));
+
+          // CEFR-aware difficulty ordering using category ranges
+          const levelUpper = (languageLevel || '').toUpperCase();
+          const allowedDifficulties = new Set<'easy' | 'medium' | 'hard'>();
+          if (levelUpper === 'A1') {
+            allowedDifficulties.add('easy');
+          } else if (levelUpper === 'A2') {
+            allowedDifficulties.add('easy');
+            allowedDifficulties.add('medium');
+          } else if (levelUpper === 'B1') {
+            allowedDifficulties.add('medium');
+          } else if (levelUpper === 'B2' || levelUpper === 'C1' || levelUpper === 'C2') {
+            allowedDifficulties.add('medium');
+            allowedDifficulties.add('hard');
+          }
+
+          const wantEasier = spacedRepetitionData?.difficultyAdjustment === 'decrease' ||
+            (typeof performanceMetrics?.averageAccuracy === 'number' && performanceMetrics.averageAccuracy < ACCURACY_THRESHOLD) ||
+            performanceMetrics?.strugglingAreas?.includes('word_pairs');
+          const wantHarder = spacedRepetitionData?.difficultyAdjustment === 'increase' && !wantEasier;
+
+          const getCategoryForIndex = (i: number): keyof typeof ranges | 'unknown' => {
+            for (const key of Object.keys(ranges) as (keyof typeof ranges)[]) {
+              const { start, end } = ranges[key];
+              if (i >= start && i <= end) return key;
+            }
+            return 'unknown';
+          };
+          const easyCats: Array<keyof typeof ranges> = ['core', 'numbers', 'colors', 'animals'];
+          const mediumCats: Array<keyof typeof ranges> = ['school', 'shopping', 'health', 'verbs', 'travel'];
+          const hardCats: Array<keyof typeof ranges> = ['work', 'exam', 'advanced'];
+
+          const withDifficulty = combined.map((wp, idx) => {
+            const category = getCategoryForIndex(idx);
+            let diff: 'easy' | 'medium' | 'hard' = 'medium';
+            if (category !== 'unknown') {
+              if (easyCats.includes(category)) diff = 'easy';
+              else if (mediumCats.includes(category)) diff = 'medium';
+              else if (hardCats.includes(category)) diff = 'hard';
+            }
+            return { wp, diff };
+          });
+
+          let filteredByLevel = allowedDifficulties.size > 0
+            ? withDifficulty.filter((d) => allowedDifficulties.has(d.diff))
+            : withDifficulty;
+
+          if (filteredByLevel.length === 0) filteredByLevel = withDifficulty;
+
+          let ordered: typeof filteredByLevel;
+          if (wantHarder) {
+            ordered = [
+              ...filteredByLevel.filter((d) => d.diff === 'hard'),
+              ...filteredByLevel.filter((d) => d.diff === 'medium'),
+              ...filteredByLevel.filter((d) => d.diff === 'easy'),
+            ];
+          } else if (wantEasier) {
+            ordered = [
+              ...filteredByLevel.filter((d) => d.diff === 'easy'),
+              ...filteredByLevel.filter((d) => d.diff === 'medium'),
+              ...filteredByLevel.filter((d) => d.diff === 'hard'),
+            ];
+          } else {
+            ordered = [
+              ...filteredByLevel.filter((d) => d.diff !== 'easy'),
+              ...filteredByLevel.filter((d) => d.diff === 'easy'),
+            ];
+          }
+
+          combined = ordered.map((d) => d.wp);
         } catch (e) {
           // If categorization is unavailable, proceed with full pool
           console.warn('Category slicing unavailable, proceeding without onboarding filter:', e);
