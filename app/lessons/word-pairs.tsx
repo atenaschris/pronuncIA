@@ -1,4 +1,5 @@
 import { ProgressStepper } from '@/app/lessons/components/wordpairs/ProgressStepper';
+import { WordPairsCompletionScreen } from '@/app/lessons/components/wordpairs/WordPairsCompletionScreen';
 import { PortalModal } from '@/components/ui/portal';
 
 import { RNPText } from '@/components/ui/RNPText';
@@ -122,6 +123,10 @@ export default function WordPairsScreen() {
       .map(({ index }) => index);
   }, [currentLesson?.setBestScores]);
 
+  // Determine whether to show the completion screen without changing hook order
+  const allSetsCompleted = ((currentLesson?.completedSets ?? 0) >= (currentLesson?.totalSets ?? totalSets));
+  const showCompletionScreen = (!!currentLesson?.completed || allSetsCompleted) && !isReplayingForErrors;
+
   const stepsWithErrors = useMemo(() => {
     console.log('calculated stepsWithErrors')
     return errorDetails?.incorrectMatches ?
@@ -227,6 +232,14 @@ export default function WordPairsScreen() {
     if (currentWordPairs.length === 0) return;
     initializeGame();
   }, [lessonId, currentSetIndex, currentWordPairs.length, initializeGame]);
+
+  // Force re-initialization when entering error-replay mode, even if set index doesn't change
+  useEffect(() => {
+    if (!lessonId) return;
+    if (!isReplayingForErrors) return;
+    if (currentWordPairs.length === 0) return;
+    initializeGame();
+  }, [isReplayingForErrors, lessonId, currentWordPairs.length, initializeGame]);
 
   // Reset replay state when set index changes (unless we're in the middle of a replay)
   useEffect(() => {
@@ -558,11 +571,14 @@ const translationWord = translationWords[translationIndex];
             }
           });
         }
-        showModal({
-          title: alertTitle,
-          message: alertMessage,
-          buttons: alertButtons
-        });
+        // Show modal only while the lesson is still in progress; final screen handles completion
+        if (!allSetsAttempted) {
+          showModal({
+            title: alertTitle,
+            message: alertMessage,
+            buttons: alertButtons
+          });
+        }
         winningSound?.replayAsync();
       }
     } else {
@@ -749,6 +765,8 @@ const translationWord = translationWords[translationIndex];
               </Button>
             </View>
           </>
+        ) : showCompletionScreen ? (
+          <WordPairsCompletionScreen lessonId={lessonId as LessonType} />
         ) : (
           <>
             <View style={styles.header}>
