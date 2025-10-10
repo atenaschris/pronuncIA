@@ -891,21 +891,9 @@ class AIService {
       return bRev - aRev;
     });
 
-    // Build a session-wide unique list to avoid repetition across sets.
-    const seenSession = new Set<string>();
-    const uniqueSession: WordPair[] = [];
-    for (const wp of combined) {
-      const key = `${wp.translation}|||${wp.native}`;
-      if (!seenSession.has(key)) {
-        uniqueSession.push(wp);
-        seenSession.add(key);
-      }
-    }
 
-    // If we still don't have enough unique pairs to fill the whole session,
-    // we will top up from the original combined list but will keep sets free of intra-set duplicates.
-    const totalNeeded = setsCount * pairsPerSet;
-    const supply = uniqueSession.length >= totalNeeded ? uniqueSession : combined;
+    // Use the combined list directly; intra-set duplicates are still prevented below.
+    const supply = combined;
 
     let cursor = 0;
     for (let i = 1; i <= setsCount; i++) {

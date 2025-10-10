@@ -80,12 +80,15 @@ export const calculateUserPerformanceMetrics = (state: { dailyPlan: DailyPlan | 
     .filter(([_, performance]) => performance.total > 0 && (performance.completed / performance.total) >= 0.7)
     .map(([type, _]) => type as LessonType);
 
-  // Identify struggling areas (low completion rate or low accuracy)
+  // Identify struggling areas (low completion rate or low accuracy),
+  // but ONLY after there has been some actual activity for that lesson type.
+  // This prevents flagging all lesson types as "struggling" on first run.
   const strugglingAreas = Object.entries(lessonTypePerformance)
     .filter(([_, performance]) => {
       const completionRate = performance.total > 0 ? performance.completed / performance.total : 0;
-      // Use app-wide accuracy threshold to identify struggles
       const ACCURACY_FLOOR = 60; // fallback floor if avgAccuracy is reported on different scale
+      const hasActivity = performance.completed > 0 || performance.avgAccuracy > 0;
+      if (!hasActivity) return false;
       return completionRate < 0.5 || (performance.avgAccuracy > 0 && performance.avgAccuracy < ACCURACY_FLOOR);
     })
     .map(([type, _]) => type as LessonType);
