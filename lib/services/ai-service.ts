@@ -25,7 +25,7 @@ interface OpenAIResponse {
 }
 
 interface AIServiceConfig {
-  apiKey: string;
+  baseUrl: string;
   model: string;
   maxTokens: number;
   temperature: number;
@@ -35,14 +35,14 @@ class AIService {
   private config: AIServiceConfig;
 
   constructor() {
-    const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+    const baseUrl = process.env.EXPO_PUBLIC_PRONUN_API_BASE_URL;
 
-    if (!apiKey) {
-      throw new Error('OpenAI API key not found. Please set EXPO_PUBLIC_OPENAI_API_KEY in your environment variables.');
+    if (!baseUrl) {
+      throw new Error('Backend API base URL not found. Please set EXPO_PUBLIC_PRONUN_API_BASE_URL in your environment variables.');
     }
 
     this.config = {
-      apiKey,
+      baseUrl,
       model: 'gpt-4-turbo-preview',
       maxTokens: 2000,
       temperature: 0.7,
@@ -59,10 +59,9 @@ class AIService {
         throw new Error('Trying the fallback intelligent fallback');
       }
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(`${this.config.baseUrl}/api/ai/chat`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -204,11 +203,10 @@ class AIService {
         throw new Error('testing fallback generation couple words')
       }
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(`${this.config.baseUrl}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.apiKey}`,
         },
         body: JSON.stringify({
           model: this.config.model,
@@ -323,11 +321,10 @@ class AIService {
         throw new Error('testing fallback generatiing vocabulary')
       }
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(`${this.config.baseUrl}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.apiKey}`,
         },
         body: JSON.stringify({
           model: this.config.model,
@@ -925,12 +922,7 @@ class AIService {
   // Method to test API connectivity
   async testConnection(): Promise<boolean> {
     try {
-      const response = await fetch('https://api.openai.com/v1/models', {
-        headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`,
-        },
-      });
-
+      const response = await fetch(`${this.config.baseUrl}/api/ai/models`);
       return response.ok;
     } catch (error) {
       console.error('AI Service connection test failed:', error);

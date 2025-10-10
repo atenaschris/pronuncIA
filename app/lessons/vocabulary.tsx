@@ -185,9 +185,9 @@ export default function VocabularyScreen() {
     // If we're retrying a word, return to completion screen instead of continuing
     if (vocabularyState.isRetryingWord) {
       setVocabularyCompleted(lessonId!, true);
-      // Pass the accumulated XP delta from retried words
+      // Lesson completion after retries; additional XP delta tracking removed
       completeLesson(lessonId!, retryXpDeltaRef.current);
-      retryXpDeltaRef.current = 0; // Reset for next session
+      retryXpDeltaRef.current = 0;
       playWin();
       hapticSuccess?.();
       return;
