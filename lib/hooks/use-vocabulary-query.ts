@@ -5,9 +5,7 @@ import { useOnboardingStore } from '../store/onboarding-store';
 
 // Query vocabulary content; include onboarding and performance signature to align caching
 export function useVocabularyQuery(
-  lessonId?: string,
-  soundType: 'consonant' | 'vowel' | 'mixed' = 'mixed',
-  targetSound?: string
+  lessonId?: string
 ) {
   const generateVocabularyContent = useLessonStore((s) => s.generateVocabularyContent);
   const getVocabularyState = useLessonStore((s) => s.getVocabularyState);
@@ -36,13 +34,11 @@ export function useVocabularyQuery(
       onboarding.nativeLanguage ?? 'english',
       onboarding.languageLevel ?? 'beginner',
       onboarding.learningGoal ?? 'pronunciation',
-      soundType,
-      targetSound ?? 'any',
       dayKey,
     ],
     queryFn: async () => {
       if (!lessonId) return [];
-      return await generateVocabularyContent(lessonId, soundType, targetSound);
+      return await generateVocabularyContent(lessonId);
     },
     // Seed with persisted words when available for today's plan
     initialData: hasTodayStoreWords ? storedWords : undefined,

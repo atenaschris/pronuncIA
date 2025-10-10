@@ -72,8 +72,6 @@ export const getVocabularyWordsSystemPrompt = (
   languageLevel: string,
   learningGoal: string,
   count: number,
-  soundType?: 'consonant' | 'vowel' | 'mixed',
-  targetSound?: string,
   performanceMetrics?: {
     completionRate: number;
     averageAccuracy: number;
@@ -98,8 +96,11 @@ REQUIREMENTS:
 - User's native language: ${nativeLanguage}
 - Language level: ${languageLevel}
 - Learning goal: ${learningGoal}
-${soundType ? `- Focus on sound type: ${soundType}` : ''}
-${targetSound ? `- Target specific sound: ${targetSound}` : ''}
+- The JSON array MUST contain exactly ${count} items — no more, no less.
+
+SOUND COVERAGE:
+- Produce a balanced mix across consonant|vowel|mixed.
+- Ensure the set spans at least 4–6 distinct phonemes overall (label via targetSound).
 
 PHONETICS AND ORTHOGRAPHY:
 - Use IPA (or standardized phonetic transcription) in the "phonetic" field.
@@ -132,7 +133,6 @@ INCREMENTAL PROGRESSION POLICY:
 - For B2–C2, prefer advanced/professional/abstract lexicon; avoid numbers/colors unless in review.
 - Apply difficultyAdjustment: "increase"→shift ~20% toward harder; "decrease"→shift ~20% toward easier; "maintain"→use level baseline.
 - Review weighting: 20–30% items should directly address review/pronunciation signals; keep the rest novel.
-- Sound targeting: if targetSound is provided, ensure ≥40% of items exemplify that sound.
  - Suggested difficulty distribution by level (novel items):
    * A1: ~70% easy, ~25% medium, ~5% hard
    * A2: ~40% easy, ~50% medium, ~10% hard

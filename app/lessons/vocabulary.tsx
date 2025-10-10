@@ -138,9 +138,7 @@ export default function VocabularyScreen() {
 
   // Use dedicated hook for vocabulary content (aligned with word-pairs)
   const { data: vocabData, isLoading: isVocabLoading, isError: isVocabError } = useVocabularyQuery(
-    lessonId!,
-    'consonant',
-    'θ'
+    lessonId!
   );
 
   // When query resolves, populate store and start timer

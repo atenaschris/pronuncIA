@@ -1,12 +1,10 @@
 import {
   ACCURACY_THRESHOLD,
-  FALLBACK_WORD_PAIRS_POOLS,
-  VOCABULARY_SET_KEYS,
-  VOCABULARY_WORD_SETS,
-  WORD_PAIR_SETS,
-  WORD_PAIRS_SET_KEYS,
+  FALLBACK_LEXICON_CATEGORY_RANGES,
+  FALLBACK_WORD_PAIRS_POOLS
 } from "../constants/constants";
-import { desiredTargetSoundsForSetKey, mapPronunciationTokensToSetKeys } from "../helpers/sound-mapping-utils";
+// Phoneme-based prioritization removed; rely on review-only sorting
+import { inferSoundFromWord } from "../helpers/sound-mapping-utils";
 import { DailyPlan, LessonType } from "../store/lesson-store";
 import { LanguageLevel, LearningGoal, NativeLanguageCode, TargetLanguageCode } from "../types/onboarding-types";
 import { VocabularyWord } from "../types/vocabulary";
@@ -169,9 +167,7 @@ class AIService {
     nativeLanguage: NativeLanguageCode,
     languageLevel: LanguageLevel,
     learningGoal: LearningGoal,
-    count: number = 5,
-    soundType?: 'consonant' | 'vowel' | 'mixed',
-    targetSound?: string,
+    count: number = 20,
     performanceMetrics?: {
       completionRate: number;
       averageAccuracy: number;
@@ -194,8 +190,6 @@ class AIService {
             languageLevel,
             learningGoal,
             count,
-            soundType,
-            targetSound,
             performanceMetrics,
             spacedRepetitionData
           )
@@ -274,8 +268,6 @@ class AIService {
       console.error('Error generating vocabulary words:', error);
       return this.getFallbackVocabularyWords(
         count,
-        soundType,
-        targetSound,
         performanceMetrics,
         spacedRepetitionData,
         languageLevel,
@@ -394,7 +386,7 @@ class AIService {
 
       // Strictly validate schema shape and counts; no sanitization/mutation
       if (!this.validateWordPairsSets(wordPairsData) ||
-          !this.validateWordPairsStructure(wordPairsData, setsCount, pairsPerSet)) {
+        !this.validateWordPairsStructure(wordPairsData, setsCount, pairsPerSet)) {
         throw new Error('Invalid word pairs format received from AI');
       }
 
@@ -481,8 +473,6 @@ class AIService {
   // Fallback methods
   private getFallbackVocabularyWords(
     count: number,
-    soundType?: string,
-    targetSound?: string,
     performanceMetrics?: {
       completionRate: number;
       averageAccuracy: number;
@@ -501,7 +491,7 @@ class AIService {
   ): VocabularyWord[] {
     // Build target-language words from language-specific pools when available
     const poolKey = targetLanguage && nativeLanguage ? `${targetLanguage}-${nativeLanguage}` : undefined;
-    const languagePool = (poolKey && FALLBACK_WORD_PAIRS_POOLS[poolKey]) || FALLBACK_WORD_PAIRS_POOLS['en-it'] || [];
+    const languagePool = (poolKey && FALLBACK_WORD_PAIRS_POOLS[poolKey]) || [];
 
     // Onboarding-aware category indices (expanded to numeric indices)
     const pickIndicesForOnboarding = (lvl?: string, goal?: string): number[] => {
@@ -553,102 +543,55 @@ class AIService {
     const levelUpper = (languageLevel || '').toUpperCase();
 
     let allWords: VocabularyWord[] = [];
-    if (languagePool.length > 0) {
-      const targetTokens = languagePool.map((p: WordPair) => p.native);
-      const indicesToUse: number[] = selectedIndices.length > 0 ? selectedIndices : targetTokens.map((_, i) => i);
 
-      // CEFR-aware lexical difficulty from category ranges
-      const assignDifficulty = (index: number): 'easy' | 'medium' | 'hard' => {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          const { FALLBACK_LEXICON_CATEGORY_RANGES: ranges } = require('../constants/constants');
-          const getCategoryForIndex = (i: number): keyof typeof ranges | 'unknown' => {
-            for (const key of Object.keys(ranges) as (keyof typeof ranges)[]) {
-              const { start, end } = ranges[key];
-              if (i >= start && i <= end) return key;
-            }
-            return 'unknown';
-          };
+    const targetTokens = languagePool.map((p: WordPair) => p.native);
+    const indicesToUse: number[] = selectedIndices.length > 0 ? selectedIndices : targetTokens.map((_, i) => i);
 
-          const category = getCategoryForIndex(index);
-          const easyCats: Array<keyof typeof ranges> = ['core', 'numbers', 'colors', 'animals'];
-          const mediumCats: Array<keyof typeof ranges> = ['school', 'shopping', 'health', 'verbs', 'travel'];
-          const hardCats: Array<keyof typeof ranges> = ['work', 'exam', 'advanced'];
-
-          if (category !== 'unknown') {
-            if (easyCats.includes(category)) return 'easy';
-            if (mediumCats.includes(category)) return 'medium';
-            if (hardCats.includes(category)) return 'hard';
-          }
-        } catch {
-          // Fallback heuristic if ranges unavailable
-          if (levelUpper === 'A1') return 'easy';
-          if (levelUpper === 'A2') return index % 2 === 0 ? 'easy' : 'medium';
-          if (levelUpper === 'B1') return 'medium';
-          if (levelUpper === 'B2') return index % 3 === 0 ? 'hard' : 'medium';
-          if (levelUpper === 'C1' || levelUpper === 'C2') return index % 2 === 0 ? 'hard' : 'medium';
+    // CEFR-aware lexical difficulty from hardcoded category ranges
+    const assignDifficulty = (index: number): 'easy' | 'medium' | 'hard' => {
+      const ranges = FALLBACK_LEXICON_CATEGORY_RANGES;
+      const getCategoryForIndex = (i: number): keyof typeof ranges | 'unknown' => {
+        for (const key of Object.keys(ranges) as (keyof typeof ranges)[]) {
+          const { start, end } = ranges[key];
+          if (i >= start && i <= end) return key;
         }
-        return 'medium';
+        return 'unknown';
       };
 
-      allWords = indicesToUse
-        .filter((i) => i >= 0 && i < targetTokens.length)
-        .map((i) => {
-          const w = targetTokens[i];
-          const id = `fb-${targetLanguage || 'en'}-${w}-${i}`;
-          const diff = assignDifficulty(i);
-          return {
-            id,
-            word: w,
-            phonetic: '[n/a]',
-            definition: `Common ${targetLanguage || 'target'} word`,
-            example: `${w} — basic usage`,
-            difficulty: diff,
-            soundType: (soundType as 'consonant' | 'vowel' | 'mixed') || 'mixed',
-            targetSound: targetSound || 'general',
-          } as VocabularyWord;
-        });
-    }
+      const category = getCategoryForIndex(index);
+      const easyCats: Array<keyof typeof ranges> = ['core', 'numbers', 'colors', 'animals'];
+      const mediumCats: Array<keyof typeof ranges> = ['school', 'shopping', 'health', 'verbs', 'travel'];
+      const hardCats: Array<keyof typeof ranges> = ['work', 'exam', 'advanced'];
 
-    // If pools are unavailable, fallback to curated English-centric sets
-    if (allWords.length === 0) {
-      const preferredSetKeys: (keyof typeof VOCABULARY_WORD_SETS)[] = mapPronunciationTokensToSetKeys(
-        spacedRepetitionData?.pronunciationReview || []
-      );
+      if (category !== 'unknown') {
+        if (easyCats.includes(category)) return 'easy';
+        if (mediumCats.includes(category)) return 'medium';
+        if (hardCats.includes(category)) return 'hard';
+      }
+      return 'medium';
+    };
 
-      const pickGoalPreferredSetKeys = (goal?: string): (keyof typeof VOCABULARY_WORD_SETS)[] => {
-        const gl = (goal || '').toLowerCase();
-        if (gl === 'travel') {
-          return ['mixed_sounds', 'vowels_short', 'vowels_long'];
-        } else if (gl === 'work') {
-          return ['consonants_r', 'consonants_th', 'mixed_sounds'];
-        } else if (gl === 'exam') {
-          return ['consonants_th', 'consonants_r', 'mixed_sounds'];
-        } else if (gl === 'fluency') {
-          return ['mixed_sounds', 'consonants_th', 'consonants_r', 'vowels_short', 'vowels_long'];
-        }
-        return [];
-      };
+    allWords = indicesToUse
+      .map((i) => {
+        const w = targetTokens[i];
+        const id = `fb-${targetLanguage || 'en'}-${w}-${i}`;
+        const diff = assignDifficulty(i);
+        const inferred = inferSoundFromWord(w, targetLanguage || 'en');
+        return {
+          id,
+          word: w,
+          phonetic: '[n/a]',
+          definition: `Common ${targetLanguage || 'target'} word`,
+          example: `${w} — basic usage`,
+          difficulty: diff,
+          soundType: inferred.soundType,
+          targetSound: inferred.targetSound,
+        } as VocabularyWord;
+      });
 
-      const goalSetKeys = pickGoalPreferredSetKeys(learningGoal);
-      const basePriority: (keyof typeof VOCABULARY_WORD_SETS)[] = [
-        ...preferredSetKeys,
-        ...goalSetKeys,
-      ];
-      const prioritizedKeys: (keyof typeof VOCABULARY_WORD_SETS)[] = [
-        ...basePriority,
-        ...VOCABULARY_SET_KEYS.filter((k) => !basePriority.includes(k)),
-      ];
 
-      allWords = prioritizedKeys.flatMap((key) => VOCABULARY_WORD_SETS[key] as unknown as VocabularyWord[]);
-    }
-
-    // Filter by sound focus if provided
-    let filtered = allWords.filter((w) => {
-      const soundTypeOk = soundType ? w.soundType === soundType : true;
-      const targetSoundOk = targetSound ? w.targetSound === targetSound : true;
-      return soundTypeOk && targetSoundOk;
-    });
+    // No external sound focus; use the full set
+    let filtered = allWords;
 
     // Difficulty targeting based on onboarding language level
     const allowedDifficulties = new Set<'easy' | 'medium' | 'hard'>();
@@ -667,9 +610,7 @@ class AIService {
       allowedDifficulties.add('medium');
     }
 
-    let filteredByLevel = allowedDifficulties.size > 0
-      ? filtered.filter((w) => allowedDifficulties.has(w.difficulty))
-      : filtered;
+    let filteredByLevel = filtered.filter((w) => allowedDifficulties.has(w.difficulty))
 
     // If filter is too strict, fall back to the whole pool
     if (filteredByLevel.length < count) {
@@ -678,7 +619,7 @@ class AIService {
 
     // Difficulty targeting based on performance/spaced repetition
     const wantEasier = spacedRepetitionData?.difficultyAdjustment === 'decrease' ||
-      (typeof performanceMetrics?.averageAccuracy === 'number' && performanceMetrics.averageAccuracy < ACCURACY_THRESHOLD) ||
+      (typeof performanceMetrics?.averageAccuracy === 'number' && performanceMetrics.averageAccuracy > 0 && performanceMetrics.averageAccuracy < ACCURACY_THRESHOLD) ||
       performanceMetrics?.strugglingAreas?.includes('vocabulary') ||
       performanceMetrics?.strugglingAreas?.includes('pronunciation');
 
@@ -701,47 +642,94 @@ class AIService {
       }
     }
 
-    // Prioritize spaced-repetition review words and pronunciation-aligned words if present
+    // Prioritize spaced-repetition review words and desired pronunciation sounds
     const reviewSet = new Set(spacedRepetitionData?.vocabularyReview || []);
-    const desiredSounds = new Set<string>();
-    const pronSetKeys = mapPronunciationTokensToSetKeys(spacedRepetitionData?.pronunciationReview || []);
-    pronSetKeys.forEach((k) => {
-      desiredTargetSoundsForSetKey(k).forEach((s) => desiredSounds.add(s));
-    });
-    // Do not add lesson-type labels to desiredSounds; rely on pronunciationReview-derived sounds only
+    const desiredSounds = new Set(
+      (spacedRepetitionData?.pronunciationReview || []).map((t) => t.replace(/\//g, ''))
+    );
     selection.sort((a, b) => {
-      const aRev = reviewSet.has(a.word) ? 1 : 0;
-      const bRev = reviewSet.has(b.word) ? 1 : 0;
       const aPron = desiredSounds.has(a.targetSound) ? 1 : 0;
       const bPron = desiredSounds.has(b.targetSound) ? 1 : 0;
-      // review words first, then pronunciation-aligned
-      if (bRev !== aRev) return bRev - aRev;
-      if (bPron !== aPron) return bPron - aPron;
+      if (bPron !== aPron) return bPron - aPron; // pronunciation focus first
+      const aRev = reviewSet.has(a.word) ? 1 : 0;
+      const bRev = reviewSet.has(b.word) ? 1 : 0;
+      if (bRev !== aRev) return bRev - aRev; // vocabulary review next
       return 0;
     });
 
-    // Deduplicate by id/word, then take the requested count
-    const seen = new Set<string>();
-    const unique = selection.filter((w) => {
-      const key = `${w.id}:${w.word}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    // If still not enough, top up from allWords
+    // Prepare final list size without redundant dedup; ensure count via minimal top-up
+    let unique = selection.slice(0, count);
     if (unique.length < count) {
+      const seen = new Set(unique.map((w) => `${w.id}:${w.word}`));
       for (const w of allWords) {
         const key = `${w.id}:${w.word}`;
         if (!seen.has(key)) {
           unique.push(w);
           seen.add(key);
+          if (unique.length >= count) break;
         }
-        if (unique.length >= count) break;
       }
     }
 
-    return unique.slice(0, count);
+    // Enforce review quota (20–35%) and interleave sound types for diversity
+    const maxReview = Math.max(1, Math.round(count * 0.3));
+    const inReview = new Set<string>();
+    const reviewPriorityList: VocabularyWord[] = [];
+    const novelList: VocabularyWord[] = [];
+    for (const w of unique) {
+      const isReviewWord = reviewSet.has(w.word) || desiredSounds.has(w.targetSound);
+      if (isReviewWord && reviewPriorityList.length < maxReview) {
+        reviewPriorityList.push(w);
+        inReview.add(`${w.id}:${w.word}`);
+      } else {
+        novelList.push(w);
+      }
+    }
+
+    const consonants = novelList.filter((w) => w.soundType === 'consonant');
+    const vowels = novelList.filter((w) => w.soundType === 'vowel');
+    const mixed = novelList.filter((w) => w.soundType === 'mixed');
+
+    const interleaveFill = (remaining: number): VocabularyWord[] => {
+      const result: VocabularyWord[] = [];
+      let i = 0;
+      while (result.length < remaining && (consonants.length || vowels.length || mixed.length)) {
+        const mod = i % 3;
+        if (mod === 0) {
+          if (consonants.length) result.push(consonants.shift()!);
+          else if (vowels.length) result.push(vowels.shift()!);
+          else if (mixed.length) result.push(mixed.shift()!);
+        } else if (mod === 1) {
+          if (vowels.length) result.push(vowels.shift()!);
+          else if (mixed.length) result.push(mixed.shift()!);
+          else if (consonants.length) result.push(consonants.shift()!);
+        } else {
+          if (mixed.length) result.push(mixed.shift()!);
+          else if (consonants.length) result.push(consonants.shift()!);
+          else if (vowels.length) result.push(vowels.shift()!);
+        }
+        i++;
+      }
+      return result;
+    };
+
+    const finalSelection: VocabularyWord[] = [];
+    finalSelection.push(...reviewPriorityList);
+    const remainingSlots = Math.max(0, count - finalSelection.length);
+    finalSelection.push(...interleaveFill(remainingSlots));
+
+    // If we still have fewer than requested, pad from any remaining unique items
+    if (finalSelection.length < count) {
+      for (const w of unique) {
+        const key = `${w.id}:${w.word}`;
+        if (!inReview.has(key) && !finalSelection.find((x) => `${x.id}:${x.word}` === key)) {
+          finalSelection.push(w);
+        }
+        if (finalSelection.length >= count) break;
+      }
+    }
+
+    return finalSelection.slice(0, count);
   }
 
   private getFallbackWordPairs(
@@ -767,151 +755,133 @@ class AIService {
 
     // 1) Try language-specific pool keyed by `${target}-${native}`; fallback to 'en-it'.
     const poolKey = targetLanguage && nativeLanguage ? `${targetLanguage}-${nativeLanguage}` : undefined;
-    const languagePool = (poolKey && FALLBACK_WORD_PAIRS_POOLS[poolKey]) || FALLBACK_WORD_PAIRS_POOLS['en-it'] || [];
+    const languagePool = (poolKey && FALLBACK_WORD_PAIRS_POOLS[poolKey]) || [];
 
-    // 2) If pool is somehow empty, fallback to legacy WORD_PAIR_SETS combined.
-    let combined: WordPair[];
-    if (languagePool.length > 0) {
-      // Already shaped as { native, translation } per `${target}-${native}` pools
-      combined = languagePool
-      // If we have onboarding signals, slice by category ranges to prioritize relevance
-      if (languageLevel || learningGoal) {
-        try {
-          // Defer import to avoid cyclic deps; constants are static
-          const { FALLBACK_LEXICON_CATEGORY_RANGES } = require('../constants/constants');
-          const ranges = FALLBACK_LEXICON_CATEGORY_RANGES;
+    // 2) Always use the language-specific pool
+    let combined: WordPair[] = languagePool;
 
-          const pickRangesForOnboarding = (level?: string, goal?: string): Array<keyof typeof ranges> => {
-            const lvl = (level || '').toUpperCase();
-            const gl = (goal || '').toLowerCase();
-            const base: Array<keyof typeof ranges> = ['verbs'];
+    // Use hardcoded ranges from constants
+    const ranges = FALLBACK_LEXICON_CATEGORY_RANGES;
 
-            // Level tuning
-            if (lvl === 'A1') {
-              base.push('core', 'numbers', 'colors', 'animals');
-            } else if (lvl === 'A2') {
-              base.push('core', 'numbers', 'colors', 'animals', 'school');
-            } else if (lvl === 'B1') {
-              base.push('school', 'shopping', 'health', 'travel');
-            } else if (lvl === 'B2' || lvl === 'C1' || lvl === 'C2') {
-              base.push('work', 'exam', 'travel', 'health', 'shopping', 'advanced');
-            }
+    const pickRangesForOnboarding = (level?: string, goal?: string): Array<keyof typeof ranges> => {
+      const lvl = (level || '').toUpperCase();
+      const gl = (goal || '').toLowerCase();
+      const base: Array<keyof typeof ranges> = ['verbs'];
 
-            // Goal tuning with expanded domains (merged with level base)
-            let goalExtras: Array<keyof typeof ranges> = [];
-            if (gl === 'travel') {
-              // favor travel and real-life scenarios; add numbers/colors only for A-levels
-              goalExtras = ['travel', 'shopping', 'health'];
-              if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
-            } else if (gl === 'work') {
-              // professional vocabulary; add numbers/colors only for A-levels
-              goalExtras = ['work', 'school'];
-              if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
-            } else if (gl === 'exam') {
-              // academic vocabulary; add numbers/colors only for A-levels
-              goalExtras = ['exam', 'school'];
-              if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
-            } else if (gl === 'fluency') {
-              // broad vocabulary expansion
-              goalExtras = ['numbers', 'colors', 'animals', 'school', 'health', 'shopping'];
-            }
-
-            // Merge base + goal extras, preserving order and removing duplicates
-            const merged = Array.from(new Set<keyof typeof ranges>([...base, ...goalExtras]));
-            return merged;
-          };
-
-          const desired = pickRangesForOnboarding(languageLevel, learningGoal);
-          const desiredIndices = new Set<number>();
-          for (const key of desired) {
-            const { start, end } = ranges[key];
-            for (let i = start; i <= end; i++) desiredIndices.add(i);
-          }
-
-          // Remap combined to only desired indices; maintain original alignment
-          combined = combined.filter((_, idx) => desiredIndices.has(idx));
-
-          // CEFR-aware difficulty ordering using category ranges
-          const levelUpper = (languageLevel || '').toUpperCase();
-          const allowedDifficulties = new Set<'easy' | 'medium' | 'hard'>();
-          if (levelUpper === 'A1') {
-            allowedDifficulties.add('easy');
-          } else if (levelUpper === 'A2') {
-            allowedDifficulties.add('easy');
-            allowedDifficulties.add('medium');
-          } else if (levelUpper === 'B1') {
-            allowedDifficulties.add('medium');
-          } else if (levelUpper === 'B2' || levelUpper === 'C1' || levelUpper === 'C2') {
-            allowedDifficulties.add('medium');
-            allowedDifficulties.add('hard');
-          }
-
-          const wantEasier = spacedRepetitionData?.difficultyAdjustment === 'decrease' ||
-            (typeof performanceMetrics?.averageAccuracy === 'number' && performanceMetrics.averageAccuracy < ACCURACY_THRESHOLD) ||
-            performanceMetrics?.strugglingAreas?.includes('word_pairs');
-          const wantHarder = spacedRepetitionData?.difficultyAdjustment === 'increase' && !wantEasier;
-
-          const getCategoryForIndex = (i: number): keyof typeof ranges | 'unknown' => {
-            for (const key of Object.keys(ranges) as (keyof typeof ranges)[]) {
-              const { start, end } = ranges[key];
-              if (i >= start && i <= end) return key;
-            }
-            return 'unknown';
-          };
-          const easyCats: Array<keyof typeof ranges> = ['core', 'numbers', 'colors', 'animals'];
-          const mediumCats: Array<keyof typeof ranges> = ['school', 'shopping', 'health', 'verbs', 'travel'];
-          const hardCats: Array<keyof typeof ranges> = ['work', 'exam', 'advanced'];
-
-          const withDifficulty = combined.map((wp, idx) => {
-            const category = getCategoryForIndex(idx);
-            let diff: 'easy' | 'medium' | 'hard' = 'medium';
-            if (category !== 'unknown') {
-              if (easyCats.includes(category)) diff = 'easy';
-              else if (mediumCats.includes(category)) diff = 'medium';
-              else if (hardCats.includes(category)) diff = 'hard';
-            }
-            return { wp, diff };
-          });
-
-          let filteredByLevel = allowedDifficulties.size > 0
-            ? withDifficulty.filter((d) => allowedDifficulties.has(d.diff))
-            : withDifficulty;
-
-          if (filteredByLevel.length === 0) filteredByLevel = withDifficulty;
-
-          let ordered: typeof filteredByLevel;
-          if (wantHarder) {
-            ordered = [
-              ...filteredByLevel.filter((d) => d.diff === 'hard'),
-              ...filteredByLevel.filter((d) => d.diff === 'medium'),
-              ...filteredByLevel.filter((d) => d.diff === 'easy'),
-            ];
-          } else if (wantEasier) {
-            ordered = [
-              ...filteredByLevel.filter((d) => d.diff === 'easy'),
-              ...filteredByLevel.filter((d) => d.diff === 'medium'),
-              ...filteredByLevel.filter((d) => d.diff === 'hard'),
-            ];
-          } else {
-            ordered = [
-              ...filteredByLevel.filter((d) => d.diff !== 'easy'),
-              ...filteredByLevel.filter((d) => d.diff === 'easy'),
-            ];
-          }
-
-          combined = ordered.map((d) => d.wp);
-        } catch (e) {
-          // If categorization is unavailable, proceed with full pool
-          console.warn('Category slicing unavailable, proceeding without onboarding filter:', e);
-        }
+      // Level tuning
+      if (lvl === 'A1') {
+        base.push('core', 'numbers', 'colors', 'animals');
+      } else if (lvl === 'A2') {
+        base.push('core', 'numbers', 'colors', 'animals', 'school');
+      } else if (lvl === 'B1') {
+        base.push('school', 'shopping', 'health', 'travel');
+      } else if (lvl === 'B2' || lvl === 'C1' || lvl === 'C2') {
+        base.push('work', 'exam', 'travel', 'health', 'shopping', 'advanced');
       }
-    } else {
-      const keys = [...WORD_PAIRS_SET_KEYS];
-      if (spacedRepetitionData?.difficultyAdjustment === 'increase') {
-        keys.reverse();
+
+      // Goal tuning with expanded domains (merged with level base)
+      let goalExtras: Array<keyof typeof ranges> = [];
+      if (gl === 'travel') {
+        // favor travel and real-life scenarios; add numbers/colors only for A-levels
+        goalExtras = ['travel', 'shopping', 'health'];
+        if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
+      } else if (gl === 'work') {
+        // professional vocabulary; add numbers/colors only for A-levels
+        goalExtras = ['work', 'school'];
+        if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
+      } else if (gl === 'exam') {
+        // academic vocabulary; add numbers/colors only for A-levels
+        goalExtras = ['exam', 'school'];
+        if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
+      } else if (gl === 'fluency') {
+        // broad vocabulary expansion
+        goalExtras = ['numbers', 'colors', 'animals', 'school', 'health', 'shopping'];
       }
-      combined = keys.flatMap((k) => WORD_PAIR_SETS[k] as unknown as WordPair[]);
+
+      // Merge base + goal extras, preserving order and removing duplicates
+      const merged = Array.from(new Set<keyof typeof ranges>([...base, ...goalExtras]));
+      return merged;
+    };
+
+    const desired = pickRangesForOnboarding(languageLevel, learningGoal);
+    const desiredIndices = new Set<number>();
+    for (const key of desired) {
+      const { start, end } = ranges[key];
+      for (let i = start; i <= end; i++) desiredIndices.add(i);
     }
+
+    // Remap combined to only desired indices; maintain original alignment
+    combined = combined.filter((_, idx) => desiredIndices.has(idx));
+
+    // CEFR-aware difficulty ordering using category ranges
+    const levelUpper = (languageLevel || '').toUpperCase();
+    const allowedDifficulties = new Set<'easy' | 'medium' | 'hard'>();
+    if (levelUpper === 'A1') {
+      allowedDifficulties.add('easy');
+    } else if (levelUpper === 'A2') {
+      allowedDifficulties.add('easy');
+      allowedDifficulties.add('medium');
+    } else if (levelUpper === 'B1') {
+      allowedDifficulties.add('medium');
+    } else if (levelUpper === 'B2' || levelUpper === 'C1' || levelUpper === 'C2') {
+      allowedDifficulties.add('medium');
+      allowedDifficulties.add('hard');
+    }
+
+    const wantEasier = spacedRepetitionData?.difficultyAdjustment === 'decrease' ||
+      (typeof performanceMetrics?.averageAccuracy === 'number' && performanceMetrics.averageAccuracy > 0 && performanceMetrics.averageAccuracy < ACCURACY_THRESHOLD) ||
+      performanceMetrics?.strugglingAreas?.includes('word_pairs');
+    const wantHarder = spacedRepetitionData?.difficultyAdjustment === 'increase' && !wantEasier;
+
+    const getCategoryForIndex = (i: number): keyof typeof ranges | 'unknown' => {
+      for (const key of Object.keys(ranges) as (keyof typeof ranges)[]) {
+        const { start, end } = ranges[key];
+        if (i >= start && i <= end) return key;
+      }
+      return 'unknown';
+    };
+    const easyCats: Array<keyof typeof ranges> = ['core', 'numbers', 'colors', 'animals'];
+    const mediumCats: Array<keyof typeof ranges> = ['school', 'shopping', 'health', 'verbs', 'travel'];
+    const hardCats: Array<keyof typeof ranges> = ['work', 'exam', 'advanced'];
+
+    const withDifficulty = combined.map((wp, idx) => {
+      const category = getCategoryForIndex(idx);
+      let diff: 'easy' | 'medium' | 'hard' = 'medium';
+      if (category !== 'unknown') {
+        if (easyCats.includes(category)) diff = 'easy';
+        else if (mediumCats.includes(category)) diff = 'medium';
+        else if (hardCats.includes(category)) diff = 'hard';
+      }
+      return { wp, diff };
+    });
+
+    let filteredByLevel = allowedDifficulties.size > 0
+      ? withDifficulty.filter((d) => allowedDifficulties.has(d.diff))
+      : withDifficulty;
+
+    if (filteredByLevel.length === 0) filteredByLevel = withDifficulty;
+
+    let ordered: typeof filteredByLevel;
+    if (wantHarder) {
+      ordered = [
+        ...filteredByLevel.filter((d) => d.diff === 'hard'),
+        ...filteredByLevel.filter((d) => d.diff === 'medium'),
+        ...filteredByLevel.filter((d) => d.diff === 'easy'),
+      ];
+    } else if (wantEasier) {
+      ordered = [
+        ...filteredByLevel.filter((d) => d.diff === 'easy'),
+        ...filteredByLevel.filter((d) => d.diff === 'medium'),
+        ...filteredByLevel.filter((d) => d.diff === 'hard'),
+      ];
+    } else {
+      ordered = [
+        ...filteredByLevel.filter((d) => d.diff !== 'easy'),
+        ...filteredByLevel.filter((d) => d.diff === 'easy'),
+      ];
+    }
+
+    combined = ordered.map((d) => d.wp);
 
     // Light prioritization: place review words first if present
     const reviewSet = new Set(spacedRepetitionData?.vocabularyReview || []);

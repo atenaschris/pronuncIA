@@ -92,7 +92,7 @@ interface LessonState {
   setDateOverride: (date: string | null) => void; // For time travel debugging
 
   // Content generation methods
-  generateVocabularyContent: (lessonId: string, soundType?: 'consonant' | 'vowel' | 'mixed', targetSound?: string) => Promise<VocabularyWord[]>;
+  generateVocabularyContent: (lessonId: string) => Promise<VocabularyWord[]>;
   generateWordPairsContent: (lessonId: string) => Promise<Record<string, Array<{ native: string; translation: string }>>>;
 
   // WordPairs-specific actions
@@ -2246,9 +2246,7 @@ export const useLessonStore = create<LessonState>()(persist(
 
     // Content generation methods
     generateVocabularyContent: async (
-      lessonId: string,
-      soundType?: 'consonant' | 'vowel' | 'mixed',
-      targetSound?: string
+      lessonId: string
     ): Promise<VocabularyWord[]> => {
       // Compute performance metrics and spaced-repetition needs; caching is handled by React Query
       const stateForMetrics = get();
@@ -2265,9 +2263,7 @@ export const useLessonStore = create<LessonState>()(persist(
           onboardingData.nativeLanguage || 'english',
           onboardingData.languageLevel || 'beginner',
           onboardingData.learningGoal || 'pronunciation',
-          8, // Default count
-          soundType || 'mixed',
-          targetSound || undefined,
+          20, // Increased default count for a more engaging session
           performanceMetrics,
           spacedRepetitionData
         );
