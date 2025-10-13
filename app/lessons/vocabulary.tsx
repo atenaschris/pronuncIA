@@ -3,20 +3,22 @@ import { useAppTheme } from '@/components/ui/theme';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
 import { usePlayback } from '@/lib/hooks/use-playback';
+import { usePronunciationAnalysis } from '@/lib/hooks/use-pronunciation-analysis';
 import { useRecording } from '@/lib/hooks/use-recording';
 import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
+import { useOnboardingStore } from '@/lib/store/onboarding-store';
 import { ActivityIndicator, Button, Card, IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
 // Removed onboarding/performance imports from this screen; handled in hook
 import { usePortalModalStore } from '@/lib/store/portal-modal-store';
 
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { VocabularyCompletionScreen } from './components/vocabulary/VocabularyCompletionScreen';
 
-import { ACCURACY_THRESHOLD } from '@/lib/constants/constants';
+import { ACCURACY_THRESHOLD, getSpeechLocale } from '@/lib/constants/constants';
 import { useVocabularyQuery } from '@/lib/hooks/use-vocabulary-query';
 
 export default function VocabularyScreen() {
@@ -63,10 +65,8 @@ export default function VocabularyScreen() {
   const hapticMedium = useHaptic('medium');
   const {
     recordingUri,
-    isProcessing,
     isRecording,
     recordingDuration,
-    setIsProcessing,
     setRecordingUri,
     startRecording: originalStartRecording,
     stopRecording,
@@ -90,6 +90,7 @@ export default function VocabularyScreen() {
 
   const [error, setError] = useState<string | null>(null);
   const retryXpDeltaRef = useRef<number>(0);
+  const analysisMutation = usePronunciationAnalysis();
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -225,62 +226,12 @@ export default function VocabularyScreen() {
   }, [vocabularyState?.words, vocabularyState?.currentWordIndex, vocabularyState?.currentWordStartTime, vocabularyState?.isRetryingWord, lessonId, setCurrentWordIndex, setRecordingUri, stopWordTimer, startWordTimer, fadeAnim, setVocabularyCompleted, completeLesson, playWin, hapticSuccess]);
 
 
-  const submitRecording = useCallback(async () => {
-    if (!recordingUri || !currentWord) return;
-
-    setIsProcessing(true);
-
-    try {
-      const formData = new FormData();
-      formData.append('audio', {
-        uri: recordingUri,
-        type: 'audio/m4a',
-        name: 'recording.m4a',
-      } as any);
-      formData.append('target_word', currentWord.word);
-
-      const response = await fetch('http://192.168.1.100:8000/api/pronunciation/analyze', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      const score = Math.round(result.overall_score * 100);
-      addAIScore(lessonId!, score);
-      incrementVocabularyAttempts(lessonId!);
-
-      if (score >= 70) {
-        playCorrect();
-        hapticSuccess?.();
-      } else {
-        playIncorrect();
-        hapticError?.();
-      }
-
-    } catch (error) {
-      console.error('Error submitting recording:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setError(`Failed to analyze pronunciation: ${errorMessage}`);
-      Alert.alert('Error', 'Failed to analyze pronunciation. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [recordingUri, currentWord, setIsProcessing, lessonId, addAIScore, incrementVocabularyAttempts, playCorrect, playIncorrect, hapticSuccess, hapticError]);
 
   // Helper function to calculate partial XP for failed final attempts
   // Remove the calculatePartialXP function entirely as it's not needed
   // Users can retry words for full XP, so partial XP awards are redundant
 
   const simulateAIFeedback = async (uri: string) => {
-    setIsProcessing(true);
 
     // Pause the current word timer immediately when user clicks "Get Feedback"
     if (vocabularyState?.currentWordStartTime) {
@@ -293,16 +244,48 @@ export default function VocabularyScreen() {
     // Get current word index once for the entire function
     const currentWordIndex = vocabularyState?.currentWordIndex ?? 0;
 
-    // Simulate AI processing delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Resolve locale from onboarding target language via shared helper
+    const onboarding = useOnboardingStore.getState?.() || null;
+    const targetLang = onboarding?.targetLanguage || 'en';
+    const locale = getSpeechLocale(targetLang);
 
-    // Generate random but realistic feedback
-    const accuracy = Math.random() * 40 + 60; // 60-100% accuracy
+    let accuracy = 0;
+    try {
+      if (!uri || !currentWord) throw new Error('Missing recording or current word');
+
+      const result = await analysisMutation.mutateAsync({
+        uri,
+        targetWord: currentWord.word,
+        locale,
+      });
+
+      const scores = result?.scores;
+      if (!scores) throw new Error('Invalid response: missing scores');
+
+      // Use Azure pronunciation assessment accuracy (0..1) → percentage
+      accuracy = Math.round((scores.accuracy ?? scores.overall ?? 0) * 100);
+      addAIScore(lessonId!, accuracy);
+    } catch (err: any) {
+      console.error('Azure assessment error:', err);
+      showModal({
+        title: 'Analysis Failed',
+        message: 'Unable to analyze your recording. Please try again.',
+        buttons: [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Clear mutation error state so UI can recover and retry
+              analysisMutation.reset();
+              hideModal();
+            },
+          },
+        ],
+      });
+      return;
+    }
 
     if (currentWord) {
-      addAIScore(lessonId!, accuracy);
-
-      let isCorrect = accuracy >= ACCURACY_THRESHOLD;
+      const isCorrect = accuracy >= ACCURACY_THRESHOLD;
 
       if (isCorrect) {
         addSuccessWord(lessonId!, currentWordIndex);
@@ -317,10 +300,10 @@ export default function VocabularyScreen() {
           const xpDelta = wordXP;
           
           // Store the XP delta for when the lesson completes
-        if (xpDelta > 0) {
-          // We'll use this delta when calling completeLesson
-          retryXpDeltaRef.current = (retryXpDeltaRef.current || 0) + xpDelta;
-        }
+          if (xpDelta > 0) {
+            // We'll use this delta when calling completeLesson
+            retryXpDeltaRef.current = (retryXpDeltaRef.current || 0) + xpDelta;
+          }
           removeIncompleteWord(lessonId!, currentWordIndex);
         } else {
           addVocabularyWordXP(lessonId!, wordXP);
@@ -485,7 +468,6 @@ export default function VocabularyScreen() {
       }
     }
 
-    setIsProcessing(false);
   };
 
   const nextWord = useCallback(() => {
@@ -619,8 +601,6 @@ export default function VocabularyScreen() {
     return (
       <VocabularyCompletionScreen
         lessonId={lessonId!}
-        isProcessing={isProcessing}
-        isRecording={isRecording}
         scaleAnim={scaleAnim}
         handleRetryWord={handleRetryWord}
       />
@@ -782,7 +762,7 @@ export default function VocabularyScreen() {
                 size={32}
                 iconColor={isRecording ? theme.colors.onError : theme.colors.onPrimary}
                 onPress={isRecording ? stopRecording : startRecording}
-                disabled={isProcessing || isPlayingRecording}
+                disabled={analysisMutation.isPending || isPlayingRecording}
                 accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
                 accessibilityHint={isRecording ? 'Tap to stop recording your pronunciation' : 'Tap to start recording your pronunciation'}
               />
@@ -794,9 +774,17 @@ export default function VocabularyScreen() {
               </Text>
             )}
 
-            {isProcessing && (
+            {analysisMutation.isPending && (
               <Text style={[styles.processingText, { color: theme.colors.onSurfaceVariant }]}>
                 Analyzing pronunciation...
+              </Text>
+            )}
+            {analysisMutation.isError && !analysisMutation.isPending && (
+              <Text style={[styles.processingText, { color: theme.colors.error }]}
+                accessibilityRole="alert"
+                accessibilityLabel="Analysis failed"
+              >
+                Analysis failed. Please try again.
               </Text>
             )}
           </View>
@@ -808,7 +796,7 @@ export default function VocabularyScreen() {
                 mode="outlined"
                 onPress={() => skipWord()}
                 style={styles.skipButton}
-                disabled={isProcessing || isRecording || isPlayingRecording}
+                disabled={analysisMutation.isPending || isRecording || isPlayingRecording}
                 accessibilityLabel="Skip current word"
                 accessibilityHint="Tap to skip this word and move to the next one"
               >
@@ -844,7 +832,7 @@ export default function VocabularyScreen() {
                   }
                 }}
                 style={styles.pauseButton}
-                disabled={isProcessing || isRecording || isPlayingRecording}
+                disabled={analysisMutation.isPending || isRecording || isPlayingRecording}
                 accessibilityLabel={vocabularyState.isPaused ? 'Resume timer' : 'Pause timer'}
               >
                 {vocabularyState.isPaused ? 'Resume' : 'Pause'}
@@ -858,7 +846,7 @@ export default function VocabularyScreen() {
                   mode="outlined"
                   onPress={() => playSound(recordingUri)}
                   style={styles.playButton}
-                  disabled={isProcessing || isPlayingRecording}
+                  disabled={analysisMutation.isPending || isPlayingRecording}
                   icon="play"
                 >
                   Play Recording
@@ -867,8 +855,8 @@ export default function VocabularyScreen() {
                   mode="contained"
                   onPress={() => simulateAIFeedback(recordingUri)}
                   style={styles.nextButton}
-                  disabled={isProcessing || isPlayingRecording}
-                  accessibilityLabel={isProcessing ? 'Analyzing pronunciation' : 'Get feedback on pronunciation'}
+                  disabled={analysisMutation.isPending || isPlayingRecording}
+                  accessibilityLabel={analysisMutation.isPending ? 'Analyzing pronunciation' : 'Get feedback on pronunciation'}
                   accessibilityHint="Tap to analyze your pronunciation recording"
                 >
                   Get Feedback
