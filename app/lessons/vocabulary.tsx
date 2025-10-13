@@ -1,22 +1,23 @@
 import { PortalModal } from '@/components/ui/portal';
 import { useAppTheme } from '@/components/ui/theme';
-import { VOCABULARY_WORD_SETS } from '@/lib/constants/constants';
 import { useAudio } from '@/lib/hooks/use-audio';
 import { useHaptic } from '@/lib/hooks/use-haptic';
 import { usePlayback } from '@/lib/hooks/use-playback';
 import { useRecording } from '@/lib/hooks/use-recording';
 import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
+import { ActivityIndicator, Button, Card, IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
+// Removed onboarding/performance imports from this screen; handled in hook
 import { usePortalModalStore } from '@/lib/store/portal-modal-store';
 
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Button, Card, IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { VocabularyCompletionScreen } from './components/vocabulary/VocabularyCompletionScreen';
 
 import { ACCURACY_THRESHOLD } from '@/lib/constants/constants';
+import { useVocabularyQuery } from '@/lib/hooks/use-vocabulary-query';
 
 export default function VocabularyScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId?: LessonType }>();
@@ -24,7 +25,6 @@ export default function VocabularyScreen() {
   const { playCorrect, playIncorrect, playWin, playWordAudio } = useAudio();
   const {
     getVocabularyState,
-    getLesson,
     setVocabularyWords,
     setCurrentWordIndex,
     incrementVocabularyAttempts,
@@ -38,8 +38,6 @@ export default function VocabularyScreen() {
     updateCurrentWordElapsedTime,
     pauseWordTimer,
     resumeWordTimer,
-    resetVocabularyTimers,
-    resetVocabularyLesson,
     calculateWordXP,
     addVocabularyWordXP,
 
@@ -125,20 +123,11 @@ export default function VocabularyScreen() {
     };
   }, []); // No dependencies - only cleanup on unmount
 
-  const initializeLesson = () => {
+  const initializeLesson = async () => {
     initializeLessonSessionState(lessonId!, 'vocabulary');
-    // Start with consonants_th set for demo
-    const words = VOCABULARY_WORD_SETS.consonants_th;
-    setVocabularyWords(lessonId!, words);
-    
     // Reset retry XP delta for new lesson
     retryXpDeltaRef.current = 0;
-
-    // Start timer for the first word
-    setTimeout(() => {
-      startWordTimer(lessonId!);
-    }, 200);
-
+    // Start timer will be handled when query data arrives
     // Animate progress bar
     Animated.timing(progressAnim, {
       toValue: 0,
@@ -146,6 +135,24 @@ export default function VocabularyScreen() {
       useNativeDriver: false,
     }).start();
   };
+
+  // Use dedicated hook for vocabulary content (aligned with word-pairs)
+  const { data: vocabData, isLoading: isVocabLoading, isError: isVocabError } = useVocabularyQuery(
+    lessonId!
+  );
+
+  // When query resolves, populate store and start timer
+  useEffect(() => {
+    if (!lessonId) return;
+    if (isVocabError) {
+      setVocabularyWords(lessonId!, []);
+      return;
+    }
+    if (vocabData && vocabData.length > 0) {
+      setVocabularyWords(lessonId!, vocabData);
+      startWordTimer(lessonId!);
+    }
+  }, [lessonId, vocabData, isVocabError, setVocabularyWords, startWordTimer]);
 
   // Memoized calculations for performance
   const currentWord = useMemo(() => {
@@ -178,9 +185,9 @@ export default function VocabularyScreen() {
     // If we're retrying a word, return to completion screen instead of continuing
     if (vocabularyState.isRetryingWord) {
       setVocabularyCompleted(lessonId!, true);
-      // Pass the accumulated XP delta from retried words
+      // Lesson completion after retries; additional XP delta tracking removed
       completeLesson(lessonId!, retryXpDeltaRef.current);
-      retryXpDeltaRef.current = 0; // Reset for next session
+      retryXpDeltaRef.current = 0;
       playWin();
       hapticSuccess?.();
       return;
@@ -535,50 +542,7 @@ export default function VocabularyScreen() {
     handleNextWord();
   }, [handleNextWord, addSkippedWord, lessonId, vocabularyState?.currentWordIndex, vocabularyState?.isRetryingWord, vocabularyState?.skippedWords, vocabularyState?.failedWords]);
 
-  const handleRestartLesson = useCallback(() => {
-    // Store the timer state before pausing
-    const wasTimerRunning = vocabularyState?.currentWordStartTime && !vocabularyState?.isPaused;
-
-    // Pause the timer when modal opens
-    if (wasTimerRunning) {
-      pauseWordTimer(lessonId!);
-    }
-
-    showModal({
-      title: "Restart Vocabulary Lesson?",
-      message: "This will reset ALL progress for this lesson. Your global XP and streak will be adjusted accordingly. Are you sure?",
-      buttons: [
-        {
-          text: "Cancel",
-          style: "cancel" as const,
-          onPress: () => {
-            hideModal();
-            // Resume the timer if it was running before the modal
-            if (wasTimerRunning) {
-              resumeWordTimer(lessonId!);
-            }
-          }
-        },
-        {
-          text: "Restart Lesson",
-          style: "destructive" as const,
-          onPress: () => {
-            hideModal();
-            setTimeout(() => {
-              // Clear recording state before resetting lesson
-              setRecordingUri(null);
-              cleanup();
-              resetVocabularyLesson(lessonId!);
-              // Reinitialize the lesson after reset
-              setTimeout(() => {
-                initializeLesson();
-              }, 100);
-            }, 100);
-          }
-        }
-      ]
-    });
-  }, [showModal, hideModal, resetVocabularyLesson, lessonId, initializeLesson, vocabularyState?.currentWordStartTime, vocabularyState?.isPaused, pauseWordTimer, resumeWordTimer]);
+  // Removed destructive restart flow to avoid store resets; replays/retries remain available.
 
   const handleWordCardPress = useCallback(async () => {
     if (!currentWord?.word) {
@@ -658,19 +622,18 @@ export default function VocabularyScreen() {
         isProcessing={isProcessing}
         isRecording={isRecording}
         scaleAnim={scaleAnim}
-        handleRestartLesson={handleRestartLesson}
         handleRetryWord={handleRetryWord}
       />
     );
   }
 
-  // Handle loading state
-  if (!currentWord) {
+  // Handle loading state: suspend until query resolves
+  if (isVocabLoading || !currentWord) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.centerContent}>
           <Text style={[styles.loadingText, { color: theme.colors.onSurface }]}>Loading Lesson...</Text>
-          <ProgressBar indeterminate style={styles.loadingProgress} color={theme.colors.primary} />
+          <ActivityIndicator size={48} animating color={theme.colors.primary} />
         </View>
       </SafeAreaView>
     );

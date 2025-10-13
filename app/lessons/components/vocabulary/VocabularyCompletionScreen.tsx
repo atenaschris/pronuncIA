@@ -14,7 +14,6 @@ interface VocabularyCompletionScreenProps {
   isProcessing: boolean;
   isRecording: boolean;
   scaleAnim: Animated.Value;
-  handleRestartLesson: () => void;
   handleRetryWord: (wordIndex: number) => void;
 }
 
@@ -30,7 +29,6 @@ export const VocabularyCompletionScreen: React.FC<VocabularyCompletionScreenProp
   isProcessing,
   isRecording,
   scaleAnim,
-  handleRestartLesson,
   handleRetryWord,
 }) => {
   const theme = useAppTheme();
@@ -176,19 +174,7 @@ export const VocabularyCompletionScreen: React.FC<VocabularyCompletionScreenProp
             >
               Back to Lessons
             </Button>
-            <View style={styles.restartContainer}>
-              <Button
-                mode="contained"
-                onPress={handleRestartLesson}
-                style={styles.restartButton}
-                disabled={isProcessing || isRecording}
-                accessibilityLabel="Restart lesson"
-                accessibilityHint="Tap to restart the entire vocabulary lesson from the beginning"
-                icon="restart"
-              >
-                🔄 Restart Lesson
-              </Button>
-            </View>
+            {/* Removed destructive Restart Lesson button to avoid store resets */}
           </Animated.View>
         </ScrollView>
       </SafeAreaView>
@@ -273,13 +259,6 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     marginTop: 20,
-    width: '100%',
-  },
-  restartContainer: {
-    marginTop: 10,
-    width: '100%',
-  },
-  restartButton: {
     width: '100%',
   },
 });

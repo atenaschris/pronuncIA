@@ -1,6 +1,7 @@
 import { Audio } from "expo-av";
 import * as Speech from 'expo-speech';
 import { useCallback, useEffect, useState } from "react";
+import { useOnboardingStore } from "../store/onboarding-store";
 
   export const useAudio = () => {
     const [correctSound, setCorrectSound] = useState<Audio.Sound | null>(null);
@@ -58,9 +59,24 @@ import { useCallback, useEffect, useState } from "react";
 
   const playWordAudio = useCallback((word: string) => {
     try {
-      // Use expo-speech for word pronunciation
+      const onboarding = useOnboardingStore.getState();
+      const target = onboarding?.targetLanguage || 'en';
+      const speechLocales: Record<string, string> = {
+        en: 'en-US',
+        it: 'it-IT',
+        es: 'es-ES',
+        fr: 'fr-FR',
+        de: 'de-DE',
+        pt: 'pt-PT',
+        ru: 'ru-RU',
+        zh: 'zh-CN',
+        ja: 'ja-JP',
+        ko: 'ko-KR',
+        ar: 'ar-SA',
+      };
+      const language = speechLocales[target] || 'en-US';
       Speech.speak(word, {
-        language: 'en-US',
+        language,
         pitch: 1.0,
         rate: 0.8,
       });
