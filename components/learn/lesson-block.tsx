@@ -33,18 +33,24 @@ export function LessonBlock({ lesson, onPress }: LessonBlockProps) {
       >
         <View style={styles.content}>
           <View style={styles.titleContainer}>
-            <RNPText variant="headlineSmall" style={{ color: theme.colors.primary }}>{lesson.title}</RNPText>
+            <RNPText 
+              variant="headlineSmall" 
+              style={[styles.titleText, { color: theme.colors.primary }]}
+            >
+              {lesson.title}
+            </RNPText>
             <MaterialCommunityIcons
               name={LESSON_ICONS[lesson.type]}
               size={30}
               color={lesson.completed ? theme.colors.success : theme.colors.grey4}
-              style={{ marginLeft: 10 }}
             />
           </View>
           <View style={styles.belowLessonBlockContainer}>
             <RNPText variant="titleMedium" style={{ fontWeight: '300' }}>{lesson.description}</RNPText>
             <View style={styles.xpAndLessonCompletedIconWrapper}>
-                <RNPText variant="titleMedium" style={{ fontWeight: '500', color: theme.colors.success }}>+{lesson.xpReward} XP</RNPText>
+                <RNPText variant="titleMedium" style={{ fontWeight: '500', color: theme.colors.success }}>
+                  {lesson.xpReward}/{lesson.rewardableXP} XP
+                </RNPText>
                 {lesson.completed && (
                   <MaterialCommunityIcons name="check-circle" size={25} color={theme.colors.success} />
                 )}
@@ -82,10 +88,14 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   titleContainer: {
-    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 10,
+  },
+  titleText: {
+    flex: 1,
+    textAlign: 'center',
   },
   belowLessonBlockContainer: {
     width: '100%',

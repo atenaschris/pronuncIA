@@ -5,20 +5,15 @@ import { useEffect } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LANGUAGE_LEVELS } from '../../lib/constants/constants';
-import { getTargetLanguageInfo } from '../../lib/helpers/onboarding-utils';
+import { TARGET_LANGUAGES } from '../../lib/constants/constants';
 import { OnboardingList } from './components/OnboardingList';
 import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
-
-export default function LanguageLevelScreen() {
+export default function TargetLanguageScreen() {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
-  const { setLanguageLevel, languageLevel, targetLanguage } = useOnboardingStore();
-  
-  const targetLanguageInfo = getTargetLanguageInfo(targetLanguage);
-  const targetLanguageName = targetLanguageInfo?.label || 'target language';
-  
+  const { setTargetLanguage, targetLanguage, nativeLanguage } = useOnboardingStore();
+
   useEffect(() => {
     opacity.value = withTiming(1, { duration: 800 });
     translateY.value = withTiming(0, { duration: 600 });
@@ -29,24 +24,27 @@ export default function LanguageLevelScreen() {
     transform: [{ translateY: translateY.value }],
   }));
 
+  // Exclude the user's native language from target language options
+  const filteredTargetLanguages = TARGET_LANGUAGES.filter(lang => lang.id !== nativeLanguage);
+
   return (
     <SafeAreaView style={[styles.container]}>
       <View>
-        <OnboardingTitle>What's your {targetLanguageName} level?</OnboardingTitle>
-        <OnboardingSubtitle>Select your current level to personalize your learning experience</OnboardingSubtitle>
+        <OnboardingTitle>Which language do you want to learn?</OnboardingTitle>
+        <OnboardingSubtitle>Choose the language you'd like to improve your pronunciation in</OnboardingSubtitle>
       </View>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[animatedStyle]}>
           <OnboardingList
-            options={LANGUAGE_LEVELS}
-            selectedValue={languageLevel}
-            onSelect={setLanguageLevel}
-            containerStyle={styles.levelsContainer}
+            options={filteredTargetLanguages}
+            selectedValue={targetLanguage}
+            onSelect={setTargetLanguage}
+            containerStyle={styles.languagesContainer}
           />
         </Animated.View>
       </ScrollView>
       <NextButton
-        onPress={() => router.push('/onboarding/learning-goals')}
+        onPress={() => router.push('/onboarding/language-level')}
       >
         Continue
       </NextButton>
@@ -61,8 +59,12 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  levelsContainer: {
+  languagesContainer: {
     gap: 16,
     marginBottom: 20,
-  }
+  },
+  nextButton: {
+    marginHorizontal: 20,
+    marginVertical: 20,
+  },
 });

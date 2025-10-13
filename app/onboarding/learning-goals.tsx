@@ -6,13 +6,18 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LEARNING_GOALS } from '../../lib/constants/constants';
+import { getTargetLanguageInfo } from '../../lib/helpers/onboarding-utils';
 import { OnboardingList } from './components/OnboardingList';
 import { OnboardingSubtitle, OnboardingTitle } from './components/OnboardingTypography';
 
 export default function LearningGoalsScreen() {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
-  const { setLearningGoal, learningGoal } = useOnboardingStore();
+  const { setLearningGoal, learningGoal, targetLanguage } = useOnboardingStore();
+  
+  const targetLanguageInfo = getTargetLanguageInfo(targetLanguage);
+  const targetLanguageName = targetLanguageInfo?.label || 'target language';
+  
   useEffect(() => {
     opacity.value = withTiming(1, { duration: 800 });
     translateY.value = withTiming(0, { duration: 600 });
@@ -27,7 +32,7 @@ export default function LearningGoalsScreen() {
     <SafeAreaView style={[styles.container]}>
       <View>
         <OnboardingTitle>What's your learning goal?</OnboardingTitle>
-        <OnboardingSubtitle>Choose your main focus for learning English pronunciation</OnboardingSubtitle>
+        <OnboardingSubtitle>Choose your main focus for learning {targetLanguageName} pronunciation</OnboardingSubtitle>
       </View>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Animated.View style={[animatedStyle]}>

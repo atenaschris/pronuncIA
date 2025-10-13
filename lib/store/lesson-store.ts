@@ -1,8 +1,21 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import {
+  areConsecutiveDays,
+  calculateFreezesNeeded,
+  calculateGapDays,
+  canCoverGap
+} from '../helpers/date-streak-utils';
+import {
+  calculateSpacedRepetitionNeeds,
+  calculateUserPerformanceMetrics
+} from '../helpers/performance-utils';
+import { aiService } from '../services/ai-service'; // Import AI service
+import { buildDailyPlanPrompt } from '../services/plan-prompt-builder';
+import { generateDailyPlanWithFallback } from '../services/planning-service';
 import { createMMKVStorage, userDataStorage } from '../storage/storage-utils';
 import { VocabularyState, VocabularyWord } from '../types/vocabulary';
-import { EnglishWord, TranslationWord, WordPairsState } from '../types/word-pairs';
+import { NativeWord, TranslationWord, WordPairsState } from '../types/word-pairs';
 import { useOnboardingStore } from './onboarding-store'; // Import onboarding store
 
 export type LessonType = 'vocabulary' | 'listening' | 'pronunciation' | 'roleplay' | 'shadowing' | 'voice_journaling' | 'word_pairs';
@@ -13,6 +26,7 @@ export interface Lesson {
   title: string;
   description: string;
   xpReward: number; // For word_pairs, this is the sum of best scores for each set
+  rewardableXP: number; // Maximum potential XP that can be earned from this lesson
   completed: boolean;
   locked: boolean;
   totalSets?: number; // Total number of sets for this lesson (e.g., 10 for word_pairs)
@@ -24,6 +38,7 @@ export interface Lesson {
 }
 
 export interface DailyPlan {
+  id: string;
   date: string;
   lessons: Lesson[];
   totalXp: number;
@@ -68,24 +83,29 @@ interface LessonState {
   dateOverride: string | null; // For time travel debugging
   isLoading: boolean;
   error: string | null;
+  // Content caching removed; React Query owns caching for content generation
 
-  // Common actions
+  // Actions
   setDailyPlan: (plan: DailyPlan) => void;
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => void;
-  generateDailyPlan: () => Promise<void>;
+  generateDailyPlan: (forceRegenerate?: boolean) => Promise<void>;
   setDateOverride: (date: string | null) => void; // For time travel debugging
 
+  // Content generation methods
+  generateVocabularyContent: (lessonId: string) => Promise<VocabularyWord[]>;
+  generateWordPairsContent: (lessonId: string) => Promise<Record<string, Array<{ native: string; translation: string }>>>;
+
   // WordPairs-specific actions
-  setEnglishWords: (lessonId: string, words: EnglishWord[]) => void;
+  setNativeWords: (lessonId: string, words: NativeWord[]) => void;
   setTranslationWords: (lessonId: string, words: TranslationWord[]) => void;
-  setSelectedPair: (lessonId: string, pair: { index: number, column: 'english' | 'translation' } | null) => void;
+  setSelectedPair: (lessonId: string, pair: { index: number, column: 'native' | 'translation' } | null) => void;
   setMatchedPairs: (lessonId: string, pairs: number[]) => void;
   setScore: (lessonId: string, score: number) => void;
-  setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => void;
+  setIncorrectPair: (lessonId: string, pair: { native: number; translation: number } | null) => void;
   setCurrentSetCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
   setIsReplayingForErrors: (lessonId: string, isReplaying: boolean) => void;
-  addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number) => void;
+  addErrorDetail: (lessonId: string, nativeWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string) => void;
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
   getWordPairsState: (lessonId: string) => WordPairsState | null;
@@ -153,36 +173,6 @@ export const getTodayDateString = (): string => {
   return new Date().toISOString().split('T')[0];
 };
 
-// Helper function to check if two dates are consecutive days
-const areConsecutiveDays = (date1: string, date2: string): boolean => {
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
-  const diffTime = Math.abs(d2.getTime() - d1.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays === 1;
-};
-
-// Calculate the gap size in days between two dates
-const calculateGapDays = (lastDate: string, currentDate: string): number => {
-  const d1 = new Date(lastDate);
-  const d2 = new Date(currentDate);
-  const diffTime = Math.abs(d2.getTime() - d1.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1; // Subtract 1 to get actual gap days
-};
-
-// Calculate how many streak freezes are needed to cover a gap
-const calculateFreezesNeeded = (gapDays: number): number => {
-  const MAX_GAP_PER_FREEZE = 3; // Each freeze can cover up to 3 days
-  return Math.ceil(gapDays / MAX_GAP_PER_FREEZE);
-};
-
-// Check if a gap can be covered by available freezes
-const canCoverGap = (gapDays: number, availableFreezes: number): boolean => {
-  const MAX_TOTAL_GAP_COVERAGE = 9; // Maximum 9 days can be covered total (3 freezes × 3 days each)
-  if (gapDays > MAX_TOTAL_GAP_COVERAGE) return false;
-  return calculateFreezesNeeded(gapDays) <= availableFreezes;
-};
-
 export const useLessonStore = create<LessonState>()(persist(
   (set, get) => ({
     // Common lesson state
@@ -198,6 +188,9 @@ export const useLessonStore = create<LessonState>()(persist(
     dateOverride: null, // For time travel debugging
     isLoading: false,
     error: null,
+    
+    // Content caching
+      // Removed cache state; handled by React Query
     setDailyPlan: (plan) => set({ dailyPlan: plan }),
     setDateOverride: (date) => set({ dateOverride: date }), // For time travel debugging
     completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
@@ -331,103 +324,57 @@ export const useLessonStore = create<LessonState>()(persist(
 
     setStreakNotificationLastShown: (date: string) => set({ streakNotificationLastShown: date }),
 
-    generateDailyPlan: async () => {
+    generateDailyPlan: async (forceRegenerate = false) => {
+      const { dailyPlan } = get();
+      const today = getTodayDateString();
+      
+      // Check if we need to regenerate the plan
+      const needsRegeneration = forceRegenerate || 
+        !dailyPlan || 
+        dailyPlan.date.split('T')[0] !== today;
+      
+      if (!needsRegeneration) {
+        console.log('Daily plan is current, no regeneration needed');
+        return;
+      }
+
       set({ isLoading: true, error: null });
       try {
-        const { languageLevel, nativeLanguage, learningGoal, timeCommitment, learningStyle } = useOnboardingStore.getState();
-
-        // Construct the prompt for the AI service
-        const prompt = `Generate a personalized daily lesson plan for a user with the following preferences:
-        Language Level: ${languageLevel}
-        Native Language: ${nativeLanguage}
-        Learning Goal: ${learningGoal}
-        Time Commitment: ${timeCommitment} minutes per day
-        Learning Style: ${learningStyle}
+        const { languageLevel, nativeLanguage, targetLanguage, learningGoal, timeCommitment, learningStyle } = useOnboardingStore.getState();
+        const { currentStreak, totalXp, lastActivityDate } = get();
+         // Centralized orchestration via Planning Service
+        const onboardingPayload = { languageLevel, nativeLanguage, learningGoal, timeCommitment, learningStyle, targetLanguage };
+        const stateForMetrics = get();
         
-        The plan should include a variety of lesson types for each lesson, such as vocabulary, listening, pronunciation, roleplay, shadowing, voice journaling, and word pairs.
-        Each lesson should have an id, type, title, description, xpReward, completed (boolean, default false), and locked (boolean, default false).
-        The response should be a JSON object matching the DailyPlan interface.`;
+        // Calculate user performance metrics for AI context
+        const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
+        const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
 
-        // Placeholder for AI service call
-        console.log('Sending to AI Service:', prompt);
-        // const aiGeneratedPlan = await callAIService(prompt); // Replace with actual AI service call
+        // Build AI prompt with centralized builder
+        const prompt = buildDailyPlanPrompt({
+          targetLanguage: targetLanguage,
+          languageLevel: languageLevel,
+          nativeLanguage: nativeLanguage,
+          learningGoal: learningGoal,
+          timeCommitment,
+          learningStyle: learningStyle,
+          currentStreak,
+          totalXp,
+          lastActivityDate,
+          performanceMetrics,
+          spacedRepetitionData,
+        });
 
-        // For now, we'll continue to use the mock plan until AI integration is complete
-        // In a real scenario, you would parse the aiGeneratedPlan response here.
-        const mockPlan: DailyPlan = {
-          date: new Date().toISOString(),
-          lessons: [
-            {
-              id: '1',
-              type: 'vocabulary',
-              title: 'Business Vocabulary',
-              description: 'Learn essential business terms',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '2',
-              type: 'listening',
-              title: 'Active Listening',
-              description: 'Improve comprehension skills',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '3',
-              type: 'pronunciation',
-              title: 'Difficult Sounds',
-              description: 'Practice challenging phonemes',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '4',
-              type: 'roleplay',
-              title: 'Job Interview',
-              description: 'Practice common interview phrases',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '5',
-              type: 'shadowing',
-              title: 'Native Speech',
-              description: 'Mirror native speaker patterns',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '6',
-              type: 'voice_journaling',
-              title: 'Daily Reflection',
-              description: 'Record your thoughts in English',
-              xpReward: 0,
-              completed: false,
-              locked: false,
-            },
-            {
-              id: '7',
-              type: 'word_pairs',
-              title: 'Match Business Terms',
-              description: 'Match related business vocabulary pairs',
-              xpReward: 0, // Initial XP for word_pairs is 0, sum of setBestScores
-              completed: false,
-              locked: false,
-              totalSets: 3, // Example: 10 sets for word_pairs
-              completedSets: 0, // Number of unique sets attempted
-              setBestScores: Array(3).fill(0), // Initialize best scores for 10 sets
-            },
-          ],
-          totalXp: 2000,
-          completedLessons: 0,
-        };
-        set({ dailyPlan: mockPlan, isLoading: false });
+        console.log('Sending enhanced prompt to AI Service:', prompt);
+        
+        const plan = await generateDailyPlanWithFallback(
+          prompt,
+          onboardingPayload,
+          performanceMetrics,
+          spacedRepetitionData,
+          today
+        );
+        set({ dailyPlan: plan, isLoading: false });
       } catch (error) {
         set({ error: (error as Error).message, isLoading: false });
       }
@@ -450,7 +397,7 @@ export const useLessonStore = create<LessonState>()(persist(
             switch (lessonType) {
               case 'word_pairs':
                 sessionState = {
-                  englishWords: [],
+                  nativeWords: [],
                   translationWords: [],
                   selectedPair: null,
                   matchedPairs: [],
@@ -586,7 +533,7 @@ export const useLessonStore = create<LessonState>()(persist(
             setBestScores: [],
             currentTimeBonusXP: 0,
             sessionState: {
-              englishWords: [],
+              nativeWords: [],
               translationWords: [],
               currentSetIndex: 0,
               selectedPair: null,
@@ -633,7 +580,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    setEnglishWords: (lessonId: string, words: EnglishWord[]) => set((state) => {
+    setNativeWords: (lessonId: string, words: NativeWord[]) => set((state) => {
       if (!state.dailyPlan) return state;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -642,7 +589,7 @@ export const useLessonStore = create<LessonState>()(persist(
             ...lesson,
             sessionState: {
               ...lesson.sessionState,
-              englishWords: words,
+              nativeWords: words,
             } as WordPairsState,
           };
         }
@@ -733,7 +680,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    setSelectedPair: (lessonId: string, pair: { index: number, column: 'english' | 'translation' } | null) => set((state) => {
+    setSelectedPair: (lessonId: string, pair: { index: number, column: 'native' | 'translation' } | null) => set((state) => {
       if (!state.dailyPlan) return state;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -808,7 +755,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    setIncorrectPair: (lessonId: string, pair: { english: number; translation: number } | null) => set((state) => {
+    setIncorrectPair: (lessonId: string, pair: { native: number; translation: number } | null) => set((state) => {
       if (!state.dailyPlan) return state;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -833,7 +780,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    addErrorDetail: (lessonId: string, englishWord: string, attemptedTranslation: string, setIndex: number) => set((state) => {
+    addErrorDetail: (lessonId: string, nativeWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string) => set((state) => {
       if (!state.dailyPlan) return state;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -847,10 +794,11 @@ export const useLessonStore = create<LessonState>()(persist(
                 incorrectMatches: [
                   ...currentState.errorDetails.incorrectMatches,
                   {
-                    englishWord,
+                    nativeWord,
                     attemptedTranslation,
                     timestamp: Date.now(),
                     setIndex,
+                    correctTranslation,
                   }
                 ],
                 totalErrors: currentState.errorDetails.totalErrors + 1,
@@ -1423,13 +1371,6 @@ export const useLessonStore = create<LessonState>()(persist(
     }),
 
 
-
-
-
-
-
-
-
     // Vocabulary timer methods
     startWordTimer: (lessonId: string) => set((state) => {
       if (!state.dailyPlan) return state;
@@ -1740,8 +1681,6 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-
-
     addVocabularyWordXP: (lessonId: string, wordXP: number) => {
       const { dailyPlan } = get();
       if (!dailyPlan) return;
@@ -1769,10 +1708,6 @@ export const useLessonStore = create<LessonState>()(persist(
         },
       });
     },
-
-
-
-
 
     updateVocabularyState: (lessonId: string, updatedState: Partial<VocabularyState>) => set((state) => {
       if (!state.dailyPlan) return state;
@@ -2307,7 +2242,71 @@ export const useLessonStore = create<LessonState>()(persist(
       // No gap detected - streak is maintained
       set({ lastValidationDate: today });
       return { status: 'streak_maintained' };
-    }
+    },
+
+    // Content generation methods
+    generateVocabularyContent: async (
+      lessonId: string
+    ): Promise<VocabularyWord[]> => {
+      // Compute performance metrics and spaced-repetition needs; caching is handled by React Query
+      const stateForMetrics = get();
+      const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
+      const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
+
+      try {
+        // Get user onboarding data for personalization
+        const onboardingData = useOnboardingStore.getState();
+
+        // Generate content using AI service
+        const generatedContent = await aiService.generateVocabularyWords(
+          onboardingData.targetLanguage || 'italian',
+          onboardingData.nativeLanguage || 'english',
+          onboardingData.languageLevel || 'beginner',
+          onboardingData.learningGoal || 'pronunciation',
+          20, // Increased default count for a more engaging session
+          performanceMetrics,
+          spacedRepetitionData
+        );
+
+        // Return directly; React Query caches based on its queryKey
+        return generatedContent;
+      } catch (error) {
+        console.error('Failed to generate vocabulary content:', error);
+        return [];
+      }
+    },
+
+    generateWordPairsContent: async (): Promise<Record<string, Array<{ native: string; translation: string }>>> => {
+      // Compute performance metrics and spaced-repetition needs; caching is handled by React Query
+      const stateForMetrics = get();
+      const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
+      const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
+
+      try {
+        // Get user onboarding data for personalization
+        const onboardingData = useOnboardingStore.getState();
+
+        // Generate content using AI service with new structure
+        const generatedContent = await aiService.generateWordPairs(
+          onboardingData.targetLanguage || 'italian',
+          onboardingData.nativeLanguage || 'english',
+          onboardingData.languageLevel || 'beginner',
+          onboardingData.learningGoal || 'pronunciation',
+          10, // Generate 10 sets
+          8,   // 8 pairs per set
+          performanceMetrics,
+          spacedRepetitionData
+        );
+
+        // Return directly; React Query caches based on its queryKey
+        return generatedContent;
+      } catch (error) {
+        console.error('Failed to generate word pairs content:', error);
+        return {};
+      }
+    },
+
+    // Removed legacy store-level caching helpers; React Query persists and indexes content
   }),
   {
     name: 'lesson-storage',

@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LessonBlock } from '@/components/learn/lesson-block';
 import { ProgressHeader } from '@/components/learn/progress-header';
 import { RNPText } from '@/components/ui/RNPText';
-import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
+import { LessonType, useLessonStore, getTodayDateString } from '@/lib/store/lesson-store';
 import { RelativePathString, router } from 'expo-router';
 import { useEffect } from 'react';
 import { OnboardingSubtitle, OnboardingTitle } from '../onboarding/components/OnboardingTypography';
@@ -20,11 +20,17 @@ export default function LearnScreen() {
     isLoading,
   } = useLessonStore();
 
+  const today = getTodayDateString();
+
   useEffect(() => {
-    if (!dailyPlan) {
+    // Check if we need to generate a daily plan
+    // This happens when:
+    // 1. No daily plan exists
+    // 2. The existing daily plan is for a different date (handles date override changes)
+    if (!dailyPlan || dailyPlan.date.split('T')[0] !== today) {
       generateDailyPlan();
     }
-  }, []);
+  }, [today]); // Depend on today so it regenerates when date changes via debug screen
 
   const handleLessonPress = (lessonType: LessonType) => {    
     let routePath = lessonType.toLowerCase();
