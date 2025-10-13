@@ -31,6 +31,131 @@ interface AIServiceConfig {
   temperature: number;
 }
 
+// Helper to compute onboarding category keys with configurable behavior
+function computeOnboardingRangeKeys(
+  ranges: typeof FALLBACK_LEXICON_CATEGORY_RANGES,
+  level?: LanguageLevel,
+  goal?: LearningGoal,
+  options?: { mode?: 'indices' | 'ranges'; includeANumbersColorsForGoals?: boolean }
+): Array<keyof typeof FALLBACK_LEXICON_CATEGORY_RANGES> {
+  const lvl = (level ?? '').toUpperCase();
+  const gl = (goal ?? '').toLowerCase();
+  const mode = options?.mode ?? 'indices';
+  const includeANumbersColors = options?.includeANumbersColorsForGoals ?? false;
+
+  const result: Array<keyof typeof FALLBACK_LEXICON_CATEGORY_RANGES> = [];
+  const added = new Set<keyof typeof FALLBACK_LEXICON_CATEGORY_RANGES>();
+
+  const pushKey = <K extends keyof typeof FALLBACK_LEXICON_CATEGORY_RANGES>(k: K) => {
+    if (!added.has(k)) {
+      result.push(k);
+      added.add(k);
+    }
+  };
+
+  // Baseline categories by level
+  if (mode === 'ranges') {
+    // Ranges mode baseline includes verbs
+    pushKey('verbs');
+    if (lvl === 'A1') {
+      pushKey('core');
+      pushKey('numbers');
+      pushKey('colors');
+      pushKey('animals');
+    } else if (lvl === 'A2') {
+      pushKey('core');
+      pushKey('numbers');
+      pushKey('colors');
+      pushKey('animals');
+      pushKey('school');
+    } else if (lvl === 'B1') {
+      pushKey('school');
+      pushKey('shopping');
+      pushKey('health');
+      pushKey('travel');
+    } else if (lvl === 'B2' || lvl === 'C1' || lvl === 'C2') {
+      pushKey('work');
+      pushKey('exam');
+      pushKey('travel');
+      pushKey('health');
+      pushKey('shopping');
+      pushKey('advanced');
+    }
+  } else {
+    // Indices mode baseline (include verbs for base levels)
+    if (lvl === 'A1') {
+      pushKey('core');
+      pushKey('numbers');
+      pushKey('colors');
+      pushKey('verbs');
+    } else if (lvl === 'A2') {
+      pushKey('core');
+      pushKey('numbers');
+      pushKey('colors');
+      pushKey('animals');
+      pushKey('school');
+      pushKey('verbs');
+    } else if (lvl === 'B1') {
+      pushKey('animals');
+      pushKey('school');
+      pushKey('health');
+      pushKey('shopping');
+      pushKey('travel');
+    } else if (lvl === 'B2') {
+      pushKey('health');
+      pushKey('shopping');
+      pushKey('travel');
+      pushKey('work');
+      pushKey('exam');
+      pushKey('advanced');
+    } else if (lvl === 'C1' || lvl === 'C2') {
+      pushKey('work');
+      pushKey('exam');
+      pushKey('travel');
+      pushKey('advanced');
+    } else {
+      pushKey('core');
+      pushKey('numbers');
+      pushKey('colors');
+      pushKey('animals');
+    }
+  }
+
+  // Goal-specific extras
+  if (gl === 'travel') {
+    pushKey('travel');
+    pushKey('shopping');
+    pushKey('health');
+    if (includeANumbersColors && (lvl === 'A1' || lvl === 'A2')) {
+      pushKey('numbers');
+      pushKey('colors');
+    }
+  } else if (gl === 'work') {
+    pushKey('work');
+    pushKey('school');
+    if (includeANumbersColors && (lvl === 'A1' || lvl === 'A2')) {
+      pushKey('numbers');
+      pushKey('colors');
+    }
+  } else if (gl === 'exam') {
+    pushKey('exam');
+    pushKey('school');
+    if (includeANumbersColors && (lvl === 'A1' || lvl === 'A2')) {
+      pushKey('numbers');
+      pushKey('colors');
+    }
+  } else if (gl === 'fluency') {
+    pushKey('numbers');
+    pushKey('colors');
+    pushKey('animals');
+    pushKey('school');
+    pushKey('health');
+    pushKey('shopping');
+  }
+
+  return result;
+}
+
 class AIService {
   private config: AIServiceConfig;
 
@@ -491,42 +616,15 @@ class AIService {
     const languagePool = (poolKey && FALLBACK_WORD_PAIRS_POOLS[poolKey]) || [];
 
     // Onboarding-aware category indices (expanded to numeric indices)
-    const pickIndicesForOnboarding = (lvl?: string, goal?: string): number[] => {
+    const pickIndicesForOnboarding = (lvl?: LanguageLevel, goal?: LearningGoal): number[] => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { FALLBACK_LEXICON_CATEGORY_RANGES: ranges } = require('../constants/constants');
-
-        const level = (lvl || '').toUpperCase();
-        const base: (keyof typeof ranges)[] = [];
-        if (level === 'A1') {
-          base.push('core', 'numbers', 'colors');
-        } else if (level === 'A2') {
-          base.push('core', 'numbers', 'colors', 'animals', 'school');
-        } else if (level === 'B1') {
-          base.push('animals', 'school', 'health', 'shopping', 'travel');
-        } else if (level === 'B2') {
-          base.push('health', 'shopping', 'travel', 'work', 'exam', 'advanced');
-        } else if (level === 'C1' || level === 'C2') {
-          base.push('work', 'exam', 'travel', 'advanced');
-        } else {
-          base.push('core', 'numbers', 'colors', 'animals');
-        }
-
-        const gl = (goal || '').toLowerCase();
-        let goalExtras: (keyof typeof ranges)[] = [];
-        if (gl === 'travel') {
-          goalExtras = ['travel', 'shopping', 'health'];
-        } else if (gl === 'work') {
-          goalExtras = ['work', 'school'];
-        } else if (gl === 'exam') {
-          goalExtras = ['exam', 'school'];
-        } else if (gl === 'fluency') {
-          goalExtras = ['numbers', 'colors', 'animals', 'school', 'health', 'shopping'];
-        }
-
-        const mergedKeys = Array.from(new Set<keyof typeof ranges>([...base, ...goalExtras]));
+        const ranges = FALLBACK_LEXICON_CATEGORY_RANGES;
+        const keys = computeOnboardingRangeKeys(ranges, lvl, goal, {
+          mode: 'indices',
+          includeANumbersColorsForGoals: false,
+        });
         const indices: number[] = [];
-        mergedKeys.forEach((k) => {
+        keys.forEach((k) => {
           const { start, end } = ranges[k];
           for (let i = start; i <= end; i++) indices.push(i);
         });
@@ -732,10 +830,10 @@ class AIService {
   private getFallbackWordPairs(
     setsCount: number,
     pairsPerSet: number = 8,
-    targetLanguage?: string,
-    nativeLanguage?: string,
-    languageLevel?: string,
-    learningGoal?: string,
+    targetLanguage?: TargetLanguageCode,
+    nativeLanguage?: NativeLanguageCode,
+    languageLevel?: LanguageLevel,
+    learningGoal?: LearningGoal,
     performanceMetrics?: {
       completionRate: number;
       averageAccuracy: number;
@@ -760,44 +858,11 @@ class AIService {
     // Use hardcoded ranges from constants
     const ranges = FALLBACK_LEXICON_CATEGORY_RANGES;
 
-    const pickRangesForOnboarding = (level?: string, goal?: string): Array<keyof typeof ranges> => {
-      const lvl = (level || '').toUpperCase();
-      const gl = (goal || '').toLowerCase();
-      const base: Array<keyof typeof ranges> = ['verbs'];
-
-      // Level tuning
-      if (lvl === 'A1') {
-        base.push('core', 'numbers', 'colors', 'animals');
-      } else if (lvl === 'A2') {
-        base.push('core', 'numbers', 'colors', 'animals', 'school');
-      } else if (lvl === 'B1') {
-        base.push('school', 'shopping', 'health', 'travel');
-      } else if (lvl === 'B2' || lvl === 'C1' || lvl === 'C2') {
-        base.push('work', 'exam', 'travel', 'health', 'shopping', 'advanced');
-      }
-
-      // Goal tuning with expanded domains (merged with level base)
-      let goalExtras: Array<keyof typeof ranges> = [];
-      if (gl === 'travel') {
-        // favor travel and real-life scenarios; add numbers/colors only for A-levels
-        goalExtras = ['travel', 'shopping', 'health'];
-        if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
-      } else if (gl === 'work') {
-        // professional vocabulary; add numbers/colors only for A-levels
-        goalExtras = ['work', 'school'];
-        if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
-      } else if (gl === 'exam') {
-        // academic vocabulary; add numbers/colors only for A-levels
-        goalExtras = ['exam', 'school'];
-        if (lvl === 'A1' || lvl === 'A2') goalExtras.push('numbers', 'colors');
-      } else if (gl === 'fluency') {
-        // broad vocabulary expansion
-        goalExtras = ['numbers', 'colors', 'animals', 'school', 'health', 'shopping'];
-      }
-
-      // Merge base + goal extras, preserving order and removing duplicates
-      const merged = Array.from(new Set<keyof typeof ranges>([...base, ...goalExtras]));
-      return merged;
+    const pickRangesForOnboarding = (level?: LanguageLevel, goal?: LearningGoal): Array<keyof typeof ranges> => {
+      return computeOnboardingRangeKeys(ranges, level, goal, {
+        mode: 'ranges',
+        includeANumbersColorsForGoals: true,
+      });
     };
 
     const desired = pickRangesForOnboarding(languageLevel, learningGoal);
