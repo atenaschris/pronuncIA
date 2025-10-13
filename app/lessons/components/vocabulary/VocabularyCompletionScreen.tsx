@@ -11,8 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface VocabularyCompletionScreenProps {
   lessonId: LessonType;
-  isProcessing: boolean;
-  isRecording: boolean;
   scaleAnim: Animated.Value;
   handleRetryWord: (wordIndex: number) => void;
 }
@@ -26,8 +24,6 @@ const calculatePronunciationAccuracy = (aiScores: number[]): number => {
 
 export const VocabularyCompletionScreen: React.FC<VocabularyCompletionScreenProps> = ({
   lessonId,
-  isProcessing,
-  isRecording,
   scaleAnim,
   handleRetryWord,
 }) => {

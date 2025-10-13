@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export const useRecording = () => {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const timerRef = useRef<number | null>(null);
@@ -118,10 +117,8 @@ export const useRecording = () => {
   return {
     recording,
     recordingUri,
-    isProcessing,
     isRecording,
     recordingDuration,
-    setIsProcessing,
     setRecordingUri,
     startRecording,
     stopRecording,
