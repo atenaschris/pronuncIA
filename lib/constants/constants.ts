@@ -1052,3 +1052,25 @@ export const LESSON_ICONS = {
   'voice_journaling': 'notebook',
   'word_pairs': 'cards-outline',
 } as const;
+
+// Shared mapping for Expo Speech locales by language code
+export const SPEECH_LOCALES = {
+  en: 'en-US',
+  it: 'it-IT',
+  es: 'es-ES',
+  fr: 'fr-FR',
+  de: 'de-DE',
+  pt: 'pt-PT',
+  ru: 'ru-RU',
+  zh: 'zh-CN',
+  ja: 'ja-JP',
+  ko: 'ko-KR',
+  ar: 'ar-SA',
+} as const;
+
+export type SpeechLanguageCode = keyof typeof SPEECH_LOCALES;
+export type SpeechLocaleCode = typeof SPEECH_LOCALES[SpeechLanguageCode];
+
+export function getSpeechLocale(lang: SpeechLanguageCode): SpeechLocaleCode {
+  return SPEECH_LOCALES[(lang)] ?? 'en-US';
+}
