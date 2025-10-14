@@ -19,7 +19,10 @@ export const generateDailyPlanWithFallback = async (
   date: string
 ): Promise<DailyPlan> => {
   try {
-    return await aiService.generateDailyPlan(prompt);
+    const plan = await aiService.generateDailyPlan(prompt);
+    // Enforce today's date at midnight UTC on AI-generated plans
+    const todayMidnightUtc = `${date}T00:00:00Z`;
+    return { ...plan, date: todayMidnightUtc };
   } catch (error) {
     return generateIntelligentMockPlan(
       onboardingData,
