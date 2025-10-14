@@ -257,13 +257,15 @@ export default function VocabularyScreen() {
         uri,
         targetWord: currentWord.word,
         locale,
+        mode: 'word',
       });
 
       const scores = result?.scores;
       if (!scores) throw new Error('Invalid response: missing scores');
 
-      // Use Azure pronunciation assessment accuracy (0..1) → percentage
-      accuracy = Math.round((scores.accuracy ?? scores.overall ?? 0) * 100);
+      // Use backend overall score (weighted for mode) → percentage
+      // Falls back to pronunciation or raw accuracy if overall is missing
+      accuracy = Math.round((scores.overall ?? scores.pronunciation ?? scores.accuracy ?? 0) * 100);
       addAIScore(lessonId!, accuracy);
     } catch (err: any) {
       console.error('Azure assessment error:', err);
