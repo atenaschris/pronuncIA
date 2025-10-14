@@ -1,4 +1,4 @@
-import { IsString } from 'class-validator';
+import { IsString, IsOptional, IsIn } from 'class-validator';
 
 export class AnalyzeDto {
   @IsString()
@@ -6,4 +6,8 @@ export class AnalyzeDto {
 
   @IsString()
   locale: string;
+
+  @IsOptional()
+  @IsIn(['word', 'sentence'])
+  mode?: 'word' | 'sentence';
 }

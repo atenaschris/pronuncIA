@@ -17,10 +17,11 @@ if (ffmpegStatic) {
 @Injectable()
 export class PronunciationService {
   private readonly logger = new Logger(PronunciationService.name);
-  async assess(file: Express.Multer.File, targetWord: string, locale: string) {
+  async assess(file: Express.Multer.File, targetWord: string, locale: string, mode?: 'word' | 'sentence') {
     const reqId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const startTs = Date.now();
-    this.logger.log(`[${reqId}] Assess start: file=${file.originalname} size=${file.size}B targetWord="${targetWord}" locale=${locale}`);
+    const useMode: 'word' | 'sentence' = mode === 'sentence' ? 'sentence' : 'word';
+    this.logger.log(`[${reqId}] Assess start: file=${file.originalname} size=${file.size}B targetWord="${targetWord}" locale=${locale} mode=${useMode}`);
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pronun-'));
     const inputPath = path.join(tmpDir, file.originalname);
     const wavPath = path.join(tmpDir, `${path.parse(file.originalname).name}.wav`);
@@ -56,10 +57,14 @@ export class PronunciationService {
     const audioConfig = sdk.AudioConfig.fromWavFileInput(audioBuffer);
     const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
 
+    const granularity = useMode === 'sentence'
+      ? sdk.PronunciationAssessmentGranularity.Word
+      : sdk.PronunciationAssessmentGranularity.Phoneme;
+
     const paConfig = new sdk.PronunciationAssessmentConfig(
       targetWord,
       sdk.PronunciationAssessmentGradingSystem.HundredMark,
-      sdk.PronunciationAssessmentGranularity.Phoneme,
+      granularity,
       true,
     );
     paConfig.phonemeAlphabet = 'IPA';
@@ -79,11 +84,13 @@ export class PronunciationService {
       const pronunciation = normalize(paResult.pronunciationScore);
       const fluency = normalize(paResult.fluencyScore);
       const completeness = normalize(paResult.completenessScore);
-      const overall = Math.max(0, Math.min(1, (accuracy + pronunciation + fluency + completeness) / 4));
+      const overallWord = Math.max(0, Math.min(1, (accuracy + pronunciation) / 2));
+      const overallSentence = Math.max(0, Math.min(1, (accuracy + pronunciation + fluency + completeness) / 4));
+      const overall = useMode === 'sentence' ? overallSentence : overallWord;
 
       this.logger.log(
         `[${reqId}] Azure result: reason=${sdk.ResultReason[result.reason]} text="${result.text}" ` +
-        `scores(n): overall=${overall.toFixed(3)} accuracy=${accuracy.toFixed(3)} ` +
+        `mode=${useMode} scores(n): overall=${overall.toFixed(3)} accuracy=${accuracy.toFixed(3)} ` +
         `pronunciation=${pronunciation.toFixed(3)} fluency=${fluency.toFixed(3)} completeness=${completeness.toFixed(3)}`
       );
       if (paResult) {
@@ -100,6 +107,7 @@ export class PronunciationService {
         ok: true,
         text: result.text,
         reason: sdk.ResultReason[result.reason],
+        mode: useMode,
         scores: {
           overall,
           accuracy,

@@ -29,7 +29,7 @@ export class PronunciationController {
       throw new BadRequestException('Missing targetWord or locale');
     }
     this.logger.log(`Analyze request: file=${file.originalname} size=${file.size}B targetWord="${body.targetWord}" locale=${body.locale}`);
-    const res = await this.service.assess(file, body.targetWord, body.locale);
+    const res = await this.service.assess(file, body.targetWord, body.locale, body.mode);
     this.logger.debug(`Analyze response: ok=${res.ok} reason=${res.reason} text="${res.text}"`);
     return res;
   }
