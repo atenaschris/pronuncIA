@@ -1,17 +1,19 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
+  Logger,
   Post,
   UploadedFile,
   UseInterceptors,
-  Body,
-  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { PronunciationService } from './pronunciation.service';
 import { AnalyzeDto } from './dto/analyze.dto';
+import { PronunciationService } from './pronunciation.service';
 
 @Controller('pronunciation')
 export class PronunciationController {
+  private readonly logger = new Logger(PronunciationController.name);
   constructor(private readonly service: PronunciationService) {}
 
   @Post('analyze')
@@ -26,7 +28,9 @@ export class PronunciationController {
     if (!body?.targetWord || !body?.locale) {
       throw new BadRequestException('Missing targetWord or locale');
     }
-
-    return this.service.assess(file, body.targetWord, body.locale);
+    this.logger.log(`Analyze request: file=${file.originalname} size=${file.size}B targetWord="${body.targetWord}" locale=${body.locale}`);
+    const res = await this.service.assess(file, body.targetWord, body.locale);
+    this.logger.debug(`Analyze response: ok=${res.ok} reason=${res.reason} text="${res.text}"`);
+    return res;
   }
 }

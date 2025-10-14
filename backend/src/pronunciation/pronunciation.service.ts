@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -16,7 +16,11 @@ if (ffmpegStatic) {
 
 @Injectable()
 export class PronunciationService {
+  private readonly logger = new Logger(PronunciationService.name);
   async assess(file: Express.Multer.File, targetWord: string, locale: string) {
+    const reqId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const startTs = Date.now();
+    this.logger.log(`[${reqId}] Assess start: file=${file.originalname} size=${file.size}B targetWord="${targetWord}" locale=${locale}`);
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pronun-'));
     const inputPath = path.join(tmpDir, file.originalname);
     const wavPath = path.join(tmpDir, `${path.parse(file.originalname).name}.wav`);
@@ -25,6 +29,7 @@ export class PronunciationService {
     fs.writeFileSync(inputPath, file.buffer);
 
     // Convert to wav 16k mono
+    const convertStart = Date.now();
     await new Promise<void>((resolve, reject) => {
       ffmpeg(inputPath)
         .outputOptions([
@@ -36,6 +41,7 @@ export class PronunciationService {
         .on('end', () => resolve())
         .save(wavPath);
     });
+    this.logger.debug(`[${reqId}] Audio converted to wav (16k mono) in ${Date.now() - convertStart}ms`);
 
     const key = process.env.AZURE_SPEECH_KEY;
     const region = process.env.AZURE_SPEECH_REGION;
@@ -75,6 +81,21 @@ export class PronunciationService {
       const completeness = normalize(paResult.completenessScore);
       const overall = Math.max(0, Math.min(1, (accuracy + pronunciation + fluency + completeness) / 4));
 
+      this.logger.log(
+        `[${reqId}] Azure result: reason=${sdk.ResultReason[result.reason]} text="${result.text}" ` +
+        `scores(n): overall=${overall.toFixed(3)} accuracy=${accuracy.toFixed(3)} ` +
+        `pronunciation=${pronunciation.toFixed(3)} fluency=${fluency.toFixed(3)} completeness=${completeness.toFixed(3)}`
+      );
+      if (paResult) {
+        const raw = {
+          accuracyScore: paResult.accuracyScore,
+          pronunciationScore: paResult.pronunciationScore,
+          fluencyScore: paResult.fluencyScore,
+          completenessScore: paResult.completenessScore,
+        };
+        this.logger.debug(`[${reqId}] Azure raw PA scores: ${JSON.stringify(raw)}`);
+      }
+
       return {
         ok: true,
         text: result.text,
@@ -88,6 +109,7 @@ export class PronunciationService {
         },
       };
     } catch (e: any) {
+      this.logger.error(`[${reqId}] Assess error: ${e?.message || 'Unknown error'}`);
       throw new InternalServerErrorException(e?.message || 'Azure assessment failed');
     } finally {
       recognizer.close();
@@ -100,6 +122,7 @@ export class PronunciationService {
       try {
         fs.rmdirSync(tmpDir);
       } catch {}
+      this.logger.debug(`[${reqId}] Cleaned up temp files. Total time=${Date.now() - startTs}ms`);
     }
   }
 }
