@@ -358,6 +358,7 @@ export const useLessonStore = create<LessonState>()(persist(
           learningGoal: learningGoal,
           timeCommitment,
           learningStyle: learningStyle,
+          todayDate: today,
           currentStreak,
           totalXp,
           lastActivityDate,

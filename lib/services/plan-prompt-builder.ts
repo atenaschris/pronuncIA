@@ -22,6 +22,7 @@ export interface DailyPlanPromptInput {
   learningGoal: LearningGoal;
   timeCommitment: string;
   learningStyle: LearningStyle;
+  todayDate: string;
   currentStreak: number;
   totalXp: number;
   lastActivityDate: string | null;
@@ -37,6 +38,7 @@ export const buildDailyPlanPrompt = (input: DailyPlanPromptInput): string => {
     learningGoal,
     timeCommitment,
     learningStyle,
+    todayDate,
     currentStreak,
     totalXp,
     lastActivityDate,
@@ -78,6 +80,7 @@ REQUIREMENTS:
 6. Consider native language ${nativeLanguage} specific challenges
 7. Explicitly prioritize lessons that directly address the Top Review Words and Pronunciation Sounds listed above (e.g., vocabulary targeting those words, word_pairs containing them, and pronunciation drills focused on those sounds)
 8. Set the top-level DailyPlan field 'completedLessons' to 0
+9. Set the top-level DailyPlan field 'date' to "${todayDate}T00:00:00Z" (midnight UTC)
 
 WORD_PAIRS TRACKING FIELDS:
 - For any lesson of type word_pairs, include auxiliary tracking fields to support progress and XP calculation:
