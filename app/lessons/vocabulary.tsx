@@ -257,6 +257,7 @@ export default function VocabularyScreen() {
         uri,
         targetWord: currentWord.word,
         locale,
+        mode: 'word',
       });
 
       const scores = result?.scores;

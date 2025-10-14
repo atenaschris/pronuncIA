@@ -4,6 +4,7 @@ interface AnalyzeArgs {
     uri: string;
     targetWord: string;
     locale: string;
+    mode?: 'word' | 'sentence';
 }
 
 // React Query mutation to analyze pronunciation via backend Azure Speech API
@@ -12,7 +13,7 @@ export function usePronunciationAnalysis() {
 
     return useMutation({
         mutationKey: ['pronunciation', 'analyze'],
-        mutationFn: async ({ uri, targetWord, locale }: AnalyzeArgs) => {
+        mutationFn: async ({ uri, targetWord, locale, mode = 'word' }: AnalyzeArgs) => {
             const formData = new FormData();
             formData.append('audio', {
                 uri,
@@ -21,6 +22,7 @@ export function usePronunciationAnalysis() {
             } as any);
             formData.append('targetWord', targetWord);
             formData.append('locale', locale);
+            formData.append('mode', mode);
 
             const res = await fetch(`${API_BASE_URL}/api/pronunciation/analyze`, {
                 method: 'POST',
