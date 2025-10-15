@@ -71,7 +71,6 @@ export interface WordPairsActions {
 }
 
 interface LessonState {
-  lessons: Lesson[];
   currentStreak: number;
   totalXp: number;
   streakFreezes: number; // Number of streak freezes available
@@ -81,8 +80,15 @@ interface LessonState {
   lastValidationDate: string | null; // Track last day streak validation was performed (YYYY-MM-DD format)
   streakNotificationLastShown: string | null; // Track last day a streak notification was shown
   dateOverride: string | null; // For time travel debugging
+  mockPronunciationAnalysis: boolean; // Test-only: mock AI accuracy
   isLoading: boolean;
   error: string | null;
+  // Lifetime cumulative metrics (persisted)
+  lifetimeLessonsSeen: number; // Total lessons generated across all daily plans
+  lifetimeLessonsCompleted: number; // Total lessons completed across all days
+  lifetimeAccuracyTotal: number; // Sum of per-lesson accuracy values (vocabulary avg aiScores, word_pairs avg setBestScores)
+  lifetimeAccuracyCount: number; // Number of lessons contributing to accuracy
+  lastCountedPlanDate: string | null; // The last date for which lessonsSeen was incremented
   // Content caching removed; React Query owns caching for content generation
 
   // Actions
@@ -90,6 +96,7 @@ interface LessonState {
   completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => void;
   generateDailyPlan: (forceRegenerate?: boolean) => Promise<void>;
   setDateOverride: (date: string | null) => void; // For time travel debugging
+  setMockPronunciationAnalysis: (enabled: boolean) => void; // Toggle mock accuracy
 
   // Content generation methods
   generateVocabularyContent: (lessonId: string) => Promise<VocabularyWord[]>;
@@ -175,8 +182,6 @@ export const getTodayDateString = (): string => {
 
 export const useLessonStore = create<LessonState>()(persist(
   (set, get) => ({
-    // Common lesson state
-    lessons: [],
     currentStreak: 0,
     totalXp: 0,
     streakFreezes: 2, // Start with 2 streak freezes like Duolingo
@@ -186,15 +191,23 @@ export const useLessonStore = create<LessonState>()(persist(
     lastValidationDate: null,
     streakNotificationLastShown: null,
     dateOverride: null, // For time travel debugging
+    mockPronunciationAnalysis: false, // Default: real AI accuracy
     isLoading: false,
     error: null,
+    // Lifetime cumulative metrics defaults
+    lifetimeLessonsSeen: 0,
+    lifetimeLessonsCompleted: 0,
+    lifetimeAccuracyTotal: 0,
+    lifetimeAccuracyCount: 0,
+    lastCountedPlanDate: null,
     
     // Content caching
       // Removed cache state; handled by React Query
     setDailyPlan: (plan) => set({ dailyPlan: plan }),
     setDateOverride: (date) => set({ dateOverride: date }), // For time travel debugging
+    setMockPronunciationAnalysis: (enabled) => set({ mockPronunciationAnalysis: enabled }),
     completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
-      const { dailyPlan, totalXp, currentStreak, lastActivityDate } = get();
+      const { dailyPlan, totalXp, currentStreak, lastActivityDate, lifetimeLessonsCompleted, lifetimeAccuracyTotal, lifetimeAccuracyCount } = get();
       if (!dailyPlan) return;
 
       let lessonNewlyFullyCompleted = false; // Tracks if this action makes the lesson fully complete for the first time
@@ -203,6 +216,9 @@ export const useLessonStore = create<LessonState>()(persist(
       let newCurrentStreak = currentStreak;
       let newLastActivityDate = lastActivityDate;
       let newCompletedLessonsCount = dailyPlan.completedLessons;
+      let newLifetimeLessonsCompleted = lifetimeLessonsCompleted;
+      let newLifetimeAccuracyTotal = lifetimeAccuracyTotal;
+      let newLifetimeAccuracyCount = lifetimeAccuracyCount;
 
       const newLessonsArray = dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId) {
@@ -273,6 +289,26 @@ export const useLessonStore = create<LessonState>()(persist(
         // This logic ensures streak and completed count only increment if the lesson state *changed* to completed
         // No need to check originalLesson.completed as lessonNewlyFullyCompleted is only true if it wasn't completed before.
         newCompletedLessonsCount += 1;
+        newLifetimeLessonsCompleted += 1;
+
+        // Contribute per-lesson accuracy to lifetime totals once upon first completion
+        const justCompletedLesson = newLessonsArray.find(l => l.id === lessonId);
+        if (justCompletedLesson) {
+          if (justCompletedLesson.type === 'vocabulary') {
+            const vs = justCompletedLesson.sessionState as VocabularyState | undefined;
+            const aiScores = vs?.aiScores;
+            if (aiScores && aiScores.length > 0) {
+              const lessonAccuracy = aiScores.reduce((sum: number, score: number) => sum + score, 0) / aiScores.length;
+              newLifetimeAccuracyTotal += lessonAccuracy;
+              newLifetimeAccuracyCount += 1;
+            }
+          } else if (justCompletedLesson.type === 'word_pairs' && Array.isArray(justCompletedLesson.setBestScores) && justCompletedLesson.setBestScores.length > 0) {
+            const setBestScores = justCompletedLesson.setBestScores as number[];
+            const lessonAccuracy = setBestScores.reduce((sum: number, score: number) => sum + score, 0) / setBestScores.length;
+            newLifetimeAccuracyTotal += lessonAccuracy;
+            newLifetimeAccuracyCount += 1;
+          }
+        }
         
         // Update streak based on consecutive days, not lesson count
         const today = getTodayDateString();
@@ -314,6 +350,9 @@ export const useLessonStore = create<LessonState>()(persist(
         totalXp: newTotalXp,
         currentStreak: newCurrentStreak,
         lastActivityDate: newLastActivityDate,
+        lifetimeLessonsCompleted: newLifetimeLessonsCompleted,
+        lifetimeAccuracyTotal: newLifetimeAccuracyTotal,
+        lifetimeAccuracyCount: newLifetimeAccuracyCount,
         dailyPlan: {
           ...dailyPlan,
           lessons: newLessonsArray,
@@ -375,7 +414,16 @@ export const useLessonStore = create<LessonState>()(persist(
           spacedRepetitionData,
           today
         );
-        set({ dailyPlan: plan, isLoading: false });
+        // Increment lifetime lessonsSeen once per new day
+        const { lastCountedPlanDate, lifetimeLessonsSeen } = get();
+        const planDay = today; // getTodayDateString returns YYYY-MM-DD
+        const shouldCountToday = lastCountedPlanDate !== planDay;
+        set({
+          dailyPlan: plan,
+          isLoading: false,
+          lifetimeLessonsSeen: shouldCountToday ? (lifetimeLessonsSeen + (plan.lessons?.length || 0)) : lifetimeLessonsSeen,
+          lastCountedPlanDate: shouldCountToday ? planDay : lastCountedPlanDate,
+        });
       } catch (error) {
         set({ error: (error as Error).message, isLoading: false });
       }

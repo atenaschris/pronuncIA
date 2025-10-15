@@ -10,94 +10,124 @@ import type { WordPairsState } from '../types/word-pairs';
 
 // Performance metrics calculation
 export interface PerformanceMetrics {
-  completionRate: number;
-  averageAccuracy: number;
+  // Lifetime (cumulative across all activity)
+  completionRate: number; // lifetime completion rate
+  averageAccuracy: number; // lifetime average accuracy
   preferredLessonTypes: LessonType[];
   strugglingAreas: LessonType[];
+  totalLessonsLifetime: number;
+  completedLessonsLifetime: number;
+
+  // Daily (based on current daily plan)
+  totalLessonsDaily: number;
+  completedLessonsDaily: number;
+  completionRateDaily: number;
+  averageAccuracyDaily: number;
 }
 
-export const calculateUserPerformanceMetrics = (state: { dailyPlan: DailyPlan | null }): PerformanceMetrics => {
+export const calculateUserPerformanceMetrics = (state: {
+  dailyPlan: DailyPlan | null;
+  lifetimeLessonsSeen: number;
+  lifetimeLessonsCompleted: number;
+  lifetimeAccuracyTotal: number;
+  lifetimeAccuracyCount: number;
+}): PerformanceMetrics => {
   const { dailyPlan } = state;
-  
-  if (!dailyPlan || !dailyPlan.lessons.length) {
-    return {
-      completionRate: 0,
-      averageAccuracy: 0,
-      preferredLessonTypes: [],
-      strugglingAreas: []
-    };
-  }
 
-  // Calculate completion rate from current daily plan
-  const totalLessons = dailyPlan.lessons.length;
-  const completedLessons = dailyPlan.lessons.filter((lesson: Lesson) => lesson.completed).length;
-  const completionRate = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  // --------------------------------------
+  // Daily metrics from the current daily plan
+  // --------------------------------------
+  let totalLessonsDaily = 0;
+  let completedLessonsDaily = 0;
+  let dailyAccuracyTotal = 0;
+  let dailyAccuracyCount = 0;
 
-  // Calculate average accuracy from vocabulary lessons with AI scores
-  let totalAccuracy = 0;
-  let accuracyCount = 0;
-  const lessonTypePerformance: Record<LessonType, { completed: number; total: number; avgAccuracy: number }> = {} as any;
+  const lessonTypePerformance: Record<LessonType, { completed: number; total: number; avgAccuracy: number }> = {} as Record<LessonType, { completed: number; total: number; avgAccuracy: number }>;
 
-  dailyPlan.lessons.forEach((lesson: Lesson) => {
-    const lessonType = lesson.type;
-    
-    if (!lessonTypePerformance[lessonType]) {
-      lessonTypePerformance[lessonType] = { completed: 0, total: 0, avgAccuracy: 0 };
-    }
-    
-    lessonTypePerformance[lessonType].total++;
-    
-    if (lesson.completed) {
-      lessonTypePerformance[lessonType].completed++;
-      
-      // Calculate accuracy for vocabulary lessons
-      if (lesson.type === 'vocabulary') {
-        const vs = lesson.sessionState as VocabularyState | undefined;
-        const aiScores = vs?.aiScores;
-        if (aiScores && aiScores.length > 0) {
-          const lessonAccuracy = aiScores.reduce((sum: number, score: number) => sum + score, 0) / aiScores.length;
-          totalAccuracy += lessonAccuracy;
-          accuracyCount++;
+  if (dailyPlan && dailyPlan.lessons.length) {
+    totalLessonsDaily = dailyPlan.lessons.length;
+    completedLessonsDaily = dailyPlan.lessons.filter((lesson: Lesson) => lesson.completed).length;
+
+    dailyPlan.lessons.forEach((lesson: Lesson) => {
+      const lessonType = lesson.type;
+      if (!lessonTypePerformance[lessonType]) {
+        lessonTypePerformance[lessonType] = { completed: 0, total: 0, avgAccuracy: 0 };
+      }
+      lessonTypePerformance[lessonType].total++;
+
+      if (lesson.completed) {
+        lessonTypePerformance[lessonType].completed++;
+
+        // Vocabulary accuracy contribution (per-lesson average of aiScores)
+        if (lesson.type === 'vocabulary') {
+          const vs = lesson.sessionState as VocabularyState | undefined;
+          const aiScores = vs?.aiScores;
+          if (aiScores && aiScores.length > 0) {
+            const lessonAccuracy = aiScores.reduce((sum: number, score: number) => sum + score, 0) / aiScores.length;
+            dailyAccuracyTotal += lessonAccuracy;
+            dailyAccuracyCount++;
+            lessonTypePerformance[lessonType].avgAccuracy = lessonAccuracy;
+          }
+        }
+
+        // Word-pairs accuracy contribution (per-lesson average of setBestScores)
+        if (lesson.type === 'word_pairs' && Array.isArray(lesson.setBestScores) && lesson.setBestScores.length > 0) {
+          const setBestScores = lesson.setBestScores as number[];
+          const lessonAccuracy = setBestScores.reduce((sum: number, score: number) => sum + score, 0) / setBestScores.length;
+          dailyAccuracyTotal += lessonAccuracy;
+          dailyAccuracyCount++;
           lessonTypePerformance[lessonType].avgAccuracy = lessonAccuracy;
         }
       }
-      
-      // Calculate accuracy for word pairs lessons
-      if (lesson.type === 'word_pairs' && Array.isArray(lesson.setBestScores) && lesson.setBestScores.length > 0) {
-        const setBestScores = lesson.setBestScores as number[];
-        const lessonAccuracy = setBestScores.reduce((sum: number, score: number) => sum + score, 0) / setBestScores.length;
-        totalAccuracy += lessonAccuracy;
-        accuracyCount++;
-        lessonTypePerformance[lessonType].avgAccuracy = lessonAccuracy;
-      }
-    }
-  });
+    });
+  }
 
-  const averageAccuracy = accuracyCount > 0 ? Math.round(totalAccuracy / accuracyCount) : 0;
+  const completionRateDaily = totalLessonsDaily > 0 ? Math.round((completedLessonsDaily / totalLessonsDaily) * 100) : 0;
+  const averageAccuracyDaily = dailyAccuracyCount > 0 ? Math.round(dailyAccuracyTotal / dailyAccuracyCount) : 0;
 
-  // Identify preferred lesson types (high completion rate)
+  // Identify preferred lesson types (high completion rate) from daily performance snapshot
   const preferredLessonTypes = Object.entries(lessonTypePerformance)
     .filter(([_, performance]) => performance.total > 0 && (performance.completed / performance.total) >= 0.7)
-    .map(([type, _]) => type as LessonType);
+    .map(([type]) => type as LessonType);
 
-  // Identify struggling areas (low completion rate or low accuracy),
-  // but ONLY after there has been some actual activity for that lesson type.
-  // This prevents flagging all lesson types as "struggling" on first run.
+  // Identify struggling areas (low completion rate or low accuracy) from daily performance snapshot
   const strugglingAreas = Object.entries(lessonTypePerformance)
     .filter(([_, performance]) => {
-      const completionRate = performance.total > 0 ? performance.completed / performance.total : 0;
-      const ACCURACY_FLOOR = 60; // fallback floor if avgAccuracy is reported on different scale
+      const compRate = performance.total > 0 ? performance.completed / performance.total : 0;
+      const ACCURACY_FLOOR = 60;
       const hasActivity = performance.completed > 0 || performance.avgAccuracy > 0;
       if (!hasActivity) return false;
-      return completionRate < 0.5 || (performance.avgAccuracy > 0 && performance.avgAccuracy < ACCURACY_FLOOR);
+      return compRate < 0.5 || (performance.avgAccuracy > 0 && performance.avgAccuracy < ACCURACY_FLOOR);
     })
-    .map(([type, _]) => type as LessonType);
+    .map(([type]) => type as LessonType);
+
+  // --------------------------------------
+  // Lifetime metrics (cumulative across user’s activity)
+  // --------------------------------------
+  const totalLessonsLifetime = state.lifetimeLessonsSeen || 0;
+  const completedLessonsLifetime = state.lifetimeLessonsCompleted || 0;
+  const completionRateLifetime = totalLessonsLifetime > 0
+    ? Math.round((completedLessonsLifetime / totalLessonsLifetime) * 100)
+    : 0;
+
+  const averageAccuracyLifetime = (state.lifetimeAccuracyCount || 0) > 0
+    ? Math.round((state.lifetimeAccuracyTotal || 0) / state.lifetimeAccuracyCount)
+    : 0;
 
   return {
-    completionRate,
-    averageAccuracy,
+    // Lifetime (used by existing prompt fields to avoid daily reset)
+    completionRate: completionRateLifetime,
+    averageAccuracy: averageAccuracyLifetime,
     preferredLessonTypes,
-    strugglingAreas
+    strugglingAreas,
+    totalLessonsLifetime,
+    completedLessonsLifetime,
+
+    // Daily breakdown for richer downstream use
+    totalLessonsDaily,
+    completedLessonsDaily,
+    completionRateDaily,
+    averageAccuracyDaily,
   };
 };
 
@@ -108,14 +138,38 @@ export interface SpacedRepetitionData {
   difficultyAdjustment: 'increase' | 'maintain' | 'decrease';
 }
 
-export const calculateSpacedRepetitionNeeds = (state: { dailyPlan: DailyPlan | null }): SpacedRepetitionData => {
+// Make difficulty selection lifetime-aware while keeping review lists daily-scoped
+export const calculateSpacedRepetitionNeeds = (state: {
+  dailyPlan: DailyPlan | null;
+  lifetimeAccuracyTotal?: number;
+  lifetimeAccuracyCount?: number;
+  lifetimeLessonsSeen?: number;
+  lifetimeLessonsCompleted?: number;
+}): SpacedRepetitionData => {
   const { dailyPlan } = state;
+  const INCREASE_THRESHOLD = 85;
+  const DECREASE_THRESHOLD = 60;
+
+  // Compute lifetime average accuracy if available
+  const lifetimeAvgAccuracy = (state.lifetimeAccuracyCount || 0) > 0
+    ? (state.lifetimeAccuracyTotal || 0) / (state.lifetimeAccuracyCount || 0)
+    : null;
   
   if (!dailyPlan || !dailyPlan.lessons.length) {
+    // Even with no lessons to analyze, adapt difficulty based on lifetime accuracy if present
+    let difficultyAdjustment: 'increase' | 'maintain' | 'decrease' = 'maintain';
+    if (typeof lifetimeAvgAccuracy === 'number') {
+      if (lifetimeAvgAccuracy >= INCREASE_THRESHOLD) {
+        difficultyAdjustment = 'increase';
+      } else if (lifetimeAvgAccuracy < DECREASE_THRESHOLD) {
+        difficultyAdjustment = 'decrease';
+      }
+    }
+
     return {
       vocabularyReview: [],
       pronunciationReview: [],
-      difficultyAdjustment: 'maintain'
+      difficultyAdjustment,
     };
   }
 
@@ -209,16 +263,19 @@ export const calculateSpacedRepetitionNeeds = (state: { dailyPlan: DailyPlan | n
     }
   });
 
-  // Determine difficulty adjustment based on overall performance
+  // Determine difficulty adjustment blending daily snapshot with lifetime accuracy
   let difficultyAdjustment: 'increase' | 'maintain' | 'decrease' = 'maintain';
-  
-  if (accuracyCount > 0) {
-    const averageAccuracy = totalAccuracy / accuracyCount;
-    const INCREASE_THRESHOLD = 85;
-    const DECREASE_THRESHOLD = 60;
-    if (averageAccuracy >= INCREASE_THRESHOLD) {
+
+  const dailyAvgAccuracy = accuracyCount > 0 ? (totalAccuracy / accuracyCount) : null;
+  const combinedAccuracy =
+    dailyAvgAccuracy !== null && lifetimeAvgAccuracy !== null
+      ? (dailyAvgAccuracy * 0.7) + (lifetimeAvgAccuracy * 0.3)
+      : (dailyAvgAccuracy ?? lifetimeAvgAccuracy);
+
+  if (typeof combinedAccuracy === 'number') {
+    if (combinedAccuracy >= INCREASE_THRESHOLD) {
       difficultyAdjustment = 'increase';
-    } else if (averageAccuracy < DECREASE_THRESHOLD) {
+    } else if (combinedAccuracy < DECREASE_THRESHOLD) {
       difficultyAdjustment = 'decrease';
     }
   }

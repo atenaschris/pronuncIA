@@ -1,12 +1,12 @@
 import { View, StyleSheet, Alert } from 'react-native';
-import { Button, Card, TextInput } from 'react-native-paper';
+import { Button, Card, TextInput, Switch } from 'react-native-paper';
 import { useLessonStore } from '@/lib/store/lesson-store';
 import { RNPText } from '@/components/ui/RNPText';
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function DebugScreen() {
-  const { dateOverride, setDateOverride, lastActivityDate, currentStreak, streakFreezes } = useLessonStore();
+  const { dateOverride, setDateOverride, lastActivityDate, currentStreak, streakFreezes, mockPronunciationAnalysis, setMockPronunciationAnalysis } = useLessonStore();
   const [customDate, setCustomDate] = useState(dateOverride || '');
 
   const handleSetDate = () => {
@@ -65,6 +65,21 @@ export default function DebugScreen() {
       </Card>
       <Card style={styles.card}>
         <Card.Content>
+          <RNPText style={styles.title}>Mock Pronunciation Accuracy</RNPText>
+          <View style={styles.switchRow}>
+            <RNPText>Enable Mock Mode</RNPText>
+            <Switch
+              value={mockPronunciationAnalysis}
+              onValueChange={(val) => setMockPronunciationAnalysis(val)}
+            />
+          </View>
+          <RNPText style={{ opacity: 0.7, marginTop: 8 }}>
+            When enabled, AI analysis returns deterministic mock scores for testing.
+          </RNPText>
+        </Card.Content>
+      </Card>
+      <Card style={styles.card}>
+        <Card.Content>
             <RNPText style={styles.title}>Current Streak Info</RNPText>
             <RNPText>Last Activity Date: {lastActivityDate || 'N/A'}</RNPText>
             <RNPText>Current Streak: {currentStreak}</RNPText>
@@ -106,4 +121,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 4,
   },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  }
 });
