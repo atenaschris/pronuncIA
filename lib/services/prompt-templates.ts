@@ -1,7 +1,7 @@
 // Centralized prompt templates for AI services
 
-import { LanguageLevel, LearningGoal, NativeLanguageCode, TargetLanguageCode } from "../types/onboarding-types";
 import type { LessonType } from "../store/lesson-store";
+import { LanguageLevel, LearningGoal, NativeLanguageCode, TargetLanguageCode } from "../types/onboarding-types";
 
 export const getDailyPlanSystemPrompt = (): string => `You are an expert language pronunciation coach and learning specialist. Your task is to generate personalized daily lesson plans that help users improve their pronunciation and speaking skills in their target language.
 
@@ -193,8 +193,9 @@ CRITICAL INSTRUCTIONS:
 4. Respond with ONLY the JSON object - NO OTHER TEXT OR FORMATTING
 5. The top-level MUST be an object containing EXACTLY these keys: set1, set2, ..., set${setsCount}
 6. Each set MUST be an array of EXACTLY ${pairsPerSet} items
- 7. Each item MUST be an object with EXACTLY two string fields: native and translation
- 8. Both native and translation MUST be single tokens: NO spaces, NO hyphens, NO underscores, NO punctuation
+7. Each item MUST be an object with EXACTLY three fields: native, translation, targetSound
+8. Both native and translation MUST be single tokens: NO spaces, NO hyphens, NO underscores, NO punctuation
+9. targetSound MUST be a single sound label (IPA symbol or concise phoneme string), no spaces; prefer a core sound present in the native word
 
 REQUIREMENTS:
 - Target language: ${targetLanguage}
@@ -209,6 +210,7 @@ STRICT UNIQUENESS RULES (MANDATORY):
 - Do NOT repeat any "translation" token anywhere across the entire response.
 - Each pair is unique by the combination native+translation; do not reuse the same pair in any set.
 - Within each set, all pairs must be distinct and obey the single-token requirement below.
+ - You may reuse a targetSound across multiple pairs, but prioritize covering 4–6 distinct sounds across the full response.
 
 ${performanceMetrics ? `
 PERFORMANCE CONTEXT:
@@ -239,7 +241,8 @@ INCREMENTAL PROGRESSION POLICY:
 
 Create word pairs that help users learn ${targetLanguage} vocabulary relevant to their learning goal.
 Consider the user's proficiency level when selecting appropriate words.
-STRICT REQUIREMENT: Use single words only for both fields. No multi-word phrases, collocations, compound words, or sentences. Absolutely no spaces, hyphens, underscores, or punctuation.
+STRICT REQUIREMENT: Use single words only for native and translation. No multi-word phrases, collocations, compound words, or sentences. Absolutely no spaces, hyphens, underscores, or punctuation.
+Pronunciation focus: targetSound MUST reflect a core sound present in the native token. Favor sounds listed under pronunciationReview when applicable.
 ${performanceMetrics?.strugglingAreas.includes('word_pairs') ? 'Focus on simpler, more common word pairs as user struggles with this lesson type.' : ''}
 ${spacedRepetitionData?.difficultyAdjustment === 'increase' ? 'Include more challenging vocabulary and phrases as user is performing well.' : ''}
 ${spacedRepetitionData?.difficultyAdjustment === 'decrease' ? 'Include basic, high-frequency words to build foundation.' : ''}
@@ -251,7 +254,7 @@ DOMAIN DIVERSITY:
 Respond with valid JSON object matching this exact structure:
 {
   "set1": [
-  {"native": "single_word_in_target_language", "translation": "single_word_in_native_language"},
+  {"native": "single_word_in_target_language", "translation": "single_word_in_native_language", "targetSound": "core_sound_label"},
     ...
   ],
   "set2": [...],
@@ -261,6 +264,7 @@ Respond with valid JSON object matching this exact structure:
 Field semantics:
 - "native": word in the target language (${targetLanguage})
 - "translation": corresponding word in the user's native language (${nativeLanguage})
+ - "targetSound": a concise sound label (IPA or phoneme) to emphasize in pronunciation practice; pick a sound clearly present in the native word. Example: "/r/", "e", "ʃ".
 Make the pairs relevant to the user's learning goal, appropriate for their level, and adaptive to their performance.
 Do not include sentences, phrases, or examples — only single-word pairs.
 

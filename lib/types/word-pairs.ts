@@ -8,6 +8,8 @@ type WordPairSet = typeof WORD_PAIR_SETS[keyof typeof WORD_PAIR_SETS];
 export interface WordPair {
   native: string;
   translation: string;
+  // Optional pronunciation target sound for the native word
+  targetSound?: string;
 }
 
 // Keep the original constrained types for when we need them
@@ -43,6 +45,8 @@ export interface WordPairsState {
       correctTranslation: TranslationWord;
       timestamp: number;
       setIndex: number;
+      // Carry targetSound when available for pronunciation review mapping
+      targetSound?: string;
     }>;
     totalErrors: number;
   };

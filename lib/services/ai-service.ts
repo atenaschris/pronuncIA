@@ -953,6 +953,13 @@ class AIService {
       return bRev - aRev;
     });
 
+    // Enrich with inferred targetSound for pronunciation focus when absent
+    combined = combined.map((wp) => {
+      if (wp.targetSound && wp.targetSound !== 'general') return wp;
+      const inferred = inferSoundFromWord(wp.native, targetLanguage || 'en');
+      const sound = inferred?.targetSound && inferred.targetSound !== 'general' ? inferred.targetSound : undefined;
+      return { ...wp, targetSound: sound } as WordPair;
+    });
 
     // Use the combined list directly; intra-set duplicates are still prevented below.
     const supply = combined;

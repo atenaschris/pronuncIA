@@ -588,7 +588,8 @@ const translationWord = translationWords[translationIndex];
 
       // Track detailed error information
       const correctTranslation = currentWordPairs[nativeIndex]?.translation || '';
-      addErrorDetail(lessonId, nativeWord, translationWord, currentSetIndex, correctTranslation);
+      const pairTargetSound = currentWordPairs[nativeIndex]?.targetSound;
+      addErrorDetail(lessonId, nativeWord, translationWord, currentSetIndex, correctTranslation, pairTargetSound);
 
       setIncorrectPair(lessonId, {
         native: column === 'native' ? index : selectedPair.index,

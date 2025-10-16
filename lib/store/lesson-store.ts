@@ -6,16 +6,20 @@ import {
   calculateGapDays,
   canCoverGap
 } from '../helpers/date-streak-utils';
+import type { PerformanceLog, PerformanceMetrics, SpacedRepetitionData } from '../helpers/performance-utils';
 import {
   calculateSpacedRepetitionNeeds,
-  calculateUserPerformanceMetrics
+  calculateUserPerformanceMetrics,
+  rollUpCompletedLessonToLog,
+  rollUpFreezeUsageToLog,
+  rollUpGeneratedPlanToLog
 } from '../helpers/performance-utils';
 import { aiService } from '../services/ai-service'; // Import AI service
 import { buildDailyPlanPrompt } from '../services/plan-prompt-builder';
 import { generateDailyPlanWithFallback } from '../services/planning-service';
 import { createMMKVStorage, userDataStorage } from '../storage/storage-utils';
 import { VocabularyState, VocabularyWord } from '../types/vocabulary';
-import { NativeWord, TranslationWord, WordPairsState } from '../types/word-pairs';
+import { NativeWord, TranslationWord, WordPair, WordPairsState } from '../types/word-pairs';
 import { useOnboardingStore } from './onboarding-store'; // Import onboarding store
 
 export type LessonType = 'vocabulary' | 'listening' | 'pronunciation' | 'roleplay' | 'shadowing' | 'voice_journaling' | 'word_pairs';
@@ -70,17 +74,18 @@ export interface WordPairsActions {
 
 }
 
-interface LessonState {
-  currentStreak: number;
-  totalXp: number;
-  streakFreezes: number; // Number of streak freezes available
-  maxStreakFreezes: number; // Maximum streak freezes user can hold
-  dailyPlan: DailyPlan | null;
-  lastActivityDate: string | null; // Track last day user completed any lesson (YYYY-MM-DD format)
-  lastValidationDate: string | null; // Track last day streak validation was performed (YYYY-MM-DD format)
-  streakNotificationLastShown: string | null; // Track last day a streak notification was shown
-  dateOverride: string | null; // For time travel debugging
-  mockPronunciationAnalysis: boolean; // Test-only: mock AI accuracy
+  interface LessonState {
+    currentStreak: number;
+    totalXp: number;
+    streakFreezes: number; // Number of streak freezes available
+    maxStreakFreezes: number; // Maximum streak freezes user can hold
+    dailyPlan: DailyPlan | null;
+    performanceLog: PerformanceLog; // Date-keyed log for daily/lifetime summaries
+    lastActivityDate: string | null; // Track last day user completed any lesson (YYYY-MM-DD format)
+    lastValidationDate: string | null; // Track last day streak validation was performed (YYYY-MM-DD format)
+    streakNotificationLastShown: string | null; // Track last day a streak notification was shown
+    dateOverride: string | null; // For time travel debugging
+    mockPronunciationAnalysis: boolean; // Test-only: mock AI accuracy
   isLoading: boolean;
   error: string | null;
   // Lifetime cumulative metrics (persisted)
@@ -89,6 +94,13 @@ interface LessonState {
   lifetimeAccuracyTotal: number; // Sum of per-lesson accuracy values (vocabulary avg aiScores, word_pairs avg setBestScores)
   lifetimeAccuracyCount: number; // Number of lessons contributing to accuracy
   lastCountedPlanDate: string | null; // The last date for which lessonsSeen was incremented
+  // Lifetime per-lesson-type statistics to enable stable preferences/struggles
+  lifetimeLessonTypeStats?: Record<LessonType, {
+    total: number; // total lessons of this type generated in plans
+    completed: number; // lessons of this type completed
+    accuracyTotal: number; // sum of per-lesson accuracy values for this type
+    accuracyCount: number; // count of lessons contributing to accuracy for this type
+  }>;
   // Content caching removed; React Query owns caching for content generation
 
   // Actions
@@ -100,7 +112,7 @@ interface LessonState {
 
   // Content generation methods
   generateVocabularyContent: (lessonId: string) => Promise<VocabularyWord[]>;
-  generateWordPairsContent: (lessonId: string) => Promise<Record<string, Array<{ native: string; translation: string }>>>;
+  generateWordPairsContent: (lessonId: string) => Promise<Record<string, WordPair[]>>;
 
   // WordPairs-specific actions
   setNativeWords: (lessonId: string, words: NativeWord[]) => void;
@@ -112,7 +124,7 @@ interface LessonState {
   setCurrentSetCompleted: (lessonId: string, completed: boolean) => void;
   setCurrentSetIndex: (lessonId: string, index: number) => void;
   setIsReplayingForErrors: (lessonId: string, isReplaying: boolean) => void;
-  addErrorDetail: (lessonId: string, nativeWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string) => void;
+  addErrorDetail: (lessonId: string, nativeWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string, targetSound?: string) => void;
   clearCurrentSetErrors: (lessonId: string, setIndex: number) => void;
   resetWordPairsLesson: (lessonId: string) => void;
   getWordPairsState: (lessonId: string) => WordPairsState | null;
@@ -162,6 +174,9 @@ interface LessonState {
   calculateWordXP: (lessonId: string, wordIndex: number, aiScore: number, currentAttempt?: number, wordDifficulty?: 'easy' | 'medium' | 'hard') => number;
   resumeWordTimerFromElapsed: (lessonId: string) => void;
   getLesson: (lessonId: string) => Lesson | null;
+  // Derived, memoized daily performance metrics
+  getPerformanceMetrics: () => PerformanceMetrics;
+  getSpacedRepetitionNeeds: () => SpacedRepetitionData;
   
   // Streak freeze functions
   purchaseStreakFreeze: () => boolean;
@@ -187,6 +202,7 @@ export const useLessonStore = create<LessonState>()(persist(
     streakFreezes: 2, // Start with 2 streak freezes like Duolingo
     maxStreakFreezes: 3, // Maximum of 3 streak freezes (can cover up to 9 days total)
     dailyPlan: null,
+    performanceLog: {},
     lastActivityDate: null,
     lastValidationDate: null,
     streakNotificationLastShown: null,
@@ -200,6 +216,15 @@ export const useLessonStore = create<LessonState>()(persist(
     lifetimeAccuracyTotal: 0,
     lifetimeAccuracyCount: 0,
     lastCountedPlanDate: null,
+    lifetimeLessonTypeStats: {
+      vocabulary: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+      listening: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+      pronunciation: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+      roleplay: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+      shadowing: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+      voice_journaling: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+      word_pairs: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+    },
     
     // Content caching
       // Removed cache state; handled by React Query
@@ -207,7 +232,7 @@ export const useLessonStore = create<LessonState>()(persist(
     setDateOverride: (date) => set({ dateOverride: date }), // For time travel debugging
     setMockPronunciationAnalysis: (enabled) => set({ mockPronunciationAnalysis: enabled }),
     completeLesson: (lessonId: LessonType, scoreForAttemptOrLesson: number, currentSetIndex?: number) => {
-      const { dailyPlan, totalXp, currentStreak, lastActivityDate, lifetimeLessonsCompleted, lifetimeAccuracyTotal, lifetimeAccuracyCount } = get();
+      const { dailyPlan, totalXp, currentStreak, lastActivityDate, lifetimeLessonsCompleted, lifetimeAccuracyTotal, lifetimeAccuracyCount, lifetimeLessonTypeStats, performanceLog } = get();
       if (!dailyPlan) return;
 
       let lessonNewlyFullyCompleted = false; // Tracks if this action makes the lesson fully complete for the first time
@@ -285,6 +310,7 @@ export const useLessonStore = create<LessonState>()(persist(
       });
       newTotalXp += xpDeltaForTotal;
 
+      let newPerformanceLog: PerformanceLog = performanceLog || {};
       if (lessonNewlyFullyCompleted) {
         // This logic ensures streak and completed count only increment if the lesson state *changed* to completed
         // No need to check originalLesson.completed as lessonNewlyFullyCompleted is only true if it wasn't completed before.
@@ -294,6 +320,21 @@ export const useLessonStore = create<LessonState>()(persist(
         // Contribute per-lesson accuracy to lifetime totals once upon first completion
         const justCompletedLesson = newLessonsArray.find(l => l.id === lessonId);
         if (justCompletedLesson) {
+          // Update lifetime lesson-type stats
+          const stats = { ...(lifetimeLessonTypeStats || {
+            vocabulary: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+            listening: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+            pronunciation: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+            roleplay: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+            shadowing: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+            voice_journaling: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+            word_pairs: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+          }) };
+          const lt = justCompletedLesson.type;
+          if (!stats[lt]) {
+            stats[lt] = { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 };
+          }
+          stats[lt].completed += 1;
           if (justCompletedLesson.type === 'vocabulary') {
             const vs = justCompletedLesson.sessionState as VocabularyState | undefined;
             const aiScores = vs?.aiScores;
@@ -301,13 +342,23 @@ export const useLessonStore = create<LessonState>()(persist(
               const lessonAccuracy = aiScores.reduce((sum: number, score: number) => sum + score, 0) / aiScores.length;
               newLifetimeAccuracyTotal += lessonAccuracy;
               newLifetimeAccuracyCount += 1;
+              stats[lt].accuracyTotal += lessonAccuracy;
+              stats[lt].accuracyCount += 1;
             }
           } else if (justCompletedLesson.type === 'word_pairs' && Array.isArray(justCompletedLesson.setBestScores) && justCompletedLesson.setBestScores.length > 0) {
             const setBestScores = justCompletedLesson.setBestScores as number[];
             const lessonAccuracy = setBestScores.reduce((sum: number, score: number) => sum + score, 0) / setBestScores.length;
             newLifetimeAccuracyTotal += lessonAccuracy;
             newLifetimeAccuracyCount += 1;
+            stats[lt].accuracyTotal += lessonAccuracy;
+            stats[lt].accuracyCount += 1;
           }
+          // Persist updated type stats immediately
+          set({ lifetimeLessonTypeStats: stats });
+
+          // Roll up this newly completed lesson into the date-keyed performance log
+          const todayDateForLog = getTodayDateString();
+          newPerformanceLog = rollUpCompletedLessonToLog(newPerformanceLog, justCompletedLesson, todayDateForLog);
         }
         
         // Update streak based on consecutive days, not lesson count
@@ -333,6 +384,11 @@ export const useLessonStore = create<LessonState>()(persist(
             });
           }
           
+          // Roll up streak freeze usage into performance log when freezes are consumed
+          if (streakResult.status === 'freeze_used' && typeof streakResult.freezesUsed === 'number' && streakResult.freezesUsed > 0) {
+            newPerformanceLog = rollUpFreezeUsageToLog(newPerformanceLog, streakResult.freezesUsed, today);
+          }
+          
           if (streakResult.status === 'freeze_used' || streakResult.status === 'streak_maintained') {
             // Increment streak for today's lesson (either consecutive or gap covered by freeze)
             newCurrentStreak += 1;
@@ -353,6 +409,7 @@ export const useLessonStore = create<LessonState>()(persist(
         lifetimeLessonsCompleted: newLifetimeLessonsCompleted,
         lifetimeAccuracyTotal: newLifetimeAccuracyTotal,
         lifetimeAccuracyCount: newLifetimeAccuracyCount,
+        performanceLog: newPerformanceLog,
         dailyPlan: {
           ...dailyPlan,
           lessons: newLessonsArray,
@@ -383,11 +440,10 @@ export const useLessonStore = create<LessonState>()(persist(
         const { currentStreak, totalXp, lastActivityDate } = get();
          // Centralized orchestration via Planning Service
         const onboardingPayload = { languageLevel, nativeLanguage, learningGoal, timeCommitment, learningStyle, targetLanguage };
-        const stateForMetrics = get();
         
-        // Calculate user performance metrics for AI context
-        const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
-        const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
+        // Calculate user performance metrics via memoized store getter
+        const performanceMetrics = get().getPerformanceMetrics();
+        const spacedRepetitionData = get().getSpacedRepetitionNeeds();
 
         // Build AI prompt with centralized builder
         const prompt = buildDailyPlanPrompt({
@@ -415,14 +471,37 @@ export const useLessonStore = create<LessonState>()(persist(
           today
         );
         // Increment lifetime lessonsSeen once per new day
-        const { lastCountedPlanDate, lifetimeLessonsSeen } = get();
+        const { lastCountedPlanDate, lifetimeLessonsSeen, lifetimeLessonTypeStats } = get();
         const planDay = today; // getTodayDateString returns YYYY-MM-DD
         const shouldCountToday = lastCountedPlanDate !== planDay;
+        // Prepare updated lifetime per-type totals, counting once per new day
+        let updatedTypeStats = { ...(lifetimeLessonTypeStats || {
+          vocabulary: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+          listening: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+          pronunciation: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+          roleplay: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+          shadowing: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+          voice_journaling: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+          word_pairs: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
+        }) };
+        if (shouldCountToday && Array.isArray(plan.lessons)) {
+          plan.lessons.forEach((lesson) => {
+            const lt = lesson.type;
+            if (!updatedTypeStats[lt]) {
+              updatedTypeStats[lt] = { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 };
+            }
+            updatedTypeStats[lt].total += 1;
+          });
+        }
+        const prevLog = get().performanceLog || {};
+        const updatedLog = rollUpGeneratedPlanToLog(prevLog, plan);
         set({
           dailyPlan: plan,
           isLoading: false,
           lifetimeLessonsSeen: shouldCountToday ? (lifetimeLessonsSeen + (plan.lessons?.length || 0)) : lifetimeLessonsSeen,
           lastCountedPlanDate: shouldCountToday ? planDay : lastCountedPlanDate,
+          lifetimeLessonTypeStats: updatedTypeStats,
+          performanceLog: updatedLog,
         });
       } catch (error) {
         set({ error: (error as Error).message, isLoading: false });
@@ -829,7 +908,7 @@ export const useLessonStore = create<LessonState>()(persist(
       };
     }),
 
-    addErrorDetail: (lessonId: string, nativeWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string) => set((state) => {
+    addErrorDetail: (lessonId: string, nativeWord: string, attemptedTranslation: string, setIndex: number, correctTranslation: string, targetSound?: string) => set((state) => {
       if (!state.dailyPlan) return state;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
@@ -848,6 +927,7 @@ export const useLessonStore = create<LessonState>()(persist(
                     timestamp: Date.now(),
                     setIndex,
                     correctTranslation,
+                    targetSound,
                   }
                 ],
                 totalErrors: currentState.errorDetails.totalErrors + 1,
@@ -2196,6 +2276,30 @@ export const useLessonStore = create<LessonState>()(persist(
       return dailyPlan.lessons.find(lesson => lesson.id === lessonId) || null;
     },
 
+    getPerformanceMetrics: () => {
+      const state = get();
+      return calculateUserPerformanceMetrics({
+        dailyPlan: state.dailyPlan,
+        lifetimeLessonsSeen: state.lifetimeLessonsSeen,
+        lifetimeLessonsCompleted: state.lifetimeLessonsCompleted,
+        lifetimeAccuracyTotal: state.lifetimeAccuracyTotal,
+        lifetimeAccuracyCount: state.lifetimeAccuracyCount,
+        lifetimeLessonTypeStats: state.lifetimeLessonTypeStats,
+      });
+    },
+
+    getSpacedRepetitionNeeds: () => {
+      const state = get();
+      return calculateSpacedRepetitionNeeds({
+        dailyPlan: state.dailyPlan,
+        lifetimeAccuracyTotal: state.lifetimeAccuracyTotal,
+        lifetimeAccuracyCount: state.lifetimeAccuracyCount,
+        lifetimeLessonsSeen: state.lifetimeLessonsSeen,
+        lifetimeLessonsCompleted: state.lifetimeLessonsCompleted,
+        performanceLog: state.performanceLog,
+      });
+    },
+
     // Streak freeze functions
     purchaseStreakFreeze: () => {
       const { totalXp, streakFreezes, maxStreakFreezes } = get();
@@ -2298,9 +2402,8 @@ export const useLessonStore = create<LessonState>()(persist(
       lessonId: string
     ): Promise<VocabularyWord[]> => {
       // Compute performance metrics and spaced-repetition needs; caching is handled by React Query
-      const stateForMetrics = get();
-      const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
-      const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
+      const performanceMetrics = get().getPerformanceMetrics();
+      const spacedRepetitionData = get().getSpacedRepetitionNeeds();
 
       try {
         // Get user onboarding data for personalization
@@ -2325,11 +2428,10 @@ export const useLessonStore = create<LessonState>()(persist(
       }
     },
 
-    generateWordPairsContent: async (): Promise<Record<string, Array<{ native: string; translation: string }>>> => {
+    generateWordPairsContent: async (lessonId: string): Promise<Record<string, WordPair[]>> => {
       // Compute performance metrics and spaced-repetition needs; caching is handled by React Query
-      const stateForMetrics = get();
-      const performanceMetrics = calculateUserPerformanceMetrics(stateForMetrics);
-      const spacedRepetitionData = calculateSpacedRepetitionNeeds(stateForMetrics);
+      const performanceMetrics = get().getPerformanceMetrics();
+      const spacedRepetitionData = get().getSpacedRepetitionNeeds();
 
       try {
         // Get user onboarding data for personalization
