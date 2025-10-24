@@ -5,7 +5,7 @@ import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
 import React, { useMemo, useState } from 'react';
 import { Dimensions, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
-import { Button, Card, SegmentedButtons, Switch, TextInput } from 'react-native-paper';
+import { Button, Card, SegmentedButtons, Switch, TextInput, Chip } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type RangeKey = 'daily' | 'weekly' | 'monthly' | 'lifetime' | 'custom';
@@ -166,6 +166,7 @@ export default function AnalyticsScreen() {
   const lifetimeAccuracyCount = useLessonStore((s) => s.lifetimeAccuracyCount);
   const lifetimeLessonsCompleted = useLessonStore((s) => s.lifetimeLessonsCompleted);
   const lifetimeLessonsSeen = useLessonStore((s) => s.lifetimeLessonsSeen);
+  const getPerformanceMetrics = useLessonStore((s) => s.getPerformanceMetrics);
 
   const [range, setRange] = useState<RangeKey>('weekly');
   const [smooth, setSmooth] = useState<boolean>(true);
@@ -180,6 +181,9 @@ export default function AnalyticsScreen() {
 
   // Lifetime summary for fallback cards
   const lifetimeSummary = useMemo(() => summarizeLifetimeFromLog(performanceLog || {}), [performanceLog]);
+
+  // Today-first metrics snapshot, falling back to lifetime when no daily evidence
+  const effectiveMetrics = useMemo(() => getPerformanceMetrics(), [getPerformanceMetrics, performanceLog, lifetimeAccuracyTotal, lifetimeAccuracyCount, lifetimeLessonsCompleted, lifetimeLessonsSeen]);
 
   // Chart datasets (memoized to stabilize references and avoid redundant work)
   const accuracyTrend = useMemo(() => data.daily.map((d) => d.accuracy), [data]);
@@ -279,6 +283,41 @@ export default function AnalyticsScreen() {
           </Card.Content>
         </Card>
         </View>
+
+        {/* Today-first snapshot with lifetime fallback */}
+        <Card style={styles.chartCard}>
+          <Card.Content>
+            <RNPText variant="titleMedium">Performance Snapshot (Today-first)</RNPText>
+            <View style={{ flexDirection: 'row', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
+              <RNPText variant="titleLarge">Completion: {effectiveMetrics.completionRate}%</RNPText>
+              <RNPText variant="titleLarge">Accuracy: {effectiveMetrics.averageAccuracy}%</RNPText>
+            </View>
+            <View style={{ marginTop: 12 }}>
+              <RNPText variant="titleMedium">Preferred Lesson Types</RNPText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                {effectiveMetrics.preferredLessonTypes.length > 0 ? (
+                  effectiveMetrics.preferredLessonTypes.map((t) => (
+                    <Chip key={`pref-${t}`} compact>{t}</Chip>
+                  ))
+                ) : (
+                  <RNPText variant="bodyMedium">None yet</RNPText>
+                )}
+              </View>
+            </View>
+            <View style={{ marginTop: 12 }}>
+              <RNPText variant="titleMedium">Struggling Areas</RNPText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                {effectiveMetrics.strugglingAreas.length > 0 ? (
+                  effectiveMetrics.strugglingAreas.map((t) => (
+                    <Chip key={`struggle-${t}`} compact mode="outlined">{t}</Chip>
+                  ))
+                ) : (
+                  <RNPText variant="bodyMedium">None yet</RNPText>
+                )}
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
 
         <Card style={styles.chartCard}>
           <Card.Content>

@@ -32,8 +32,8 @@ export const calculateUserPerformanceMetrics = (state: {
 
   // Fast path: if this is the very first run (no daily lessons and no lifetime evidence),
   // return baseline metrics to avoid unnecessary processing.
-  const hasLifetimeEvidence = !!state.lifetimeLessonsSeen || !!state.lifetimeLessonsCompleted || !!state.lifetimeAccuracyCount
-    || Object.values(state.lifetimeLessonTypeStats || {}).some((s) => s.total > 0 || s.completed > 0 || s.accuracyCount > 0);
+  const hasLifetimeEvidence = !!state.lifetimeLessonsCompleted || !!state.lifetimeAccuracyCount
+    || Object.values(state.lifetimeLessonTypeStats || {}).some((s) => s.completed > 0 || s.accuracyCount > 0);
   if (!hasLifetimeEvidence) {
     return {
       completionRate: 0,
@@ -111,38 +111,24 @@ export const calculateSpacedRepetitionNeeds = (state: {
   const INCREASE_THRESHOLD = 85;
   const DECREASE_THRESHOLD = 60;
 
+  const getDifficultyFromAccuracy = (acc?: number | null): 'increase' | 'maintain' | 'decrease' => {
+    if (typeof acc === 'number') {
+      if (acc >= INCREASE_THRESHOLD) return 'increase';
+      if (acc < DECREASE_THRESHOLD) return 'decrease';
+    }
+    return 'maintain';
+  };
+
   // Compute lifetime average accuracy if available
   const lifetimeAvgAccuracy = (state.lifetimeAccuracyCount || 0) > 0
     ? (state.lifetimeAccuracyTotal || 0) / (state.lifetimeAccuracyCount || 0)
     : null;
   
   if (!dailyPlan || !dailyPlan.lessons.length) {
-    // Even with no lessons to analyze, adapt difficulty based on lifetime accuracy if present
-    let difficultyAdjustment: 'increase' | 'maintain' | 'decrease' = 'maintain';
-    if (typeof lifetimeAvgAccuracy === 'number') {
-      if (lifetimeAvgAccuracy >= INCREASE_THRESHOLD) {
-        difficultyAdjustment = 'increase';
-      } else if (lifetimeAvgAccuracy < DECREASE_THRESHOLD) {
-        difficultyAdjustment = 'decrease';
-      }
-    }
-
-    // Fallback to persisted review backlog from today's log entry when available
+    
+    let difficultyAdjustment: 'increase' | 'maintain' | 'decrease' = 'maintain'
     let vocabularyReview: string[] = [];
     let pronunciationReview: string[] = [];
-    if (state.performanceLog) {
-      const todayKey = getDateKey(new Date());
-      const dailySummary = summarizeDailyFromLog(state.performanceLog, todayKey);
-      vocabularyReview = dailySummary.vocabularyReviewDaily || [];
-      pronunciationReview = dailySummary.pronunciationReviewDaily || [];
-
-      // If today's log is empty, fallback to lifetime backlog
-      if (vocabularyReview.length === 0 && pronunciationReview.length === 0) {
-        const lifetimeSummary = summarizeLifetimeFromLog(state.performanceLog);
-        vocabularyReview = lifetimeSummary.vocabularyReviewLifetime || [];
-        pronunciationReview = lifetimeSummary.pronunciationReviewLifetime || [];
-      }
-    }
 
     const result: SpacedRepetitionData = {
       vocabularyReview,
@@ -174,29 +160,17 @@ export const calculateSpacedRepetitionNeeds = (state: {
   });
 
   if (!hasAnyActivityEvidence) {
-    let difficultyAdjustment: 'increase' | 'maintain' | 'decrease' = 'maintain';
-    if (typeof lifetimeAvgAccuracy === 'number') {
-      if (lifetimeAvgAccuracy >= INCREASE_THRESHOLD) {
-        difficultyAdjustment = 'increase';
-      } else if (lifetimeAvgAccuracy < DECREASE_THRESHOLD) {
-        difficultyAdjustment = 'decrease';
-      }
-    }
+    let difficultyAdjustment: 'increase' | 'maintain' | 'decrease' = getDifficultyFromAccuracy(lifetimeAvgAccuracy);
 
-    // Fallback to persisted backlog when no daily evidence exists
+    // Fallback to persisted backlog when no daily evidence exists (today → lifetime)
     let vocabularyReview: string[] = [];
     let pronunciationReview: string[] = [];
-    if (state.performanceLog) {
-      const todayKey = getDateKey(new Date());
-      const dailySummary = summarizeDailyFromLog(state.performanceLog, todayKey);
-      vocabularyReview = dailySummary.vocabularyReviewDaily || [];
-      pronunciationReview = dailySummary.pronunciationReviewDaily || [];
-
-      if (vocabularyReview.length === 0 && pronunciationReview.length === 0) {
-        const lifetimeSummary = summarizeLifetimeFromLog(state.performanceLog);
-        vocabularyReview = lifetimeSummary.vocabularyReviewLifetime || [];
-        pronunciationReview = lifetimeSummary.pronunciationReviewLifetime || [];
-      }
+    if (hasBacklogEvidence(state.performanceLog)) {
+      // Prefer items saved for the plan’s date; if absent, use today.
+      const dateForBacklog = dailyPlan?.date ?? new Date();
+      const { vocabulary, pronunciation } = pickReviewBacklog(state.performanceLog!, dateForBacklog);
+      vocabularyReview = vocabulary;
+      pronunciationReview = pronunciation;
     }
 
     const result: SpacedRepetitionData = {
@@ -308,17 +282,7 @@ export const calculateSpacedRepetitionNeeds = (state: {
   });
 
   // Determine difficulty adjustment based solely on lifetime accuracy
-  let difficultyAdjustment: 'increase' | 'maintain' | 'decrease' = 'maintain';
-
-  const effectiveAccuracy = lifetimeAvgAccuracy;
-
-  if (typeof effectiveAccuracy === 'number') {
-    if (effectiveAccuracy >= INCREASE_THRESHOLD) {
-      difficultyAdjustment = 'increase';
-    } else if (effectiveAccuracy < DECREASE_THRESHOLD) {
-      difficultyAdjustment = 'decrease';
-    }
-  }
+  let difficultyAdjustment: 'increase' | 'maintain' | 'decrease' = getDifficultyFromAccuracy(lifetimeAvgAccuracy);
 
   // Remove duplicates from review lists
   const uniqueVocabularyReview = [...new Set(vocabularyReview)];
@@ -327,17 +291,12 @@ export const calculateSpacedRepetitionNeeds = (state: {
   // If reviews are empty despite activity, consult persisted backlog (today → lifetime)
   let finalVocabularyReview = uniqueVocabularyReview;
   let finalPronunciationReview = uniquePronunciationReview;
-  if (finalVocabularyReview.length === 0 && finalPronunciationReview.length === 0 && state.performanceLog) {
-    const todayKey = getDateKey(new Date());
-    const dailySummary = summarizeDailyFromLog(state.performanceLog, todayKey);
-    finalVocabularyReview = dailySummary.vocabularyReviewDaily || [];
-    finalPronunciationReview = dailySummary.pronunciationReviewDaily || [];
-
-    if (finalVocabularyReview.length === 0 && finalPronunciationReview.length === 0) {
-      const lifetimeSummary = summarizeLifetimeFromLog(state.performanceLog);
-      finalVocabularyReview = lifetimeSummary.vocabularyReviewLifetime || [];
-      finalPronunciationReview = lifetimeSummary.pronunciationReviewLifetime || [];
-    }
+  if (finalVocabularyReview.length === 0 && finalPronunciationReview.length === 0 && hasBacklogEvidence(state.performanceLog)) {
+    // Prefer items saved for the plan’s date; if absent, use today.
+    const dateForBacklog = dailyPlan?.date ?? new Date();
+    const { vocabulary, pronunciation } = pickReviewBacklog(state.performanceLog!, dateForBacklog);
+    finalVocabularyReview = vocabulary;
+    finalPronunciationReview = pronunciation;
   }
 
   const result: SpacedRepetitionData = {
@@ -363,8 +322,58 @@ export interface PerformanceLogEntry {
   vocabularyReviewItems: string[];
   pronunciationReviewItems: string[];
   byType: Record<LessonType, TypeStats>;
+  inLessonEvents: number;
 }
 export type PerformanceLog = Record<string, PerformanceLogEntry>; // key: YYYY-MM-DD
+export const hasLogEntries = (log?: PerformanceLog | null): boolean => !!log && Object.keys(log).length > 0;
+
+// Engagement-aware check: ensure the log contains meaningful activity or review items
+export const hasBacklogEvidence = (log?: PerformanceLog | null): boolean => {
+  if (!log || Object.keys(log).length === 0) return false;
+  for (const key of Object.keys(log)) {
+    const entry = log[key];
+    if (!entry) continue;
+    const hasItems = (Array.isArray(entry.vocabularyReviewItems) && entry.vocabularyReviewItems.length > 0)
+      || (Array.isArray(entry.pronunciationReviewItems) && entry.pronunciationReviewItems.length > 0);
+    const hasEngagement = (entry.inLessonEvents || 0) > 0
+      || (entry.lessonsCompleted || 0) > 0
+      || (entry.accuracyCount || 0) > 0
+      || Object.values(entry.byType || {}).some(s => (s.completed || 0) > 0 || (s.accuracyCount || 0) > 0);
+    if (hasItems || hasEngagement) return true;
+  }
+  return false;
+};
+
+/**
+ * Select review backlog from the performance log using a clear preference:
+ * 1) Prefer items saved for a specific date (normalized via getDateKey)
+ * 2) If that day has no items, fall back to lifetime review items
+ * 3) Deduplicate results to avoid showing duplicates
+ */
+export const pickReviewBacklog = (
+  log: PerformanceLog,
+  date?: string | Date
+): { vocabulary: string[]; pronunciation: string[] } => {
+  const dateKey = getDateKey(date ?? new Date());
+
+  // Read the daily summary first (preferred)
+  const dailySummary = summarizeDailyFromLog(log, dateKey);
+  let vocabulary = dailySummary.vocabularyReviewDaily || [];
+  let pronunciation = dailySummary.pronunciationReviewDaily || [];
+
+  // If the day is empty, fall back to lifetime backlog
+  if (vocabulary.length === 0 && pronunciation.length === 0) {
+    const lifetimeSummary = summarizeLifetimeFromLog(log);
+    vocabulary = lifetimeSummary.vocabularyReviewLifetime || [];
+    pronunciation = lifetimeSummary.pronunciationReviewLifetime || [];
+  }
+
+  // Ensure we never return duplicates
+  vocabulary = [...new Set(vocabulary)];
+  pronunciation = [...new Set(pronunciation)];
+
+  return { vocabulary, pronunciation };
+};
 
 const blankTypeStats = (): Record<LessonType, TypeStats> => ({
   vocabulary: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
@@ -376,6 +385,8 @@ const blankTypeStats = (): Record<LessonType, TypeStats> => ({
   word_pairs: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
 });
 
+export const createDefaultLessonTypeStats = blankTypeStats;
+
 export const initPerformanceLogEntry = (): PerformanceLogEntry => ({
   lessonsSeen: 0,
   lessonsCompleted: 0,
@@ -386,6 +397,7 @@ export const initPerformanceLogEntry = (): PerformanceLogEntry => ({
   vocabularyReviewItems: [],
   pronunciationReviewItems: [],
   byType: blankTypeStats(),
+  inLessonEvents: 0,
 });
 
 export const getDateKey = (date?: string | Date): string => {
@@ -584,4 +596,70 @@ export const summarizeLifetimeFromLog = (log: PerformanceLog) => {
     vocabularyReviewLifetime: Array.from(vocabLifetime),
     pronunciationReviewLifetime: Array.from(pronLifetime),
   };
+};
+
+// Provide a daily snapshot of performance metrics from the date-keyed log.
+// Returns null when there is no evidence for the requested day.
+export const calculatePerformanceSnapshot = (
+  log?: PerformanceLog | null,
+  date?: string | Date
+): PerformanceMetrics | null => {
+  if (!log || !hasLogEntries(log)) return null;
+  const dateKey = getDateKey(date);
+  const entry = log[dateKey];
+  if (!entry) return null;
+
+  const hasDailyEvidence = !!entry.lessonsCompleted || !!entry.accuracyCount
+    || (Array.isArray(entry.vocabularyReviewItems) && entry.vocabularyReviewItems.length > 0)
+    || (Array.isArray(entry.pronunciationReviewItems) && entry.pronunciationReviewItems.length > 0)
+    || (entry.inLessonEvents || 0) > 0
+    || Object.values(entry.byType || {}).some((s) => s.completed > 0 || s.accuracyCount > 0);
+  if (!hasDailyEvidence) return null;
+
+  const completionRateDaily = entry.lessonsSeen > 0
+    ? Math.round((entry.lessonsCompleted / entry.lessonsSeen) * 100)
+    : 0;
+
+  const averageAccuracyDaily = (entry.accuracyCount || 0) > 0
+    ? Math.round(entry.accuracyTotal / entry.accuracyCount)
+    : 0;
+
+  const preferredLessonTypes = Object.entries(entry.byType || {})
+    .filter(([_, s]) => {
+      const rate = s.total > 0 ? (s.completed / s.total) : 0;
+      const acc = s.accuracyCount > 0 ? Math.round(s.accuracyTotal / s.accuracyCount) : 0;
+      return rate >= 0.7 || acc >= 70;
+    })
+    .map(([type]) => type as LessonType);
+
+  const strugglingAreas = Object.entries(entry.byType || {})
+    .filter(([_, s]) => {
+      // Only consider lesson types with evidence of engagement
+      const engaged = (s.completed > 0) || (s.accuracyCount > 0);
+      if (!engaged) return false;
+
+      // Use neutral defaults when missing totals/accuracy to avoid false flags
+      const rate = s.total > 0 ? (s.completed / s.total) : 1;
+      const acc = s.accuracyCount > 0 ? Math.round(s.accuracyTotal / s.accuracyCount) : 100;
+
+      return rate < 0.5 || acc < 60;
+    })
+    .map(([type]) => type as LessonType);
+
+  // Note: total/completed fields carry the day’s counts when using snapshot.
+  return {
+    completionRate: completionRateDaily,
+    averageAccuracy: averageAccuracyDaily,
+    preferredLessonTypes,
+    strugglingAreas,
+    totalLessonsLifetime: entry.lessonsSeen || 0,
+    completedLessonsLifetime: entry.lessonsCompleted || 0,
+  };
+};
+
+// Choose daily snapshot when present; otherwise fall back to lifetime metrics.
+export const selectEffectivePerformanceMetrics = (
+  params: { daily: PerformanceMetrics | null; lifetime: PerformanceMetrics }
+): PerformanceMetrics => {
+  return params.daily ?? params.lifetime;
 };

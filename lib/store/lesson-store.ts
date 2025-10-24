@@ -12,7 +12,12 @@ import {
   calculateUserPerformanceMetrics,
   rollUpCompletedLessonToLog,
   rollUpFreezeUsageToLog,
-  rollUpGeneratedPlanToLog
+  rollUpGeneratedPlanToLog,
+  calculatePerformanceSnapshot,
+  selectEffectivePerformanceMetrics,
+  initPerformanceLogEntry,
+  getDateKey,
+  createDefaultLessonTypeStats,
 } from '../helpers/performance-utils';
 import { aiService } from '../services/ai-service'; // Import AI service
 import { buildDailyPlanPrompt } from '../services/plan-prompt-builder';
@@ -244,6 +249,7 @@ export const useLessonStore = create<LessonState>()(persist(
       let newLifetimeLessonsCompleted = lifetimeLessonsCompleted;
       let newLifetimeAccuracyTotal = lifetimeAccuracyTotal;
       let newLifetimeAccuracyCount = lifetimeAccuracyCount;
+      let setCompletionEvent = false;
 
       const newLessonsArray = dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId) {
@@ -275,6 +281,7 @@ export const useLessonStore = create<LessonState>()(persist(
             // and it wasn't counted before (oldBestScoreForSet was 0)
             if (oldBestScoreForSet === 0 && scoreForAttemptOrLesson > 0) {
               lessonToUpdate.completedSets = (lessonToUpdate.completedSets || 0) + 1;
+              setCompletionEvent = true;
             }
 
             if (!lessonToUpdate.completed && (lessonToUpdate.completedSets || 0) >= lessonToUpdate.totalSets) {
@@ -311,6 +318,16 @@ export const useLessonStore = create<LessonState>()(persist(
       newTotalXp += xpDeltaForTotal;
 
       let newPerformanceLog: PerformanceLog = performanceLog || {};
+      // Micro-activity: increment in-lesson events for newly completed set
+      if (setCompletionEvent) {
+        const dateKey = getDateKey(dailyPlan.date);
+        const existingEntry = newPerformanceLog[dateKey];
+        const entry = existingEntry
+          ? { ...existingEntry, byType: { ...existingEntry.byType } }
+          : initPerformanceLogEntry();
+        entry.inLessonEvents = (entry.inLessonEvents || 0) + 1;
+        newPerformanceLog = { ...newPerformanceLog, [dateKey]: entry };
+      }
       if (lessonNewlyFullyCompleted) {
         // This logic ensures streak and completed count only increment if the lesson state *changed* to completed
         // No need to check originalLesson.completed as lessonNewlyFullyCompleted is only true if it wasn't completed before.
@@ -321,15 +338,7 @@ export const useLessonStore = create<LessonState>()(persist(
         const justCompletedLesson = newLessonsArray.find(l => l.id === lessonId);
         if (justCompletedLesson) {
           // Update lifetime lesson-type stats
-          const stats = { ...(lifetimeLessonTypeStats || {
-            vocabulary: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-            listening: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-            pronunciation: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-            roleplay: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-            shadowing: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-            voice_journaling: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-            word_pairs: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-          }) };
+          const stats = { ...(lifetimeLessonTypeStats || createDefaultLessonTypeStats()) };
           const lt = justCompletedLesson.type;
           if (!stats[lt]) {
             stats[lt] = { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 };
@@ -475,15 +484,7 @@ export const useLessonStore = create<LessonState>()(persist(
         const planDay = today; // getTodayDateString returns YYYY-MM-DD
         const shouldCountToday = lastCountedPlanDate !== planDay;
         // Prepare updated lifetime per-type totals, counting once per new day
-        let updatedTypeStats = { ...(lifetimeLessonTypeStats || {
-          vocabulary: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-          listening: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-          pronunciation: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-          roleplay: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-          shadowing: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-          voice_journaling: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-          word_pairs: { total: 0, completed: 0, accuracyTotal: 0, accuracyCount: 0 },
-        }) };
+        let updatedTypeStats = { ...(lifetimeLessonTypeStats || createDefaultLessonTypeStats()) };
         if (shouldCountToday && Array.isArray(plan.lessons)) {
           plan.lessons.forEach((lesson) => {
             const lt = lesson.type;
@@ -1426,9 +1427,19 @@ export const useLessonStore = create<LessonState>()(persist(
     addAIScore: (lessonId: string, score: number) => set((state) => {
       if (!state.dailyPlan) return state;
 
+      let pronToAdd: string | null = null;
+
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId && lesson.sessionState) {
           const currentState = lesson.sessionState as VocabularyState;
+          const wordIdx = currentState.currentWordIndex;
+          const targetSound = currentState.words?.[wordIdx]?.targetSound;
+
+          // If low score, append the pronunciation target for review
+          if (score < 70 && targetSound) {
+            pronToAdd = `/${targetSound}/`;
+          }
+
           return {
             ...lesson,
             sessionState: {
@@ -1440,12 +1451,25 @@ export const useLessonStore = create<LessonState>()(persist(
         return lesson;
       });
 
+      // Update performance log with pronunciation item when applicable
+      let nextPerformanceLog = state.performanceLog;
+      if (pronToAdd) {
+        const dateKey = getDateKey(state.dailyPlan.date);
+        const entry = nextPerformanceLog[dateKey]
+          ? { ...nextPerformanceLog[dateKey], byType: { ...nextPerformanceLog[dateKey].byType } }
+          : initPerformanceLogEntry();
+        const pronSet = new Set([...(entry.pronunciationReviewItems || []), pronToAdd]);
+        entry.pronunciationReviewItems = Array.from(pronSet);
+        nextPerformanceLog = { ...nextPerformanceLog, [dateKey]: entry };
+      }
+
       return {
         ...state,
         dailyPlan: {
           ...state.dailyPlan,
           lessons: updatedLessons,
         },
+        performanceLog: nextPerformanceLog,
       };
     }),
 
@@ -1948,6 +1972,9 @@ export const useLessonStore = create<LessonState>()(persist(
     addFailedWord: (lessonId: string, wordIndex: number) => set((state) => {
       if (!state.dailyPlan) return state;
 
+      let vocabItemToAdd: string | null = null;
+      let pronItemToAdd: string | null = null;
+
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId && lesson.sessionState) {
           const currentState = lesson.sessionState as VocabularyState;
@@ -1962,6 +1989,15 @@ export const useLessonStore = create<LessonState>()(persist(
           // Remove from skipped words to prevent duplication
           const cleanedSkippedWords = skippedWords.filter(index => index !== wordIndex);
 
+          // Prepare review items for log
+          const wordObj = currentState.words?.[wordIndex];
+          if (wordObj?.word) {
+            vocabItemToAdd = wordObj.word;
+          }
+          if (wordObj?.targetSound) {
+            pronItemToAdd = `/${wordObj.targetSound}/`;
+          }
+
           return {
             ...lesson,
             sessionState: {
@@ -1974,12 +2010,31 @@ export const useLessonStore = create<LessonState>()(persist(
         return lesson;
       });
 
+      // Append review items to today's performance log
+      let nextPerformanceLog = state.performanceLog;
+      if (vocabItemToAdd || pronItemToAdd) {
+        const dateKey = getDateKey(state.dailyPlan.date);
+        const entry = nextPerformanceLog[dateKey]
+          ? { ...nextPerformanceLog[dateKey], byType: { ...nextPerformanceLog[dateKey].byType } }
+          : initPerformanceLogEntry();
+        if (vocabItemToAdd) {
+          const vocabSet = new Set([...(entry.vocabularyReviewItems || []), vocabItemToAdd]);
+          entry.vocabularyReviewItems = Array.from(vocabSet);
+        }
+        if (pronItemToAdd) {
+          const pronSet = new Set([...(entry.pronunciationReviewItems || []), pronItemToAdd]);
+          entry.pronunciationReviewItems = Array.from(pronSet);
+        }
+        nextPerformanceLog = { ...nextPerformanceLog, [dateKey]: entry };
+      }
+
       return {
         ...state,
         dailyPlan: {
           ...state.dailyPlan,
           lessons: updatedLessons,
         },
+        performanceLog: nextPerformanceLog,
       };
     }),
     addSuccessWord: (lessonId: string, wordIndex: number) => set((state) => {
@@ -2011,6 +2066,9 @@ export const useLessonStore = create<LessonState>()(persist(
     addSkippedWord: (lessonId: string, wordIndex: number) => set((state) => {
       if (!state.dailyPlan) return state;
 
+      let vocabItemToAdd: string | null = null;
+      let pronItemToAdd: string | null = null;
+
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId && lesson.sessionState) {
           const currentState = lesson.sessionState as VocabularyState;
@@ -2033,6 +2091,13 @@ export const useLessonStore = create<LessonState>()(persist(
           // Add word index if not already in the skipped list
           if (!skippedWords.includes(wordIndex)) {
             skippedWords.push(wordIndex);
+            const wordObj = currentState.words?.[wordIndex];
+            if (wordObj?.word) {
+              vocabItemToAdd = wordObj.word;
+            }
+            if (wordObj?.targetSound) {
+              pronItemToAdd = `/${wordObj.targetSound}/`;
+            }
           }
 
           // Remove from incomplete words to prevent duplication
@@ -2051,17 +2116,38 @@ export const useLessonStore = create<LessonState>()(persist(
         return lesson;
       });
 
+      // Append review items to today's performance log
+      let nextPerformanceLog = state.performanceLog;
+      if (vocabItemToAdd || pronItemToAdd) {
+        const dateKey = getDateKey(state.dailyPlan.date);
+        const entry = nextPerformanceLog[dateKey]
+          ? { ...nextPerformanceLog[dateKey], byType: { ...nextPerformanceLog[dateKey].byType } }
+          : initPerformanceLogEntry();
+        if (vocabItemToAdd) {
+          const vocabSet = new Set([...(entry.vocabularyReviewItems || []), vocabItemToAdd]);
+          entry.vocabularyReviewItems = Array.from(vocabSet);
+        }
+        if (pronItemToAdd) {
+          const pronSet = new Set([...(entry.pronunciationReviewItems || []), pronItemToAdd]);
+          entry.pronunciationReviewItems = Array.from(pronSet);
+        }
+        nextPerformanceLog = { ...nextPerformanceLog, [dateKey]: entry };
+      }
+
       return {
         ...state,
         dailyPlan: {
           ...state.dailyPlan,
           lessons: updatedLessons,
         },
+        performanceLog: nextPerformanceLog,
       };
     }),
 
     retryIncompleteWord: (lessonId: string, wordIndex: number) => set((state) => {
       if (!state.dailyPlan) return state;
+
+      let vocabItemToRemove: string | null = null;
 
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId && lesson.sessionState) {
@@ -2083,6 +2169,12 @@ export const useLessonStore = create<LessonState>()(persist(
           // Remove the word from both incomplete and skipped lists to prevent duplication
           const failedWords = currentState.failedWords.filter(index => index !== wordIndex);
           const skippedWords = currentState.skippedWords.filter(index => index !== wordIndex);
+
+          // Prepare log removal for this word
+          const wordObj = currentState.words?.[wordIndex];
+          if (wordObj?.word) {
+            vocabItemToRemove = wordObj.word;
+          }
 
           return {
             ...lesson,
@@ -2113,22 +2205,44 @@ export const useLessonStore = create<LessonState>()(persist(
         return lesson;
       });
 
+      // Remove vocabulary item from today's performance log
+      let nextPerformanceLog = state.performanceLog;
+      if (vocabItemToRemove) {
+        const dateKey = getDateKey(state.dailyPlan.date);
+        const existing = nextPerformanceLog[dateKey];
+        if (existing) {
+          const updatedEntry = {
+            ...existing,
+            vocabularyReviewItems: (existing.vocabularyReviewItems || []).filter(v => v !== vocabItemToRemove),
+          };
+          nextPerformanceLog = { ...nextPerformanceLog, [dateKey]: updatedEntry };
+        }
+      }
+
       return {
         ...state,
         dailyPlan: {
           ...state.dailyPlan,
           lessons: updatedLessons,
         },
+        performanceLog: nextPerformanceLog,
       };
     }),
 
     removeIncompleteWord: (lessonId: string, wordIndex: number) => set((state) => {
       if (!state.dailyPlan) return state;
 
+      let vocabItemToRemove: string | null = null;
+
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId && lesson.sessionState) {
           const currentState = lesson.sessionState as VocabularyState;
           const failedWords = currentState.failedWords.filter(index => index !== wordIndex);
+
+          const wordObj = currentState.words?.[wordIndex];
+          if (wordObj?.word) {
+            vocabItemToRemove = wordObj.word;
+          }
 
           return {
             ...lesson,
@@ -2141,22 +2255,44 @@ export const useLessonStore = create<LessonState>()(persist(
         return lesson;
       });
 
+      // Remove vocabulary item from today's performance log
+      let nextPerformanceLog = state.performanceLog;
+      if (vocabItemToRemove) {
+        const dateKey = getDateKey(state.dailyPlan.date);
+        const existing = nextPerformanceLog[dateKey];
+        if (existing) {
+          const updatedEntry = {
+            ...existing,
+            vocabularyReviewItems: (existing.vocabularyReviewItems || []).filter(v => v !== vocabItemToRemove),
+          };
+          nextPerformanceLog = { ...nextPerformanceLog, [dateKey]: updatedEntry };
+        }
+      }
+
       return {
         ...state,
         dailyPlan: {
           ...state.dailyPlan,
           lessons: updatedLessons,
         },
+        performanceLog: nextPerformanceLog,
       };
     }),
 
     removeSkippedWord: (lessonId: string, wordIndex: number) => set((state) => {
       if (!state.dailyPlan) return state;
 
+      let vocabItemToRemove: string | null = null;
+
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId && lesson.sessionState) {
           const currentState = lesson.sessionState as VocabularyState;
           const skippedWords = currentState.skippedWords.filter(index => index !== wordIndex);
+
+          const wordObj = currentState.words?.[wordIndex];
+          if (wordObj?.word) {
+            vocabItemToRemove = wordObj.word;
+          }
 
           return {
             ...lesson,
@@ -2169,12 +2305,27 @@ export const useLessonStore = create<LessonState>()(persist(
         return lesson;
       });
 
+      // Remove vocabulary item from today's performance log
+      let nextPerformanceLog = state.performanceLog;
+      if (vocabItemToRemove) {
+        const dateKey = getDateKey(state.dailyPlan.date);
+        const existing = nextPerformanceLog[dateKey];
+        if (existing) {
+          const updatedEntry = {
+            ...existing,
+            vocabularyReviewItems: (existing.vocabularyReviewItems || []).filter(v => v !== vocabItemToRemove),
+          };
+          nextPerformanceLog = { ...nextPerformanceLog, [dateKey]: updatedEntry };
+        }
+      }
+
       return {
         ...state,
         dailyPlan: {
           ...state.dailyPlan,
           lessons: updatedLessons,
         },
+        performanceLog: nextPerformanceLog,
       };
     }),
 
@@ -2218,10 +2369,12 @@ export const useLessonStore = create<LessonState>()(persist(
     addCompletedWord: (lessonId: string, wordIndex: number) => set((state) => {
       if (!state.dailyPlan) return state;
 
+      let wordNewlyCompleted = false;
       const updatedLessons = state.dailyPlan.lessons.map(lesson => {
         if (lesson.id === lessonId && lesson.sessionState && 'completedWords' in lesson.sessionState) {
           const vocabularyState = lesson.sessionState as VocabularyState;
           if (!vocabularyState.completedWords.includes(wordIndex)) {
+            wordNewlyCompleted = true;
             return {
               ...lesson,
               sessionState: {
@@ -2234,12 +2387,25 @@ export const useLessonStore = create<LessonState>()(persist(
         return lesson;
       });
 
+      // Micro-activity: increment in-lesson events for newly completed vocabulary word
+      let nextPerformanceLog = state.performanceLog;
+      if (wordNewlyCompleted) {
+        const dateKey = getDateKey(state.dailyPlan.date);
+        const existingEntry = nextPerformanceLog[dateKey];
+        const entry = existingEntry
+          ? { ...existingEntry, byType: { ...existingEntry.byType } }
+          : initPerformanceLogEntry();
+        entry.inLessonEvents = (entry.inLessonEvents || 0) + 1;
+        nextPerformanceLog = { ...nextPerformanceLog, [dateKey]: entry };
+      }
+
       return {
         ...state,
         dailyPlan: {
           ...state.dailyPlan,
           lessons: updatedLessons,
         },
+        performanceLog: nextPerformanceLog,
       };
     }),
 
@@ -2278,7 +2444,8 @@ export const useLessonStore = create<LessonState>()(persist(
 
     getPerformanceMetrics: () => {
       const state = get();
-      return calculateUserPerformanceMetrics({
+      // Prefer daily snapshot when available; lifetime-only remains stable fallback.
+      const lifetime = calculateUserPerformanceMetrics({
         dailyPlan: state.dailyPlan,
         lifetimeLessonsSeen: state.lifetimeLessonsSeen,
         lifetimeLessonsCompleted: state.lifetimeLessonsCompleted,
@@ -2286,6 +2453,8 @@ export const useLessonStore = create<LessonState>()(persist(
         lifetimeAccuracyCount: state.lifetimeAccuracyCount,
         lifetimeLessonTypeStats: state.lifetimeLessonTypeStats,
       });
+      const daily = calculatePerformanceSnapshot(state.performanceLog, state.dailyPlan?.date ?? getTodayDateString());
+      return selectEffectivePerformanceMetrics({ daily, lifetime });
     },
 
     getSpacedRepetitionNeeds: () => {
