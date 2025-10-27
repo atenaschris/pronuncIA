@@ -15,6 +15,24 @@ const windowWidth = Dimensions.get('window').width;
 // to avoid charts overflowing horizontally inside cards on small screens.
 const chartWidth = Math.max(0, windowWidth - 64);
 
+// Convert hex colors to rgba strings for chart-kit opacity handling
+function toRgba(hexOrCss: string, opacity = 1): string {
+  if (typeof hexOrCss !== 'string') return '#000000';
+  const c = hexOrCss.trim();
+  if (c.startsWith('#')) {
+    const hex = c.replace('#', '');
+    const full = hex.length === 3
+      ? hex.split('').map(h => h + h).join('')
+      : hex.padEnd(6, '0').slice(0, 6);
+    const r = parseInt(full.slice(0, 2), 16);
+    const g = parseInt(full.slice(2, 4), 16);
+    const b = parseInt(full.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  // If already rgb/rgba/hsl or named color, return as-is (opacity ignored)
+  return c;
+}
+
 function makeDateKeys(range: RangeKey, customFrom?: string, customTo?: string): string[] {
   const today = new Date();
   const keys: string[] = [];
@@ -197,6 +215,25 @@ export default function AnalyticsScreen() {
       .map((lt) => ({ name: lt, population: data.byTypeTotals[lt], color: undefined, legendFontColor: theme.colors.onSurface, legendFontSize: 12 }))
       .filter((item) => item.population > 0)
   ), [data, theme]);
+
+  // Precompute safe colors for pie slices to avoid undefined access
+  const pieSliceColors: string[] = useMemo(() => {
+    const c = theme.colors;
+    const pick = (key: string, fallback: string) => {
+      const v = (theme.colors as any)[key];
+      return typeof v === 'string' ? v : fallback;
+    };
+    return [
+      c.primary,
+      pick('tertiary', c.secondary),
+      c.secondary,
+      c.outline,
+      c.error,
+      pick('inversePrimary', c.primary),
+      c.surface,
+    ];
+  }, [theme]);
+
   const typeAccuracyBars = useMemo(() => (
     (Object.keys(data.typeAccuracy) as LessonType[])
       .map((lt) => ({ label: lt, value: Number(data.typeAccuracy[lt].toFixed(0)) }))
@@ -323,15 +360,15 @@ export default function AnalyticsScreen() {
           <Card.Content>
             <RNPText variant="titleMedium">Accuracy Trend ({titleLabel})</RNPText>
             <LineChart
-              data={{ labels: data.daily.map((d) => d.key.slice(5)), datasets: [{ data: accuracyTrend }] }}
+              data={{ labels: data.daily.map((d) => d.key.slice(5)), datasets: [{ data: accuracyTrend, color: (opacity = 1) => toRgba(theme.colors.primary, opacity) }] }}
               width={chartWidth}
               height={220}
               yAxisSuffix="%"
               chartConfig={{
                 backgroundGradientFrom: '#ffffff',
                 backgroundGradientTo: '#ffffff',
-                color: () => theme.colors.primary,
-                labelColor: () => theme.colors.onSurface,
+                color: (opacity = 1) => toRgba(theme.colors.primary, opacity),
+                labelColor: (opacity = 1) => toRgba(theme.colors.onSurface, opacity),
                 decimalPlaces: 0,
               }}
               bezier
@@ -344,7 +381,7 @@ export default function AnalyticsScreen() {
           <Card.Content>
             <RNPText variant="titleMedium">Lessons Completed ({titleLabel})</RNPText>
             <BarChart
-              data={{ labels: data.daily.map((d) => d.key.slice(5)), datasets: [{ data: completedTrend }] }}
+              data={{ labels: data.daily.map((d) => d.key.slice(5)), datasets: [{ data: completedTrend, color: (opacity = 1) => toRgba(theme.colors.primary, opacity) }] }}
               width={chartWidth}
               height={220}
               yAxisLabel=""
@@ -352,8 +389,8 @@ export default function AnalyticsScreen() {
               chartConfig={{
                 backgroundGradientFrom: '#ffffff',
                 backgroundGradientTo: '#ffffff',
-                color: () => theme.colors.primary,
-                labelColor: () => theme.colors.onSurface,
+                color: (opacity = 1) => toRgba(theme.colors.primary, opacity),
+                labelColor: (opacity = 1) => toRgba(theme.colors.onSurface, opacity),
                 decimalPlaces: 0,
               }}
               style={{ marginVertical: 8 }}
@@ -365,14 +402,14 @@ export default function AnalyticsScreen() {
           <Card.Content>
             <RNPText variant="titleMedium">XP Trend ({titleLabel})</RNPText>
             <LineChart
-              data={{ labels: data.daily.map((d) => d.key.slice(5)), datasets: [{ data: xpTrend }] }}
+              data={{ labels: data.daily.map((d) => d.key.slice(5)), datasets: [{ data: xpTrend, color: (opacity = 1) => toRgba(theme.colors.secondary, opacity) }] }}
               width={chartWidth}
               height={220}
               chartConfig={{
                 backgroundGradientFrom: '#ffffff',
                 backgroundGradientTo: '#ffffff',
-                color: () => theme.colors.secondary,
-                labelColor: () => theme.colors.onSurface,
+                color: (opacity = 1) => toRgba(theme.colors.secondary, opacity),
+                labelColor: (opacity = 1) => toRgba(theme.colors.onSurface, opacity),
                 decimalPlaces: 0,
               }}
               bezier
@@ -385,7 +422,7 @@ export default function AnalyticsScreen() {
           <Card.Content>
             <RNPText variant="titleMedium">Freeze Usage ({titleLabel})</RNPText>
             <BarChart
-              data={{ labels: data.daily.map((d) => d.key.slice(5)), datasets: [{ data: freezesTrend }] }}
+              data={{ labels: data.daily.map((d) => d.key.slice(5)), datasets: [{ data: freezesTrend, color: (opacity = 1) => toRgba(theme.colors.secondary, opacity) }] }}
               width={chartWidth}
               height={220}
               yAxisLabel=""
@@ -393,8 +430,8 @@ export default function AnalyticsScreen() {
               chartConfig={{
                 backgroundGradientFrom: '#ffffff',
                 backgroundGradientTo: '#ffffff',
-                color: () => theme.colors.secondary,
-                labelColor: () => theme.colors.onSurface,
+                color: (opacity = 1) => toRgba(theme.colors.secondary, opacity),
+                labelColor: (opacity = 1) => toRgba(theme.colors.onSurface, opacity),
                 decimalPlaces: 0,
               }}
               style={{ marginVertical: 8 }}
@@ -409,8 +446,8 @@ export default function AnalyticsScreen() {
               data={{
                 labels: data.daily.map((d) => d.key.slice(5)),
                 datasets: [
-                  { data: vocabBacklogTrend, color: () => theme.colors.primary },
-                  { data: pronBacklogTrend, color: () => theme.colors.error },
+                  { data: vocabBacklogTrend, color: (opacity = 1) => toRgba(theme.colors.primary, opacity) },
+                  { data: pronBacklogTrend, color: (opacity = 1) => toRgba(theme.colors.error, opacity) },
                 ],
                 legend: ['Vocabulary', 'Pronunciation'],
               }}
@@ -419,8 +456,8 @@ export default function AnalyticsScreen() {
               chartConfig={{
                 backgroundGradientFrom: '#ffffff',
                 backgroundGradientTo: '#ffffff',
-                color: () => theme.colors.primary,
-                labelColor: () => theme.colors.onSurface,
+                color: (opacity = 1) => toRgba(theme.colors.primary, opacity),
+                labelColor: (opacity = 1) => toRgba(theme.colors.onSurface, opacity),
                 decimalPlaces: 0,
               }}
               bezier
@@ -436,11 +473,18 @@ export default function AnalyticsScreen() {
               <PieChart
                 data={typeDistribution.map((slice, idx) => ({
                   ...slice,
-                  color: [theme.colors.primary, theme.colors.tertiary, theme.colors.secondary, theme.colors.outline, theme.colors.error, theme.colors.inversePrimary, theme.colors.surface][idx % 7],
+                  color: pieSliceColors[idx % pieSliceColors.length],
                 }))}
                 width={chartWidth}
                 height={220}
                 accessor={"population"}
+                chartConfig={{
+                  backgroundGradientFrom: '#ffffff',
+                  backgroundGradientTo: '#ffffff',
+                  color: (opacity = 1) => toRgba(theme.colors.primary, opacity),
+                  labelColor: (opacity = 1) => toRgba(theme.colors.onSurface, opacity),
+                  decimalPlaces: 0,
+                }}
                 backgroundColor={"transparent"}
                 paddingLeft={"8"}
                 center={[0, 0]}
@@ -458,7 +502,7 @@ export default function AnalyticsScreen() {
               <BarChart
                 data={{
                   labels: typeAccuracyBars.map(b => b.label),
-                  datasets: [{ data: typeAccuracyBars.map(b => b.value) }],
+                  datasets: [{ data: typeAccuracyBars.map(b => b.value), color: (opacity = 1) => toRgba(((theme.colors as any).tertiary as string) || theme.colors.primary, opacity) }],
                 }}
                 width={chartWidth}
                 height={220}
@@ -467,8 +511,8 @@ export default function AnalyticsScreen() {
                 chartConfig={{
                   backgroundGradientFrom: '#ffffff',
                   backgroundGradientTo: '#ffffff',
-                  color: () => theme.colors.tertiary,
-                  labelColor: () => theme.colors.onSurface,
+                  color: (opacity = 1) => toRgba(((theme.colors as any).tertiary as string) || theme.colors.primary, opacity),
+                  labelColor: (opacity = 1) => toRgba(theme.colors.onSurface, opacity),
                   decimalPlaces: 0,
                 }}
                 style={{ marginVertical: 8 }}

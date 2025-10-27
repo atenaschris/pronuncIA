@@ -111,21 +111,7 @@ export const calculateSpacedRepetitionNeeds = (state: {
   const INCREASE_THRESHOLD = 85;
   const DECREASE_THRESHOLD = 60;
 
-  const getDifficultyFromAccuracy = (acc?: number | null): 'increase' | 'maintain' | 'decrease' => {
-    if (typeof acc === 'number') {
-      if (acc >= INCREASE_THRESHOLD) return 'increase';
-      if (acc < DECREASE_THRESHOLD) return 'decrease';
-    }
-    return 'maintain';
-  };
-
-  // Compute lifetime average accuracy if available
-  const lifetimeAvgAccuracy = (state.lifetimeAccuracyCount || 0) > 0
-    ? (state.lifetimeAccuracyTotal || 0) / (state.lifetimeAccuracyCount || 0)
-    : null;
-  
   if (!dailyPlan || !dailyPlan.lessons.length) {
-    
     let difficultyAdjustment: 'increase' | 'maintain' | 'decrease' = 'maintain'
     let vocabularyReview: string[] = [];
     let pronunciationReview: string[] = [];
@@ -137,8 +123,7 @@ export const calculateSpacedRepetitionNeeds = (state: {
     };
     return result;
   }
-
-  // If there are lessons but no evidence of activity (no completions or accuracy/errors),
+    // If there are lessons but no evidence of activity (no completions or accuracy/errors),
   // short-circuit to empty reviews and lifetime-based difficulty adjustment.
   const hasAnyActivityEvidence = (dailyPlan?.lessons || []).some((lesson: Lesson) => {
     if (!lesson.completed || !lesson.sessionState) return false;
@@ -158,6 +143,20 @@ export const calculateSpacedRepetitionNeeds = (state: {
     }
     return false;
   });
+
+  const getDifficultyFromAccuracy = (acc?: number | null): 'increase' | 'maintain' | 'decrease' => {
+    if (typeof acc === 'number') {
+      if (acc >= INCREASE_THRESHOLD) return 'increase';
+      if (acc < DECREASE_THRESHOLD) return 'decrease';
+    }
+    return 'maintain';
+  };
+
+  // Compute lifetime average accuracy if available
+  const lifetimeAvgAccuracy = (state.lifetimeAccuracyCount || 0) > 0
+    ? (state.lifetimeAccuracyTotal || 0) / (state.lifetimeAccuracyCount || 0)
+    : null;
+
 
   if (!hasAnyActivityEvidence) {
     let difficultyAdjustment: 'increase' | 'maintain' | 'decrease' = getDifficultyFromAccuracy(lifetimeAvgAccuracy);
@@ -317,6 +316,7 @@ export interface PerformanceLogEntry {
   accuracyTotal: number;
   accuracyCount: number;
   xpEarned: number;
+
   streakFreezesUsed?: number;
   // Persisted review backlog for the day (deduped per entry)
   vocabularyReviewItems: string[];
