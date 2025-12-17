@@ -5,7 +5,7 @@ import { LessonType, useLessonStore } from '@/lib/store/lesson-store';
 import React, { useMemo, useState } from 'react';
 import { Dimensions, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
-import { Button, Card, SegmentedButtons, Switch, TextInput, Chip } from 'react-native-paper';
+import { Button, Card, Chip, SegmentedButtons, Switch, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type RangeKey = 'daily' | 'weekly' | 'monthly' | 'lifetime' | 'custom';
@@ -194,9 +194,8 @@ export default function AnalyticsScreen() {
   const lifetimeAvgAccuracy = useMemo(() => {
     return lifetimeAccuracyCount > 0 ? (lifetimeAccuracyTotal / lifetimeAccuracyCount) * 100 : 0;
   }, [lifetimeAccuracyTotal, lifetimeAccuracyCount]);
-
+  
   const data = useMemo(() => aggregateRange(performanceLog, range, customFrom, customTo, smooth), [performanceLog, range, customFrom, customTo, smooth]);
-
   // Lifetime summary for fallback cards
   const lifetimeSummary = useMemo(() => summarizeLifetimeFromLog(performanceLog || {}), [performanceLog]);
 

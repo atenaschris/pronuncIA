@@ -8,16 +8,16 @@ import {
 } from '../helpers/date-streak-utils';
 import type { PerformanceLog, PerformanceMetrics, SpacedRepetitionData } from '../helpers/performance-utils';
 import {
+  calculatePerformanceSnapshot,
   calculateSpacedRepetitionNeeds,
   calculateUserPerformanceMetrics,
+  createDefaultLessonTypeStats,
+  getDateKey,
+  initPerformanceLogEntry,
   rollUpCompletedLessonToLog,
   rollUpFreezeUsageToLog,
   rollUpGeneratedPlanToLog,
-  calculatePerformanceSnapshot,
   selectEffectivePerformanceMetrics,
-  initPerformanceLogEntry,
-  getDateKey,
-  createDefaultLessonTypeStats,
 } from '../helpers/performance-utils';
 import { aiService } from '../services/ai-service'; // Import AI service
 import { buildDailyPlanPrompt } from '../services/plan-prompt-builder';
@@ -325,7 +325,8 @@ export const useLessonStore = create<LessonState>()(persist(
         const entry = existingEntry
           ? { ...existingEntry, byType: { ...existingEntry.byType } }
           : initPerformanceLogEntry();
-        entry.inLessonEvents = (entry.inLessonEvents || 0) + 1;
+        // Treat in-lesson activity as a boolean (0/1) instead of an unbounded counter
+        entry.inLessonEvents = 1;
         newPerformanceLog = { ...newPerformanceLog, [dateKey]: entry };
       }
       if (lessonNewlyFullyCompleted) {
@@ -2395,7 +2396,8 @@ export const useLessonStore = create<LessonState>()(persist(
         const entry = existingEntry
           ? { ...existingEntry, byType: { ...existingEntry.byType } }
           : initPerformanceLogEntry();
-        entry.inLessonEvents = (entry.inLessonEvents || 0) + 1;
+        // Treat in-lesson activity as a boolean (0/1) instead of an unbounded counter
+        entry.inLessonEvents = 1;
         nextPerformanceLog = { ...nextPerformanceLog, [dateKey]: entry };
       }
 
